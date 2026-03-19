@@ -1,0 +1,13 @@
+# Table: facilities
+# Description: Plant locations and facilities
+# Total Columns: 13
+
+id,name,code,description,address,city,state,zip_code,country,status,manager_id,created_at,updated_at
+# DATA_TYPES:,int,varchar,varchar,text,text,varchar,varchar,varchar,varchar,enum,int,timestamp,timestamp
+# NULLABLE:,NO,NO,NO,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES
+# DEFAULTS:,,,,,,,,,"USA","active",,"CURRENT_TIMESTAMP","CURRENT_TIMESTAMP"
+
+# SAMPLE DATA:
+1,Main Plant,MAIN-001,,,,,,USA,active,,Tue Mar 17 2026 12:45:26 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:45:26 GMT+0800 (Singapore Standard Time)
+2,Main Plant,MP-001,,,Industrial City,,,USA,active,,Tue Mar 17 2026 12:49:51 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:49:51 GMT+0800 (Singapore Standard Time)
+3,Warehouse A,WH-A,,,Logistics Hub,,,USA,active,,Tue Mar 17 2026 12:49:51 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:49:51 GMT+0800 (Singapore Standard Time)

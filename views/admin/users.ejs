@@ -1,0 +1,428 @@
+<%- include('../partials/header', { title: title, user: user }) %>
+
+<div class="page admin-page">
+  <header class="page-header">
+    <a href="/admin" class="btn-back" title="Back to Admin">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <h1>Manage Users</h1>
+    <div class="header-actions">
+      <button class="btn-icon" id="add-btn" onclick="openModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+  
+  <% if (user && user.role === 'supervisor') { %>
+  <div class="info-banner" style="background: #e0f2fe; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; color: #0369a1;">
+    <strong>Supervisor View:</strong> You can only see users assigned to your facility (<%= user.facility_name || 'Main Plant' %>). 
+    <a href="/work-orders" style="color: #0284c7; text-decoration: underline;">Back to Dashboard</a>
+  </div>
+  <% } %>
+
+  <!-- Users List -->
+  <div class="user-list" id="user-list">
+    <div class="loading-skeleton">
+      <div class="skeleton-item"></div>
+      <div class="skeleton-item"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit User Modal -->
+<div class="modal hidden" id="user-modal">
+  <div class="modal-overlay" onclick="closeModal()"></div>
+  <div class="modal-content modal-lg">
+    <div class="modal-header">
+      <h2 id="modal-title">Add User</h2>
+      <button class="btn-close" onclick="closeModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <form id="user-form" class="modal-body">
+      <input type="hidden" id="user-id" name="id">
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="username">Username *</label>
+          <input type="text" id="username" name="username" required placeholder="e.g., operator3">
+        </div>
+        <div class="form-group">
+          <label for="email">Email *</label>
+          <input type="email" id="email" name="email" required placeholder="e.g., user@company.com">
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="full_name">Full Name</label>
+          <input type="text" id="full_name" name="full_name" placeholder="e.g., John Smith">
+        </div>
+        <div class="form-group">
+          <label for="role">Role *</label>
+          <select id="role" name="role" required>
+            <option value="operator">Operator</option>
+            <% if (user && user.role === 'admin') { %>
+            <option value="supervisor">Supervisor</option>
+            <option value="admin">Administrator</option>
+            <% } %>
+          </select>
+          <% if (user && user.role === 'supervisor') { %>
+          <small class="form-hint">Supervisors can only create operator accounts</small>
+          <% } %>
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="facility_id">Facility</label>
+          <select id="facility_id" name="facility_id" <%= user && user.role === 'supervisor' ? 'disabled' : '' %>>
+            <option value="">-- Select Facility --</option>
+          </select>
+          <% if (user && user.role === 'supervisor') { %>
+          <small class="form-hint">Users are automatically assigned to your facility</small>
+          <% } %>
+        </div>
+        <div class="form-group">
+          <label for="is_active">Status</label>
+          <select id="is_active" name="is_active">
+            <option value="1">Active</option>
+            <option value="0">Inactive</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-group" id="password-group">
+        <label for="password">Password *</label>
+        <input type="password" id="password" name="password" placeholder="Min 6 characters">
+        <small class="form-hint" id="password-hint">Required for new users</small>
+      </div>
+      
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save User</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+checkAuth();
+
+let editingId = null;
+
+// Load users on page load
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('Users page loaded');
+  loadUsers();
+  loadFacilities();
+  
+  // Add button event listener
+  const addBtn = document.getElementById('add-btn');
+  if (addBtn) {
+    console.log('Add button found, attaching listener');
+    addBtn.addEventListener('click', (e) => {
+      console.log('Add button clicked');
+      e.preventDefault();
+      e.stopPropagation();
+      openModal();
+    });
+  } else {
+    console.error('Add button not found!');
+  }
+});
+
+// Form submission
+document.getElementById('user-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  // Validation
+  const username = document.getElementById('username').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const role = document.getElementById('role').value;
+  
+  if (!username) {
+    showToast('Username is required', 'error');
+    return;
+  }
+  if (!email) {
+    showToast('Email is required', 'error');
+    return;
+  }
+  if (!editingId && !password) {
+    showToast('Password is required for new users', 'error');
+    return;
+  }
+  if (password && password.length < 6) {
+    showToast('Password must be at least 6 characters', 'error');
+    return;
+  }
+  
+  const formData = {
+    username: username,
+    email: email,
+    full_name: document.getElementById('full_name').value.trim(),
+    role: role,
+    facility_id: document.getElementById('facility_id').value || null,
+    is_active: document.getElementById('is_active').value === '1'
+  };
+  
+  if (password) {
+    formData.password = password;
+  }
+  
+  console.log('[User Form] Submitting:', { editingId, formData });
+  
+  try {
+    const url = editingId ? `/api/users/${editingId}` : '/api/users';
+    const method = editingId ? 'PUT' : 'POST';
+    
+    const response = await fetch(url, {
+      method: method,
+      headers: getAuthHeaders(),
+      body: JSON.stringify(formData)
+    });
+    
+    const data = await response.json();
+    console.log('[User Form] Response:', data);
+    
+    if (data.success) {
+      showToast(editingId ? 'User updated' : 'User created', 'success');
+      closeModal();
+      loadUsers();
+    } else {
+      showToast(data.message || 'Failed to save', 'error');
+    }
+  } catch (error) {
+    console.error('[User Form] Error:', error);
+    showToast('Error saving user', 'error');
+  }
+});
+
+async function loadUsers() {
+  try {
+    console.log('[Users] Loading users...');
+    const response = await fetch('/api/users', {
+      headers: getAuthHeaders()
+    });
+    
+    const data = await response.json();
+    console.log('[Users] API response:', data);
+    
+    if (data.success) {
+      console.log('[Users] Loaded', data.data.users.length, 'users');
+      renderUsers(data.data.users);
+    } else {
+      console.error('[Users] API error:', data.message);
+      showToast(data.message || 'Failed to load users', 'error');
+    }
+  } catch (error) {
+    console.error('[Users] Error loading users:', error);
+    showToast('Failed to load users', 'error');
+  }
+}
+
+async function loadFacilities() {
+  try {
+    const response = await fetch('/api/facilities', {
+      headers: getAuthHeaders()
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      const select = document.getElementById('facility_id');
+      // Keep the first option (placeholder)
+      select.innerHTML = '<option value="">-- Select Facility --</option>';
+      
+      data.data.facilities.forEach(facility => {
+        const option = document.createElement('option');
+        option.value = facility.id;
+        option.textContent = facility.name;
+        select.appendChild(option);
+      });
+    }
+  } catch (error) {
+    console.error('Error loading facilities:', error);
+  }
+}
+
+function renderUsers(users) {
+  const container = document.getElementById('user-list');
+  
+  if (!users || users.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+        <p>No users found</p>
+        <button class="btn btn-primary" onclick="openModal()">Add First User</button>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = users.map(u => `
+    <div class="user-card" data-id="${u.id}">
+      <div class="user-header">
+        <span class="user-role ${u.role}">${u.role}</span>
+        <span class="user-status ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? 'Active' : 'Inactive'}</span>
+      </div>
+      <h3 class="user-name">${u.full_name || u.username}</h3>
+      <p class="user-email">${u.email}</p>
+      <p class="user-username">@${u.username}</p>
+      <p class="user-facility" style="font-size: 12px; color: #666; margin-top: 4px;">${u.facility_name || 'No facility assigned'}</p>
+      <div class="user-actions" style="margin-top: 8px;">
+        <button class="btn-icon" onclick="editUser(${u.id}, '${escapeHtml(u.username)}', '${escapeHtml(u.email)}', '${escapeHtml(u.full_name || '')}', '${u.role}', ${u.facility_id || 'null'}, ${u.is_active})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </button>
+        <button class="btn-icon btn-danger" onclick="deleteUser(${u.id})" ${u.id === 1 ? 'disabled' : ''}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openModal() {
+  console.log('openModal() called');
+  editingId = null;
+  const modal = document.getElementById('user-modal');
+  
+  document.getElementById('modal-title').textContent = 'Add User';
+  document.getElementById('user-form').reset();
+  document.getElementById('user-id').value = '';
+  document.getElementById('password').required = true;
+  document.getElementById('password-hint').textContent = 'Required for new users';
+  
+  // For supervisors, auto-select their facility
+  <% if (user && user.role === 'supervisor' && user.facility_id) { %>
+  document.getElementById('facility_id').value = '<%= user.facility_id %>';
+  <% } %>
+  
+  modal.classList.remove('hidden');
+}
+
+function editUser(id, username, email, fullName, role, facilityId, isActive) {
+  const currentUserId = <%= user ? user.id : 'null' %>;
+  const currentUserRole = '<%= user ? user.role : '' %>';
+  
+  editingId = id;
+  document.getElementById('modal-title').textContent = 'Edit User';
+  document.getElementById('user-id').value = id;
+  document.getElementById('username').value = username;
+  document.getElementById('email').value = email;
+  document.getElementById('full_name').value = fullName;
+  document.getElementById('role').value = role;
+  document.getElementById('facility_id').value = facilityId || '';
+  document.getElementById('is_active').value = isActive ? '1' : '0';
+  document.getElementById('password').required = false;
+  document.getElementById('password').value = '';
+  document.getElementById('password-hint').textContent = 'Leave blank to keep current password';
+  
+  // Prevent editing your own role or active status
+  if (id === currentUserId) {
+    document.getElementById('role').disabled = true;
+    document.getElementById('is_active').disabled = true;
+    document.getElementById('password-hint').textContent = 'Leave blank to keep current password. Cannot modify your own role or status.';
+  } else {
+    document.getElementById('role').disabled = false;
+    document.getElementById('is_active').disabled = false;
+  }
+  
+  // For supervisors editing users, disable facility and role
+  if (currentUserRole === 'supervisor') {
+    document.getElementById('role').disabled = true;
+    document.getElementById('facility_id').disabled = true;
+  }
+  
+  document.getElementById('user-modal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('user-modal').classList.add('hidden');
+  editingId = null;
+  
+  // Re-enable disabled fields for next time
+  document.getElementById('role').disabled = false;
+  document.getElementById('is_active').disabled = false;
+  document.getElementById('facility_id').disabled = <%= user && user.role === 'supervisor' ? 'true' : 'false' %>;
+}
+
+async function deleteUser(id) {
+  if (id === 1) {
+    showToast('Cannot delete admin user', 'error');
+    return;
+  }
+  
+  if (!confirm('Are you sure you want to delete this user?')) return;
+  
+  try {
+    const response = await fetch(`/api/users/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showToast('User deleted', 'success');
+      loadUsers();
+    } else {
+      showToast(data.message || 'Failed to delete', 'error');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    showToast('Error deleting user', 'error');
+  }
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, "&#039;");
+}
+
+function getAuthHeaders() {
+  const token = localStorage.getItem('token');
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
+}
+
+function checkAuth() {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    window.location.href = '/login';
+  }
+}
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+</script>
+
+<%- include('../partials/footer') %>

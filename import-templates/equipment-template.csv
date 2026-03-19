@@ -1,0 +1,4 @@
+name,code,description,category,manufacturer,model,location,status,criticality,facility_id
+Assembly Line B,EQ-005,Secondary assembly line,Production,Acme Corp,AL-5001,Building B Floor 1,operational,high,1
+Conveyor Belt 1,EQ-006,Main conveyor system,Material Handling,ConveyTech,CT-100,Building A Floor 1,operational,medium,1
+Air Compressor,EQ-007,Industrial air compressor,Utilities,AirPower,AP-200,Building A Basement,operational,low,1

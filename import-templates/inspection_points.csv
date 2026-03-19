@@ -1,0 +1,13 @@
+# Table: inspection_points
+# Description: Data collection points for tasks
+# Total Columns: 16
+
+id,task_master_id,point_code,description,input_type,min_value,max_value,unit_of_measure,expected_value,acceptable_values,is_critical,sort_order,help_text,is_active,created_at,updated_at
+# DATA_TYPES:,int,int,varchar,varchar,enum,decimal,decimal,varchar,varchar,text,tinyint,int,text,tinyint,timestamp,timestamp
+# NULLABLE:,NO,NO,NO,NO,NO,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES
+# DEFAULTS:,,,,,"numeric",,,,,,"0","0",,"1","CURRENT_TIMESTAMP","CURRENT_TIMESTAMP"
+
+# SAMPLE DATA:
+1,1,IP-001,Check bearing temperature,numeric,,,,,,0,10,,1,Tue Mar 17 2026 12:49:51 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:49:51 GMT+0800 (Singapore Standard Time)
+2,1,IP-002,Check oil level,select,,,,,,0,10,,1,Tue Mar 17 2026 12:49:51 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:49:51 GMT+0800 (Singapore Standard Time)
+3,1,IP-003,Check for leaks,boolean,,,,,,0,10,,1,Tue Mar 17 2026 12:49:51 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:49:51 GMT+0800 (Singapore Standard Time)

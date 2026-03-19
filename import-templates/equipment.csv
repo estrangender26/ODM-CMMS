@@ -1,0 +1,13 @@
+# Table: equipment
+# Description: Machinery and equipment assets
+# Total Columns: 19
+
+id,facility_id,name,code,description,category,manufacturer,model,serial_number,location,install_date,warranty_expiry,status,criticality,purchase_cost,purchase_date,created_by,created_at,updated_at
+# DATA_TYPES:,int,int,varchar,varchar,text,varchar,varchar,varchar,varchar,varchar,date,date,enum,enum,decimal,date,int,timestamp,timestamp
+# NULLABLE:,NO,NO,NO,NO,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES
+# DEFAULTS:,,,,,,,,,,,,,"operational","medium",,,,"CURRENT_TIMESTAMP","CURRENT_TIMESTAMP"
+
+# SAMPLE DATA:
+1,1,Centrifugal Pump A,PUMP-001,,Pump,,,,,,,operational,medium,,,,Tue Mar 17 2026 12:49:51 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:49:51 GMT+0800 (Singapore Standard Time)
+2,1,Centrifugal Pump B,PUMP-002,,Pump,,,,,,,operational,medium,,,,Tue Mar 17 2026 12:49:51 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:49:51 GMT+0800 (Singapore Standard Time)
+3,1,Electric Motor 50HP,MOTOR-001,,Motor,,,,,,,operational,medium,,,,Tue Mar 17 2026 12:49:51 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:49:51 GMT+0800 (Singapore Standard Time)

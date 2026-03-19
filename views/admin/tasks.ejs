@@ -1,0 +1,629 @@
+<%- include('../partials/header', { title: title, user: user }) %>
+
+<% const isAdminUser = user && user.role === 'admin'; %>
+
+<div class="page admin-page">
+  <header class="page-header">
+    <a href="/admin" class="btn-back" title="Back to Admin">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <h1>Task Templates</h1>
+    <% if (isAdminUser) { %>
+    <div class="header-actions">
+      <button class="btn-icon" id="add-btn" onclick="openModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      </button>
+    </div>
+    <% } %>
+  </header>
+
+  <!-- Task List -->
+  <div class="task-list" id="task-list">
+    <div class="loading-skeleton">
+      <div class="skeleton-item"></div>
+      <div class="skeleton-item"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Task Modal -->
+<div class="modal hidden" id="task-modal">
+  <div class="modal-overlay" onclick="closeModal()"></div>
+  <div class="modal-content modal-lg">
+    <div class="modal-header">
+      <h2 id="modal-title">Add Task Template</h2>
+      <button class="btn-close" onclick="closeModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <form id="task-form" class="modal-body">
+      <input type="hidden" id="task-id" name="id">
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="task_code">Task Code *</label>
+          <input type="text" id="task_code" name="task_code" required placeholder="e.g., SMP-DAILY-001">
+        </div>
+        <div class="form-group">
+          <label for="task_type">Task Type *</label>
+          <select id="task_type" name="task_type" required>
+            <option value="inspection">Inspection</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="repair">Repair</option>
+            <option value="cleaning">Cleaning</option>
+            <option value="lubrication">Lubrication</option>
+            <option value="calibration">Calibration</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="title">Task Title *</label>
+        <input type="text" id="title" name="title" required placeholder="e.g., Daily Pump Inspection">
+      </div>
+      
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea id="description" name="description" rows="3" placeholder="Detailed task description..."></textarea>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="estimated_duration">Estimated Duration (minutes)</label>
+          <input type="number" id="estimated_duration" name="estimated_duration" min="1" value="30">
+        </div>
+        <div class="form-group">
+          <label for="is_active">Status</label>
+          <select id="is_active" name="is_active">
+            <option value="1">Active</option>
+            <option value="0">Inactive</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="required_skills">Required Skills</label>
+        <input type="text" id="required_skills" name="required_skills" placeholder="e.g., Mechanical, Electrical">
+      </div>
+      
+      <div class="form-group">
+        <label for="safety_instructions">Safety Instructions</label>
+        <textarea id="safety_instructions" name="safety_instructions" rows="3" placeholder="Safety precautions..."></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label for="required_tools">Required Tools</label>
+        <input type="text" id="required_tools" name="required_tools" placeholder="e.g., Wrench, Multimeter">
+      </div>
+      
+      <div class="form-group">
+        <label for="required_parts">Required Parts/Materials</label>
+        <input type="text" id="required_parts" name="required_parts" placeholder="e.g., Oil, Filters">
+      </div>
+      
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Task</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Inspection Points Management Modal -->
+<div class="modal hidden" id="points-modal">
+  <div class="modal-overlay" onclick="closePointsModal()"></div>
+  <div class="modal-content" style="max-width: 600px; max-height: 80vh;">
+    <div class="modal-header">
+      <h2 id="points-modal-title">Inspection Points</h2>
+      <button class="btn-close" onclick="closePointsModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body" style="max-height: 50vh; overflow-y: auto;">
+      <div id="points-list">
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Loading inspection points...</p>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" onclick="closePointsModal()">Close</button>
+      <button type="button" class="btn btn-primary" onclick="openPointModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Add Point
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Inspection Point Modal -->
+<div class="modal hidden" id="point-modal">
+  <div class="modal-overlay" onclick="closePointModal()"></div>
+  <div class="modal-content" style="max-width: 500px;">
+    <div class="modal-header">
+      <h2 id="point-form-title">Add Inspection Point</h2>
+      <button class="btn-close" onclick="closePointModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <form id="point-form" class="modal-body">
+      <input type="hidden" id="point-id">
+      
+      <div class="form-group">
+        <label for="point-code">Point Code *</label>
+        <input type="text" id="point-code" required placeholder="e.g., CHECK-001">
+      </div>
+      
+      <div class="form-group">
+        <label for="point-description">Description *</label>
+        <input type="text" id="point-description" required placeholder="e.g., Check oil level">
+      </div>
+      
+      <div class="form-group">
+        <label for="point-help-text">Help Text</label>
+        <input type="text" id="point-help-text" placeholder="Additional instructions...">
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="point-input-type">Input Type *</label>
+          <select id="point-input-type" required>
+            <option value="boolean">Yes/No (Pass/Fail)</option>
+            <option value="numeric">Numeric Value</option>
+            <option value="text">Text</option>
+            <option value="select">Select/Options</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="point-is-critical">Critical Point</label>
+          <select id="point-is-critical">
+            <option value="0">No</option>
+            <option value="1">Yes</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="point-expected-value">Expected Value</label>
+        <input type="text" id="point-expected-value" placeholder="e.g., true, good, 50">
+        <small class="form-hint">For boolean: true/false. For select: exact option value.</small>
+      </div>
+      
+      <div class="form-group">
+        <label for="point-unit">Unit of Measure</label>
+        <input type="text" id="point-unit" placeholder="e.g., psi, °C, mm">
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="point-min-value">Min Value</label>
+          <input type="number" id="point-min-value" step="0.01" placeholder="Optional">
+        </div>
+        <div class="form-group">
+          <label for="point-max-value">Max Value</label>
+          <input type="number" id="point-max-value" step="0.01" placeholder="Optional">
+        </div>
+      </div>
+    </form>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" onclick="closePointModal()">Cancel</button>
+      <button type="submit" class="btn btn-primary" form="point-form">Save Point</button>
+    </div>
+  </div>
+</div>
+
+<script>
+checkAuth();
+
+let editingId = null;
+
+// Load tasks on page load
+loadTasks();
+
+// Form submission
+document.getElementById('task-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const formData = {
+    task_code: document.getElementById('task_code').value,
+    title: document.getElementById('title').value,
+    description: document.getElementById('description').value,
+    task_type: document.getElementById('task_type').value,
+    estimated_duration: parseInt(document.getElementById('estimated_duration').value),
+    required_skills: document.getElementById('required_skills').value,
+    safety_instructions: document.getElementById('safety_instructions').value,
+    required_tools: document.getElementById('required_tools').value,
+    required_parts: document.getElementById('required_parts').value,
+    is_active: document.getElementById('is_active').value === '1'
+  };
+  
+  try {
+    const url = editingId ? `/api/tasks/${editingId}` : '/api/tasks';
+    const method = editingId ? 'PUT' : 'POST';
+    
+    const response = await fetch(url, {
+      method: method,
+      headers: getAuthHeaders(),
+      body: JSON.stringify(formData)
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showToast(editingId ? 'Task updated' : 'Task created', 'success');
+      closeModal();
+      loadTasks();
+    } else {
+      showToast(data.message || 'Failed to save', 'error');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    showToast('Error saving task', 'error');
+  }
+});
+
+async function loadTasks() {
+  try {
+    const response = await fetch('/api/tasks', {
+      headers: getAuthHeaders()
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      renderTasks(data.data.tasks);
+    }
+  } catch (error) {
+    console.error('Error loading tasks:', error);
+    showToast('Failed to load tasks', 'error');
+  }
+}
+
+const isAdminUser = <%= isAdminUser ? 'true' : 'false' %>;
+
+function renderTasks(tasks) {
+  const container = document.getElementById('task-list');
+  
+  if (!tasks || tasks.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+        </svg>
+        <p>No task templates found</p>
+        ${isAdminUser ? '<button class="btn btn-primary" onclick="openModal()">Add First Task</button>' : ''}
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = tasks.map(task => `
+    <div class="equipment-card">
+      <div class="equipment-header">
+        <span class="equipment-code">${task.task_code}</span>
+        <span class="equipment-status ${task.task_type}">${task.task_type}</span>
+      </div>
+      <h3 class="equipment-name">${task.title}</h3>
+      <p class="equipment-facility">${task.description || ''}</p>
+      <div class="equipment-meta">
+        <span>${task.estimated_duration || '-'} min</span>
+        <span class="badge ${task.is_active ? 'active' : 'inactive'}">${task.is_active ? 'Active' : 'Inactive'}</span>
+      </div>
+      ${isAdminUser ? `
+      <div class="equipment-actions">
+        <button class="btn-icon" onclick="managePoints(${task.id}, '${task.title.replace(/'/g, "\\'")}')" title="Manage Inspection Points">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 11l3 3L22 4"/>
+            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+          </svg>
+        </button>
+        <button class="btn-icon" onclick="editTask(${task.id})" title="Edit Task">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </button>
+        <button class="btn-icon btn-danger" onclick="deleteTask(${task.id})" title="Delete Task">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+          </svg>
+        </button>
+      </div>
+      ` : ''}
+    </div>
+  `).join('');
+}
+
+async function editTask(id) {
+  try {
+    const response = await fetch(`/api/tasks/${id}`, {
+      headers: getAuthHeaders()
+    });
+    const data = await response.json();
+    
+    if (data.success && data.data.task) {
+      const task = data.data.task;
+      editingId = id;
+      document.getElementById('modal-title').textContent = 'Edit Task Template';
+      document.getElementById('task-id').value = id;
+      document.getElementById('task_code').value = task.task_code;
+      document.getElementById('title').value = task.title;
+      document.getElementById('description').value = task.description || '';
+      document.getElementById('task_type').value = task.task_type;
+      document.getElementById('estimated_duration').value = task.estimated_duration || 30;
+      document.getElementById('required_skills').value = task.required_skills || '';
+      document.getElementById('safety_instructions').value = task.safety_instructions || '';
+      document.getElementById('required_tools').value = task.required_tools || '';
+      document.getElementById('required_parts').value = task.required_parts || '';
+      document.getElementById('is_active').value = task.is_active ? '1' : '0';
+      document.getElementById('task-modal').classList.remove('hidden');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    showToast('Error loading task', 'error');
+  }
+}
+
+function openModal() {
+  editingId = null;
+  document.getElementById('modal-title').textContent = 'Add Task Template';
+  document.getElementById('task-form').reset();
+  document.getElementById('task-id').value = '';
+  document.getElementById('is_active').value = '1';
+  document.getElementById('task-modal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('task-modal').classList.add('hidden');
+  editingId = null;
+}
+
+async function deleteTask(id) {
+  if (!confirm('Are you sure you want to delete this task?')) return;
+  
+  try {
+    const response = await fetch(`/api/tasks/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showToast('Task deleted', 'success');
+      loadTasks();
+    } else {
+      showToast(data.message || 'Failed to delete', 'error');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    showToast('Error deleting task', 'error');
+  }
+}
+
+function getAuthHeaders() {
+  const token = localStorage.getItem('token');
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
+}
+
+function checkAuth() {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    window.location.href = '/login';
+  }
+}
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+// ============================================
+// INSPECTION POINTS MANAGEMENT
+// ============================================
+let currentTaskId = null;
+let currentTaskName = '';
+let inspectionPoints = [];
+
+async function managePoints(taskId, taskName) {
+  currentTaskId = taskId;
+  currentTaskName = taskName;
+  document.getElementById('points-modal-title').textContent = `Inspection Points: ${taskName}`;
+  document.getElementById('points-modal').classList.remove('hidden');
+  await loadInspectionPoints();
+}
+
+async function loadInspectionPoints() {
+  try {
+    const response = await fetch(`/api/inspections/points/task/${currentTaskId}`, {
+      headers: getAuthHeaders()
+    });
+    const data = await response.json();
+    
+    if (data.success) {
+      inspectionPoints = data.data.inspection_points || [];
+      renderInspectionPoints();
+    }
+  } catch (error) {
+    console.error('Error loading inspection points:', error);
+    showToast('Failed to load inspection points', 'error');
+  }
+}
+
+function renderInspectionPoints() {
+  const container = document.getElementById('points-list');
+  
+  if (!inspectionPoints || inspectionPoints.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="padding: 40px 20px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 48px; height: 48px; color: var(--text-tertiary); margin-bottom: 12px;">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+        </svg>
+        <p style="color: var(--text-secondary);">No inspection points configured</p>
+        <p style="color: var(--text-tertiary); font-size: 13px; margin-top: 4px;">Add points to define what needs to be checked</p>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = inspectionPoints.map((point, index) => `
+    <div class="inspection-point-item" style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-primary); border-radius: var(--radius); margin-bottom: 8px; border: 1px solid var(--border-light);">
+      <span style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--primary); color: white; border-radius: 50%; font-size: 12px; font-weight: 600; flex-shrink: 0;">${index + 1}</span>
+      <div style="flex: 1; min-width: 0;">
+        <div style="font-weight: 500; color: var(--text-primary); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${point.description}</div>
+        <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 2px;">
+          ${point.point_code} • ${point.input_type}${point.is_critical ? ' • <span style="color: var(--danger);">Critical</span>' : ''}
+        </div>
+      </div>
+      <button class="btn-icon" onclick="editPoint(${point.id})" title="Edit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+      </button>
+      <button class="btn-icon btn-danger" onclick="deletePoint(${point.id})" title="Delete">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+        </svg>
+      </button>
+    </div>
+  `).join('');
+}
+
+function closePointsModal() {
+  document.getElementById('points-modal').classList.add('hidden');
+  currentTaskId = null;
+  currentTaskName = '';
+  inspectionPoints = [];
+}
+
+function openPointModal(pointId = null) {
+  document.getElementById('point-form-title').textContent = pointId ? 'Edit Inspection Point' : 'Add Inspection Point';
+  document.getElementById('point-id').value = pointId || '';
+  
+  if (!pointId) {
+    document.getElementById('point-form').reset();
+    document.getElementById('point-code').value = `POINT-${inspectionPoints.length + 1}`;
+    document.getElementById('point-input-type').value = 'boolean';
+    document.getElementById('point-is-critical').value = '0';
+  } else {
+    const point = inspectionPoints.find(p => p.id === pointId);
+    if (point) {
+      document.getElementById('point-code').value = point.point_code;
+      document.getElementById('point-description').value = point.description;
+      document.getElementById('point-help-text').value = point.help_text || '';
+      document.getElementById('point-input-type').value = point.input_type;
+      document.getElementById('point-expected-value').value = point.expected_value || '';
+      document.getElementById('point-unit').value = point.unit_of_measure || '';
+      document.getElementById('point-min-value').value = point.min_value || '';
+      document.getElementById('point-max-value').value = point.max_value || '';
+      document.getElementById('point-is-critical').value = point.is_critical ? '1' : '0';
+    }
+  }
+  
+  document.getElementById('point-modal').classList.remove('hidden');
+}
+
+function closePointModal() {
+  document.getElementById('point-modal').classList.add('hidden');
+}
+
+document.getElementById('point-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const pointId = document.getElementById('point-id').value;
+  const formData = {
+    point_code: document.getElementById('point-code').value,
+    description: document.getElementById('point-description').value,
+    help_text: document.getElementById('point-help-text').value,
+    input_type: document.getElementById('point-input-type').value,
+    expected_value: document.getElementById('point-expected-value').value || null,
+    unit_of_measure: document.getElementById('point-unit').value || null,
+    min_value: document.getElementById('point-min-value').value ? parseFloat(document.getElementById('point-min-value').value) : null,
+    max_value: document.getElementById('point-max-value').value ? parseFloat(document.getElementById('point-max-value').value) : null,
+    is_critical: document.getElementById('point-is-critical').value === '1'
+  };
+  
+  try {
+    const url = pointId ? `/api/inspections/points/${pointId}` : `/api/inspections/points/task/${currentTaskId}`;
+    const method = pointId ? 'PUT' : 'POST';
+    
+    const response = await fetch(url, {
+      method: method,
+      headers: getAuthHeaders(),
+      body: JSON.stringify(formData)
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showToast(pointId ? 'Point updated' : 'Point created', 'success');
+      closePointModal();
+      await loadInspectionPoints();
+    } else {
+      showToast(data.message || 'Failed to save', 'error');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    showToast('Error saving inspection point', 'error');
+  }
+});
+
+async function editPoint(pointId) {
+  openPointModal(pointId);
+}
+
+async function deletePoint(pointId) {
+  if (!confirm('Are you sure you want to delete this inspection point?')) return;
+  
+  try {
+    const response = await fetch(`/api/inspections/points/${pointId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showToast('Point deleted', 'success');
+      await loadInspectionPoints();
+    } else {
+      showToast(data.message || 'Failed to delete', 'error');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    showToast('Error deleting point', 'error');
+  }
+}
+</script>
+
+<%- include('../partials/footer') %>

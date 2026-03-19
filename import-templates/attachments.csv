@@ -1,0 +1,8 @@
+# Table: attachments
+# Description: Files attached to work orders
+# Total Columns: 10
+
+id,entity_type,entity_id,file_name,original_name,file_path,file_size,mime_type,uploaded_by,uploaded_at
+# DATA_TYPES:,int,enum,int,varchar,varchar,varchar,int,varchar,int,timestamp
+# NULLABLE:,NO,NO,NO,NO,NO,NO,YES,YES,YES,YES
+# DEFAULTS:,,,,,,,,,,"CURRENT_TIMESTAMP"

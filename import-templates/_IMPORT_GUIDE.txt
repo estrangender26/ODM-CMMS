@@ -1,0 +1,45 @@
+# ODM-CMMS Import Templates Guide
+# Generated: 2026-03-17T05:03:02.406Z
+
+## Table Import Order (for foreign key constraints)
+
+1. facilities - Create facilities first
+2. equipment - Equipment belongs to facilities
+3. users - Create operators and admins
+4. task_master - Define SMPs and tasks
+5. inspection_points - Data collection fields for tasks
+6. schedules - Link equipment to tasks
+7. work_orders - Generate work orders
+8. inspection_readings - Record completed inspections
+9. attachments - Add files to work orders
+
+## File Descriptions
+
+attachments.csv - Files attached to work orders
+audit_log.csv - System activity log
+equipment.csv - Machinery and equipment assets
+facilities.csv - Plant locations and facilities
+inspection_points.csv - Data collection points for tasks
+inspection_readings.csv - Recorded inspection data
+schedules.csv - Maintenance schedule definitions
+task_master.csv - Standard Maintenance Procedures (SMPs)
+users.csv - System users and operators
+work_order_notes.csv - work_order_notes table
+work_orders.csv - Work order assignments
+
+## Import Tips
+
+- Use the column headers row for imports
+- Lines starting with # are comments
+- DATE format: YYYY-MM-DD
+- DATETIME format: YYYY-MM-DD HH:MM:SS
+- BOOLEAN: 1/0 or TRUE/FALSE
+- Foreign key IDs must exist in parent tables
+- Auto-increment IDs (usually 'id') can be left empty for new records
+
+## Quick Import Command
+
+node src/utils/import-csv.js <table_name> <csv_file>
+
+Example:
+node src/utils/import-csv.js equipment import-templates/equipment.csv

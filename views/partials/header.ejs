@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#2563EB">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title><%= title %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icon-192x192.png">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%232563EB'/><circle cx='50' cy='50' r='30' fill='white'/><circle cx='50' cy='50' r='12' fill='%23CBD5E1'/><circle cx='72' cy='28' r='18' fill='%2310B981'/><path d='M65 28 L70 33 L79 24' stroke='white' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+</head>
+<body class="<%= typeof user !== 'undefined' && user ? 'logged-in' : 'logged-out' %>" data-user-role="<%= typeof user !== 'undefined' && user ? user.role : '' %>">
+  <div id="app">
+    <% if (typeof user !== 'undefined' && user) { %>
+    <% const isAdmin = user.role === 'admin' || user.role === 'supervisor'; %>
+    
+    <!-- Top Navigation Bar -->
+    <header class="top-header">
+      <!-- Brand Logo -->
+      <a href="/dashboard" class="brand-logo" title="ODM-CMMS Home">
+        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="headerLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#2563EB"/>
+              <stop offset="100%" stop-color="#0EA5E9"/>
+            </linearGradient>
+          </defs>
+          <!-- Gear Circle -->
+          <circle cx="50" cy="50" r="42" fill="url(#headerLogoGrad)"/>
+          <!-- Gear Teeth -->
+          <path d="M50 8 L53 8 L54 16 L46 16 L47 8 Z" fill="url(#headerLogoGrad)"/>
+          <path d="M50 92 L47 92 L46 84 L54 84 L53 92 Z" fill="url(#headerLogoGrad)"/>
+          <path d="M8 50 L8 47 L16 46 L16 54 L8 53 Z" fill="url(#headerLogoGrad)"/>
+          <path d="M92 50 L92 53 L84 54 L84 46 L92 47 Z" fill="url(#headerLogoGrad)"/>
+          <!-- Inner White Circle -->
+          <circle cx="50" cy="50" r="28" fill="white"/>
+          <!-- Center Gear -->
+          <circle cx="50" cy="50" r="12" fill="#E2E8F0"/>
+          <circle cx="50" cy="50" r="5" fill="#94A3B8"/>
+          <!-- Checkmark Badge -->
+          <circle cx="76" cy="24" r="14" fill="#10B981" stroke="white" stroke-width="2"/>
+          <path d="M70 24 L74 28 L82 20" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="brand-logo-text hide-mobile">
+          <span class="brand-logo-title">ODM-CMMS</span>
+          <span class="brand-logo-subtitle">Operator-Driven Maintenance</span>
+        </div>
+      </a>
+      
+      <div class="header-title"><%= title.replace(' - ODM-CMMS', '') %></div>
+      
+      <div class="header-actions">
+        <!-- User Profile Button -->
+        <div class="user-profile-dropdown">
+          <button class="user-avatar" id="user-menu-btn" onclick="toggleUserMenu()" aria-label="User menu">
+            <span class="avatar-text"><%= user.full_name ? user.full_name.charAt(0).toUpperCase() : user.username.charAt(0).toUpperCase() %></span>
+          </button>
+          <div class="dropdown-menu hidden" id="user-dropdown">
+            <div class="dropdown-header">
+              <strong><%= user.full_name || user.username %></strong>
+              <small><%= user.email %></small>
+              <span class="badge badge-status-<%= user.role === 'admin' ? 'open' : user.role === 'supervisor' ? 'assigned' : 'completed' %>"><%= user.role %></span>
+            </div>
+            <div class="dropdown-divider"></div>
+            <a href="/profile" class="dropdown-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              My Profile
+            </a>
+            <a href="/work-orders?filter=my" class="dropdown-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 11l3 3L22 4"/>
+                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+              </svg>
+              My Tasks
+            </a>
+            <% if (isAdmin) { %>
+            <div class="dropdown-divider"></div>
+            <a href="/admin" class="dropdown-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+              </svg>
+              Admin Panel
+            </a>
+            <% } %>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item text-danger" onclick="logout()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+    
+    <!-- Floating Home Button -->
+    <a href="/dashboard" class="fab-home" title="Home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+    </a>
+    <% } %>
+    
+    <% if (typeof user !== 'undefined' && user) { %>
+    <% const isAdmin = user.role === 'admin' || user.role === 'supervisor'; %>
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav" id="main-nav">
+      <a href="/dashboard" class="nav-item" data-page="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        <span>Home</span>
+      </a>
+      <a href="/work-orders?filter=my" class="nav-item" data-page="work-orders">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+        </svg>
+        <span>Tasks</span>
+      </a>
+      <a href="/equipment" class="nav-item" data-page="equipment">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="4" y="4" width="16" height="16" rx="2"/>
+          <rect x="9" y="9" width="6" height="6"/>
+          <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3"/>
+        </svg>
+        <span>Equipment</span>
+      </a>
+      <% if (isAdmin) { %>
+      <a href="/admin" class="nav-item admin-nav-item" data-page="admin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+        <span>Admin</span>
+      </a>
+      <% } %>
+    </nav>
+    
+    <script>
+    // User menu toggle
+    function toggleUserMenu() {
+      const dropdown = document.getElementById('user-dropdown');
+      dropdown.classList.toggle('hidden');
+      dropdown.classList.toggle('visible');
+    }
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+      const menu = document.querySelector('.user-profile-dropdown');
+      const dropdown = document.getElementById('user-dropdown');
+      if (menu && !menu.contains(e.target) && dropdown) {
+        dropdown.classList.add('hidden');
+        dropdown.classList.remove('visible');
+      }
+    });
+    
+    // Logout function
+    async function logout() {
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+      } catch (e) {
+        console.error('Logout error:', e);
+      }
+      localStorage.clear();
+      window.location.href = '/login';
+    }
+    
+    // Highlight current nav item
+    const currentPath = window.location.pathname;
+    const currentSearch = window.location.search;
+    document.querySelectorAll('.nav-item').forEach(item => {
+      const href = item.getAttribute('href');
+      if (!href) return;
+      
+      // Remove query params for comparison
+      const cleanHref = href.split('?')[0];
+      
+      // Match by pathname
+      if (currentPath === cleanHref || currentPath.startsWith(cleanHref + '/')) {
+        item.classList.add('active');
+      }
+      
+      // Special case for work-orders page
+      if (currentPath === '/work-orders') {
+        const isMine = currentSearch.includes('filter=my');
+        const isAll = currentSearch.includes('filter=all');
+        
+        if (isMine && href.includes('filter=my')) {
+          item.classList.add('active');
+        } else if (isAll && href.includes('filter=all')) {
+          item.classList.add('active');
+        }
+      }
+    });
+    </script>
+    <% } %>
+  
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+  
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-overlay hidden">
+    <div class="spinner"></div>
+  </div>

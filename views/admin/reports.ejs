@@ -1,0 +1,1464 @@
+<%- include('../partials/header', { title: title, user: user }) %>
+
+<div class="page admin-page">
+  <!-- Header -->
+  <header class="page-header">
+    <a href="/admin" class="btn-back" title="Back to Admin">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <h1>Reports & Analytics</h1>
+    <div class="header-actions">
+      <% if (user && user.role !== 'admin') { %>
+      <span class="facility-badge" style="background: #e0f2fe; color: #0369a1; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 500;">
+        <%= user.facility_name || 'Your Facility' %>
+      </span>
+      <% } %>
+      <button class="btn-icon" id="refresh-btn" onclick="refreshAllReports()" title="Refresh All">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 4v6h-6M1 20v-6h6"/>
+          <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+  
+  <% if (user && user.role !== 'admin') { %>
+  <div class="info-banner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; flex-shrink: 0;">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    <div>
+      <strong>Filtered View:</strong> You are viewing data for <strong><%= user.facility_name || 'your assigned facility' %></strong> only. 
+      <% if (!user.facility_id) { %>
+      <span style="color: var(--danger);">⚠️ You are not assigned to a facility. Please contact an administrator.</span>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
+
+  <!-- Date Range Filter -->
+  <div class="filter-bar">
+    <div class="filter-group">
+      <label>From</label>
+      <input type="date" id="date-from" value="<%= new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0] %>">
+    </div>
+    <div class="filter-group">
+      <label>To</label>
+      <input type="date" id="date-to" value="<%= new Date().toISOString().split('T')[0] %>">
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="applyDateFilter()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
+      Apply
+    </button>
+    <button class="btn btn-secondary btn-sm" onclick="resetDateFilter()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+        <path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/>
+        <path d="M3 3v5h5"/>
+      </svg>
+      Reset
+    </button>
+  </div>
+  
+  <!-- Debug Output -->
+  <div id="debug-output" style="display:none; background:#1e293b; color:#22c55e; padding:12px; margin:0 16px 16px; border-radius:8px; font-family:monospace; font-size:12px; max-height:200px; overflow-y:auto;"></div>
+
+  <!-- Reports Grid -->
+  <div class="reports-grid">
+    <!-- Work Order Summary -->
+    <div class="report-card" onclick="showReport('work-orders')">
+      <div class="report-header">
+        <div class="report-icon blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 11l3 3L22 4"/>
+            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+          </svg>
+        </div>
+        <div class="report-actions">
+          <button class="btn-icon btn-sm" onclick="event.stopPropagation(); exportReport('work-orders')" title="Export CSV">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <h3>Work Order Summary</h3>
+      <p>Status, priority, and completion metrics</p>
+      <div class="report-preview" id="wo-preview">
+        <span class="loading-dots">Loading...</span>
+      </div>
+    </div>
+
+    <!-- Equipment Report -->
+    <div class="report-card" onclick="showReport('equipment')">
+      <div class="report-header">
+        <div class="report-icon green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+        </div>
+        <div class="report-actions">
+          <button class="btn-icon btn-sm" onclick="event.stopPropagation(); exportReport('equipment')" title="Export CSV">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <h3>Equipment Status</h3>
+      <p>Maintenance history by equipment</p>
+      <div class="report-preview" id="equipment-preview">
+        <span class="loading-dots">Loading...</span>
+      </div>
+    </div>
+
+    <!-- Schedule Compliance -->
+    <div class="report-card" onclick="showReport('compliance')">
+      <div class="report-header">
+        <div class="report-icon orange">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <span class="badge urgent" id="overdue-badge" style="display:none">0</span>
+      </div>
+      <h3>Schedule Compliance</h3>
+      <p>Overdue and upcoming maintenance</p>
+      <div class="report-preview" id="compliance-preview">
+        <span class="loading-dots">Loading...</span>
+      </div>
+    </div>
+
+    <!-- Technician Performance -->
+    <div class="report-card" onclick="showReport('technicians')">
+      <div class="report-header">
+        <div class="report-icon purple">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div class="report-actions">
+          <button class="btn-icon btn-sm" onclick="event.stopPropagation(); exportReport('technicians')" title="Export CSV">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <h3>Technician Performance</h3>
+      <p>Work completion by operator</p>
+      <div class="report-preview" id="tech-preview">
+        <span class="loading-dots">Loading...</span>
+      </div>
+    </div>
+
+    <!-- Trends Analysis -->
+    <div class="report-card" onclick="showReport('trends')">
+      <div class="report-header">
+        <div class="report-icon teal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/>
+          </svg>
+        </div>
+      </div>
+      <h3>Trends Analysis</h3>
+      <p>Work orders over time</p>
+      <div class="report-preview" id="trends-preview">
+        <span class="loading-dots">Loading...</span>
+      </div>
+    </div>
+
+    <!-- Priority Breakdown -->
+    <div class="report-card" onclick="showReport('priority')">
+      <div class="report-header">
+        <div class="report-icon red">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+      </div>
+      <h3>Priority Analysis</h3>
+      <p>Urgent vs normal work distribution</p>
+      <div class="report-preview" id="priority-preview">
+        <span class="loading-dots">Loading...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report Detail Modal -->
+  <div class="modal hidden" id="report-modal">
+    <div class="modal-overlay" onclick="closeReport()"></div>
+    <div class="modal-content report-modal-content">
+      <div class="modal-header">
+        <h2 id="report-title">Report</h2>
+        <div class="modal-actions">
+          <button class="btn btn-secondary btn-sm" onclick="exportCurrentReport()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Export CSV
+          </button>
+          <button class="btn-close" onclick="closeReport()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="modal-body report-body" id="report-content">
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Loading report...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Global state
+let currentReportType = null;
+let currentReportData = null;
+let dateFrom = document.getElementById('date-from').value;
+let dateTo = document.getElementById('date-to').value;
+
+// Load all previews on page load
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('[Reports] Page loaded, initializing...');
+  loadAllPreviews().catch(err => {
+    console.error('[Reports] Failed to load previews:', err);
+    showToast('Some reports failed to load. Check console.', 'error');
+  });
+});
+
+function applyDateFilter() {
+  dateFrom = document.getElementById('date-from').value;
+  dateTo = document.getElementById('date-to').value;
+  loadAllPreviews();
+}
+
+function resetDateFilter() {
+  const today = new Date();
+  const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+  
+  document.getElementById('date-to').value = today.toISOString().split('T')[0];
+  document.getElementById('date-from').value = thirtyDaysAgo.toISOString().split('T')[0];
+  
+  applyDateFilter();
+}
+
+function refreshAllReports() {
+  const btn = document.getElementById('refresh-btn');
+  btn.style.animation = 'spin 1s linear';
+  loadAllPreviews().then(() => {
+    setTimeout(() => btn.style.animation = '', 1000);
+  });
+}
+
+async function loadAllPreviews() {
+  await Promise.all([
+    loadWorkOrderPreview(),
+    loadEquipmentPreview(),
+    loadCompliancePreview(),
+    loadTechnicianPreview(),
+    loadTrendsPreview(),
+    loadPriorityPreview()
+  ]);
+}
+
+// ==================== PREVIEW LOADERS ====================
+
+async function loadWorkOrderPreview() {
+  const container = document.getElementById('wo-preview');
+  try {
+    console.log('[Reports] Loading work order preview...');
+    const params = new URLSearchParams({ start_date: dateFrom, end_date: dateTo });
+    const response = await fetch(`/api/reports/work-orders/summary?${params}`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    console.log('[Reports] Response status:', response.status);
+    const result = await response.json();
+    console.log('[Reports] Response:', result);
+    
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || `HTTP ${response.status}`);
+    }
+    
+    const data = result.data;
+    const total = data.metrics?.total || 0;
+    const completed = data.metrics?.completed || 0;
+    const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    
+    container.innerHTML = `
+      <div class="preview-stats">
+        <div class="preview-stat">
+          <span class="value">${total}</span>
+          <span class="label">Total</span>
+        </div>
+        <div class="preview-stat">
+          <span class="value">${completed}</span>
+          <span class="label">Done</span>
+        </div>
+        <div class="preview-stat">
+          <span class="value">${rate}%</span>
+          <span class="label">Rate</span>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    console.error('[Reports] Work order preview error:', error);
+    container.innerHTML = `<span class="error-text" onclick="alert('Error: ${error.message.replace(/'/g, "\\'")}')">Failed to load (click for details)</span>`;
+  }
+}
+
+async function loadEquipmentPreview() {
+  const container = document.getElementById('equipment-preview');
+  try {
+    console.log('[Reports] Loading equipment preview...');
+    const response = await fetch('/api/reports/equipment', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const { data } = await response.json();
+    console.log('[Reports] Equipment data:', data);
+    
+    const total = data.equipment?.length || 0;
+    const withWorkOrders = data.equipment?.filter(e => e.total_work_orders > 0).length || 0;
+    
+    container.innerHTML = `
+      <div class="preview-stats">
+        <div class="preview-stat">
+          <span class="value">${total}</span>
+          <span class="label">Equipment</span>
+        </div>
+        <div class="preview-stat">
+          <span class="value">${withWorkOrders}</span>
+          <span class="label">Active</span>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    console.error('[Reports] Equipment preview error:', error);
+    container.innerHTML = `<span class="error-text">Failed to load</span>`;
+  }
+}
+
+async function loadCompliancePreview() {
+  const container = document.getElementById('compliance-preview');
+  try {
+    console.log('[Reports] Loading compliance preview...');
+    const response = await fetch('/api/reports/schedule-compliance', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const { data } = await response.json();
+    console.log('[Reports] Compliance data:', data);
+    
+    const overdue = data.summary?.overdue_count || 0;
+    const dueThisWeek = data.summary?.due_this_week || 0;
+    
+    // Update badge
+    const badge = document.getElementById('overdue-badge');
+    if (badge && overdue > 0) {
+      badge.textContent = overdue;
+      badge.style.display = 'inline-block';
+    }
+    
+    container.innerHTML = `
+      <div class="preview-stats">
+        <div class="preview-stat ${overdue > 0 ? 'urgent' : ''}">
+          <span class="value">${overdue}</span>
+          <span class="label">Overdue</span>
+        </div>
+        <div class="preview-stat">
+          <span class="value">${dueThisWeek}</span>
+          <span class="label">This Week</span>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    container.innerHTML = `<span class="error-text">Failed to load</span>`;
+  }
+}
+
+async function loadTechnicianPreview() {
+  const container = document.getElementById('tech-preview');
+  try {
+    console.log('[Reports] Loading technician preview...');
+    const params = new URLSearchParams({ start_date: dateFrom, end_date: dateTo });
+    const response = await fetch(`/api/reports/technicians?${params}`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const { data } = await response.json();
+    console.log('[Reports] Technician data:', data);
+    
+    const topPerformer = data?.sort((a, b) => (b.completed || 0) - (a.completed || 0))[0];
+    
+    container.innerHTML = `
+      <div class="preview-stats">
+        <div class="preview-stat">
+          <span class="value">${data?.length || 0}</span>
+          <span class="label">Staff</span>
+        </div>
+        <div class="preview-stat">
+          <span class="value">${topPerformer?.completed || 0}</span>
+          <span class="label">Top Performer</span>
+        </div>
+      </div>
+      ${topPerformer ? `<small style="color: #64748b; display: block; margin-top: 8px;">${topPerformer.full_name}</small>` : ''}
+    `;
+  } catch (error) {
+    container.innerHTML = `<span class="error-text">Failed to load</span>`;
+  }
+}
+
+async function loadTrendsPreview() {
+  const container = document.getElementById('trends-preview');
+  try {
+    console.log('[Reports] Loading trends preview...');
+    const response = await fetch('/api/reports/trends?months=6', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const { data } = await response.json();
+    console.log('[Reports] Trends data:', data);
+    
+    const recent = data?.slice(-3) || [];
+    const total = recent.reduce((sum, r) => sum + (r.total_created || 0), 0);
+    const avg = recent.length > 0 ? Math.round(total / recent.length) : 0;
+    
+    // Simple bar chart
+    const max = Math.max(...recent.map(r => r.total_created || 0), 1);
+    const bars = recent.map(r => {
+      const height = ((r.total_created || 0) / max) * 30;
+      return `<div class="mini-bar" style="height: ${height}px;" title="${r.period}: ${r.total_created}"></div>`;
+    }).join('');
+    
+    container.innerHTML = `
+      <div class="mini-chart">${bars}</div>
+      <small style="color: #64748b;">Avg: ${avg}/month</small>
+    `;
+  } catch (error) {
+    container.innerHTML = `<span class="error-text">Failed to load</span>`;
+  }
+}
+
+async function loadPriorityPreview() {
+  const container = document.getElementById('priority-preview');
+  try {
+    console.log('[Reports] Loading priority preview...');
+    const params = new URLSearchParams({ start_date: dateFrom, end_date: dateTo });
+    const response = await fetch(`/api/reports/work-orders/summary?${params}`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || `HTTP ${response.status}`);
+    }
+    
+    const data = result.data;
+    const urgent = data.priority_breakdown?.find(p => p.priority === 'urgent')?.count || 0;
+    const high = data.priority_breakdown?.find(p => p.priority === 'high')?.count || 0;
+    const total = data.metrics?.total || 1;
+    
+    const urgentPercent = Math.round((urgent / total) * 100);
+    
+    container.innerHTML = `
+      <div class="priority-bars">
+        <div class="priority-bar urgent" style="width: ${urgentPercent}%"></div>
+      </div>
+      <div class="preview-stats">
+        <div class="preview-stat">
+          <span class="value urgent">${urgent}</span>
+          <span class="label">Urgent</span>
+        </div>
+        <div class="preview-stat">
+          <span class="value">${high}</span>
+          <span class="label">High</span>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    console.error('[Reports] Priority preview error:', error);
+    container.innerHTML = `<span class="error-text" onclick="alert('Error: ${error.message.replace(/'/g, "\\'")}')">Failed to load</span>`;
+  }
+}
+
+// ==================== FULL REPORT MODAL ====================
+
+async function showReport(type) {
+  currentReportType = type;
+  const modal = document.getElementById('report-modal');
+  const title = document.getElementById('report-title');
+  const content = document.getElementById('report-content');
+  
+  modal.classList.remove('hidden');
+  content.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Loading report...</p></div>';
+  
+  switch(type) {
+    case 'work-orders':
+      title.textContent = 'Work Order Summary';
+      await loadWorkOrderReport(content);
+      break;
+    case 'equipment':
+      title.textContent = 'Equipment Status Report';
+      await loadEquipmentReport(content);
+      break;
+    case 'compliance':
+      title.textContent = 'Schedule Compliance';
+      await loadComplianceReport(content);
+      break;
+    case 'technicians':
+      title.textContent = 'Technician Performance';
+      await loadTechnicianReport(content);
+      break;
+    case 'trends':
+      title.textContent = 'Trends Analysis';
+      await loadTrendsReport(content);
+      break;
+    case 'priority':
+      title.textContent = 'Priority Analysis';
+      await loadPriorityReport(content);
+      break;
+  }
+}
+
+function closeReport() {
+  document.getElementById('report-modal').classList.add('hidden');
+  currentReportType = null;
+  currentReportData = null;
+}
+
+// ==================== FULL REPORT LOADERS ====================
+
+async function loadWorkOrderReport(container) {
+  try {
+    const params = new URLSearchParams({ start_date: dateFrom, end_date: dateTo });
+    const response = await fetch(`/api/reports/work-orders/summary?${params}`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    if (!response.ok) throw new Error('Failed to load');
+    const { data } = await response.json();
+    currentReportData = data;
+    
+    const total = data.metrics?.total || 0;
+    const completed = data.metrics?.completed || 0;
+    const cancelled = data.metrics?.cancelled || 0;
+    const avgHours = Math.round(data.metrics?.avg_actual_hours || 0);
+    
+    container.innerHTML = `
+      <div class="report-section">
+        <h3>Key Metrics</h3>
+        <div class="metrics-grid">
+          <div class="metric">
+            <span class="metric-value">${total}</span>
+            <span class="metric-label">Total Orders</span>
+          </div>
+          <div class="metric">
+            <span class="metric-value">${completed}</span>
+            <span class="metric-label">Completed</span>
+          </div>
+          <div class="metric">
+            <span class="metric-value">${Math.round((completed / total * 100) || 0)}%</span>
+            <span class="metric-label">Completion Rate</span>
+          </div>
+          <div class="metric">
+            <span class="metric-value">${avgHours}h</span>
+            <span class="metric-label">Avg Hours</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="report-columns">
+        <div class="report-section">
+          <h3>By Status</h3>
+          <div class="simple-list">
+            ${data.status_breakdown?.map(item => `
+              <div class="list-item">
+                <span class="status-badge ${item.status}">${item.status.replace(/_/g, ' ')}</span>
+                <span class="count">${item.count}</span>
+              </div>
+            `).join('') || '<p>No data</p>'}
+          </div>
+        </div>
+        
+        <div class="report-section">
+          <h3>By Priority</h3>
+          <div class="simple-list">
+            ${data.priority_breakdown?.map(item => `
+              <div class="list-item">
+                <span class="priority-badge ${item.priority}">${item.priority}</span>
+                <span class="count">${item.count}</span>
+              </div>
+            `).join('') || '<p>No data</p>'}
+          </div>
+        </div>
+        
+        <div class="report-section">
+          <h3>By Type</h3>
+          <div class="simple-list">
+            ${data.type_breakdown?.map(item => `
+              <div class="list-item">
+                <span>${item.wo_type || 'Unknown'}</span>
+                <span class="count">${item.count}</span>
+              </div>
+            `).join('') || '<p>No data</p>'}
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    container.innerHTML = `<div class="error-state">${error.message}</div>`;
+  }
+}
+
+async function loadEquipmentReport(container) {
+  try {
+    const response = await fetch('/api/reports/equipment', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    if (!response.ok) throw new Error('Failed to load');
+    const { data } = await response.json();
+    currentReportData = data;
+    
+    container.innerHTML = `
+      <div class="report-section">
+        <h3>Category Breakdown</h3>
+        <div class="simple-list">
+          ${data.categories?.map(cat => `
+            <div class="list-item">
+              <span>${cat.category || 'Uncategorized'}</span>
+              <span class="count">${cat.count}</span>
+            </div>
+          `).join('') || '<p>No data</p>'}
+        </div>
+      </div>
+      
+      <div class="report-section">
+        <h3>Equipment Details</h3>
+        <div class="data-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Facility</th>
+                <th>Total WO</th>
+                <th>Completed</th>
+                <th>Pending</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.equipment?.map(eq => `
+                <tr>
+                  <td>${eq.code}</td>
+                  <td>${eq.name}</td>
+                  <td>${eq.facility_name}</td>
+                  <td>${eq.total_work_orders}</td>
+                  <td>${eq.completed_work_orders}</td>
+                  <td>${eq.pending_work_orders}</td>
+                </tr>
+              `).join('') || '<tr><td colspan="6">No data</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    container.innerHTML = `<div class="error-state">${error.message}</div>`;
+  }
+}
+
+async function loadComplianceReport(container) {
+  try {
+    const response = await fetch('/api/reports/schedule-compliance', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    if (!response.ok) throw new Error('Failed to load');
+    const { data } = await response.json();
+    currentReportData = data;
+    
+    const overdue = data.overdue || [];
+    
+    container.innerHTML = `
+      <div class="report-section">
+        <h3>Summary</h3>
+        <div class="metrics-grid">
+          <div class="metric">
+            <span class="metric-value">${data.summary?.total_schedules || 0}</span>
+            <span class="metric-label">Total Schedules</span>
+          </div>
+          <div class="metric urgent">
+            <span class="metric-value">${data.summary?.overdue_count || 0}</span>
+            <span class="metric-label">Overdue</span>
+          </div>
+          <div class="metric">
+            <span class="metric-value">${data.summary?.due_this_week || 0}</span>
+            <span class="metric-label">Due This Week</span>
+          </div>
+          <div class="metric">
+            <span class="metric-value">${data.summary?.future_schedules || 0}</span>
+            <span class="metric-label">Future</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="report-section">
+        <h3>Overdue Items (${overdue.length})</h3>
+        ${overdue.length === 0 ? 
+          '<p class="success-message">No overdue items! Great job!</p>' :
+          `<div class="overdue-list">
+            ${overdue.map(item => `
+              <div class="overdue-item">
+                <div class="item-header">
+                  <strong>${item.equipment_code} - ${item.equipment_name}</strong>
+                  <span class="badge urgent">${item.days_overdue} days overdue</span>
+                </div>
+                <p>${item.task_title}</p>
+                <small>Due: ${new Date(item.next_due_date).toLocaleDateString()} | Assigned: ${item.assigned_to_name || 'Unassigned'}</small>
+              </div>
+            `).join('')}
+          </div>`
+        }
+      </div>
+      
+      <div class="report-section">
+        <h3>Due This Week (${data.due_this_week?.length || 0})</h3>
+        ${data.due_this_week?.length === 0 ?
+          '<p>No items due this week</p>' :
+          `<div class="simple-list">
+            ${data.due_this_week.map(item => `
+              <div class="list-item">
+                <span>${item.equipment_code} - ${item.task_title}</span>
+                <span>${new Date(item.next_due_date).toLocaleDateString()}</span>
+              </div>
+            `).join('')}
+          </div>`
+        }
+      </div>
+    `;
+  } catch (error) {
+    container.innerHTML = `<div class="error-state">${error.message}</div>`;
+  }
+}
+
+async function loadTechnicianReport(container) {
+  try {
+    const params = new URLSearchParams({ start_date: dateFrom, end_date: dateTo });
+    const response = await fetch(`/api/reports/technicians?${params}`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    if (!response.ok) throw new Error('Failed to load');
+    const { data } = await response.json();
+    currentReportData = data;
+    
+    container.innerHTML = `
+      <div class="report-section">
+        <h3>Performance Summary</h3>
+        <div class="data-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Assigned</th>
+                <th>Completed</th>
+                <th>Pending</th>
+                <th>Rate</th>
+                <th>Avg Hours</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data?.map(user => {
+                const rate = user.total_assigned > 0 ? Math.round((user.completed / user.total_assigned) * 100) : 0;
+                return `
+                  <tr>
+                    <td>${user.full_name}</td>
+                    <td><span class="badge ${user.role}">${user.role}</span></td>
+                    <td>${user.total_assigned}</td>
+                    <td>${user.completed}</td>
+                    <td>${user.pending}</td>
+                    <td>${rate}%</td>
+                    <td>${Math.round(user.avg_hours_per_job || 0)}h</td>
+                  </tr>
+                `;
+              }).join('') || '<tr><td colspan="7">No data</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    container.innerHTML = `<div class="error-state">${error.message}</div>`;
+  }
+}
+
+async function loadTrendsReport(container) {
+  try {
+    const response = await fetch('/api/reports/trends?months=12', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    if (!response.ok) throw new Error('Failed to load');
+    const { data } = await response.json();
+    currentReportData = data;
+    
+    // Calculate stats
+    const total = data.reduce((sum, r) => sum + (r.total_created || 0), 0);
+    const completed = data.reduce((sum, r) => sum + (r.completed || 0), 0);
+    
+    container.innerHTML = `
+      <div class="report-section">
+        <h3>12-Month Overview</h3>
+        <div class="metrics-grid">
+          <div class="metric">
+            <span class="metric-value">${total}</span>
+            <span class="metric-label">Total Created</span>
+          </div>
+          <div class="metric">
+            <span class="metric-value">${completed}</span>
+            <span class="metric-label">Completed</span>
+          </div>
+          <div class="metric">
+            <span class="metric-value">${Math.round((completed / total * 100) || 0)}%</span>
+            <span class="metric-label">Rate</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="report-section">
+        <h3>Monthly Breakdown</h3>
+        <div class="data-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Period</th>
+                <th>Created</th>
+                <th>Completed</th>
+                <th>Urgent</th>
+                <th>Completion Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data?.map(row => {
+                const rate = row.total_created > 0 ? Math.round((row.completed / row.total_created) * 100) : 0;
+                return `
+                  <tr>
+                    <td>${row.period}</td>
+                    <td>${row.total_created}</td>
+                    <td>${row.completed}</td>
+                    <td>${row.urgent_count}</td>
+                    <td>${rate}%</td>
+                  </tr>
+                `;
+              }).join('') || '<tr><td colspan="5">No data</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    container.innerHTML = `<div class="error-state">${error.message}</div>`;
+  }
+}
+
+async function loadPriorityReport(container) {
+  try {
+    const params = new URLSearchParams({ start_date: dateFrom, end_date: dateTo });
+    const response = await fetch(`/api/reports/work-orders/summary?${params}`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    if (!response.ok) throw new Error('Failed to load');
+    const { data } = await response.json();
+    currentReportData = data;
+    
+    const total = data.metrics?.total || 0;
+    
+    container.innerHTML = `
+      <div class="report-section">
+        <h3>Priority Distribution</h3>
+        <div class="priority-chart">
+          ${data.priority_breakdown?.map(p => {
+            const percent = total > 0 ? Math.round((p.count / total) * 100) : 0;
+            return `
+              <div class="priority-row">
+                <div class="priority-label">
+                  <span class="priority-badge ${p.priority}">${p.priority}</span>
+                  <span class="priority-count">${p.count}</span>
+                </div>
+                <div class="priority-bar-container">
+                  <div class="priority-bar ${p.priority}" style="width: ${percent}%"></div>
+                </div>
+                <span class="priority-percent">${percent}%</span>
+              </div>
+            `;
+          }).join('') || '<p>No data</p>'}
+        </div>
+      </div>
+      
+      <div class="report-section">
+        <h3>Urgent Work Orders</h3>
+        <p>Total urgent work orders: <strong>${data.priority_breakdown?.find(p => p.priority === 'urgent')?.count || 0}</strong></p>
+      </div>
+    `;
+  } catch (error) {
+    container.innerHTML = `<div class="error-state">${error.message}</div>`;
+  }
+}
+
+// ==================== EXPORT FUNCTIONS ====================
+
+function exportReport(type) {
+  let data, filename;
+  
+  switch(type) {
+    case 'work-orders':
+      filename = 'work-order-summary.csv';
+      break;
+    case 'equipment':
+      filename = 'equipment-report.csv';
+      break;
+    case 'technicians':
+      filename = 'technician-performance.csv';
+      break;
+    default:
+      filename = 'report.csv';
+  }
+  
+  // Trigger download after data is loaded
+  showReport(type);
+  setTimeout(() => exportCurrentReport(filename), 500);
+}
+
+function exportCurrentReport(filename) {
+  if (!currentReportData) {
+    showToast('No data to export', 'error');
+    return;
+  }
+  
+  let csv = '';
+  
+  // Convert data to CSV based on report type
+  if (currentReportType === 'work-orders') {
+    csv = 'Status,Count\n';
+    csv += currentReportData.status_breakdown?.map(r => `${r.status},${r.count}`).join('\n') || '';
+    csv += '\n\nPriority,Count\n';
+    csv += currentReportData.priority_breakdown?.map(r => `${r.priority},${r.count}`).join('\n') || '';
+  } else if (currentReportType === 'equipment') {
+    csv = 'Code,Name,Facility,Total WO,Completed,Pending\n';
+    csv += currentReportData.equipment?.map(e => 
+      `${e.code},"${e.name}",${e.facility_name},${e.total_work_orders},${e.completed_work_orders},${e.pending_work_orders}`
+    ).join('\n') || '';
+  } else if (currentReportType === 'technicians') {
+    csv = 'Name,Role,Assigned,Completed,Pending,Avg Hours\n';
+    csv += currentReportData?.map(t => 
+      `"${t.full_name}",${t.role},${t.total_assigned},${t.completed},${t.pending},${Math.round(t.avg_hours_per_job || 0)}`
+    ).join('\n') || '';
+  } else if (currentReportType === 'trends') {
+    csv = 'Period,Created,Completed,Urgent\n';
+    csv += currentReportData?.map(t => 
+      `${t.period},${t.total_created},${t.completed},${t.urgent_count}`
+    ).join('\n') || '';
+  }
+  
+  // Download
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || `${currentReportType}-report.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+  
+  showToast('Report exported', 'success');
+}
+
+function getAuthHeaders() {
+  return {
+    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+    'Content-Type': 'application/json'
+  };
+}
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+// Debug logging
+function debugLog(msg) {
+  console.log(msg);
+  const debugDiv = document.getElementById('debug-output');
+  if (debugDiv) {
+    debugDiv.style.display = 'block';
+    debugDiv.innerHTML += msg + '<br>';
+  }
+}
+
+// Test API connectivity
+async function testAPI() {
+  debugLog('Testing API...');
+  try {
+    const response = await fetch('/api/reports/work-orders/summary', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    debugLog(`Response status: ${response.status}`);
+    
+    if (response.ok) {
+      const data = await response.json();
+      debugLog(`SUCCESS: ${JSON.stringify(data).substring(0, 200)}...`);
+    } else {
+      const text = await response.text();
+      debugLog(`ERROR: ${text.substring(0, 200)}`);
+    }
+  } catch (err) {
+    debugLog(`EXCEPTION: ${err.message}`);
+  }
+}
+</script>
+
+<style>
+/* Reports Grid */
+.reports-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+.report-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.report-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.report-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.report-icon svg {
+  width: 24px;
+  height: 24px;
+  color: white;
+}
+
+.report-icon.blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.report-icon.green { background: linear-gradient(135deg, #10b981, #059669); }
+.report-icon.orange { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.report-icon.purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+.report-icon.teal { background: linear-gradient(135deg, #14b8a6, #0d9488); }
+.report-icon.red { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+.report-card h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 4px;
+}
+
+.report-card p {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 16px;
+}
+
+.report-preview {
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.preview-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.preview-stat {
+  text-align: center;
+}
+
+.preview-stat .value {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.preview-stat .value.urgent {
+  color: #dc2626;
+}
+
+.preview-stat.urgent .value {
+  color: #dc2626;
+}
+
+.preview-stat .label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.loading-dots {
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.error-text {
+  color: #dc2626;
+  font-size: 13px;
+}
+
+/* Mini Chart */
+.mini-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 40px;
+  margin-bottom: 8px;
+}
+
+.mini-bar {
+  flex: 1;
+  background: #3b82f6;
+  border-radius: 2px;
+  min-height: 4px;
+}
+
+/* Priority Bars */
+.priority-bars {
+  margin-bottom: 12px;
+}
+
+.priority-bar {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+}
+
+.priority-bar.urgent {
+  background: #fecaca;
+}
+
+/* Filter Bar */
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: white;
+  margin: 0 16px 16px;
+  border-radius: 12px;
+  align-items: flex-end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filter-group label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.filter-group input {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+/* Report Modal */
+.report-modal-content {
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.report-body {
+  padding: 24px;
+}
+
+.report-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+}
+
+.report-section {
+  margin-bottom: 24px;
+}
+
+.report-section h3 {
+  font-size: 14px;
+  color: #64748b;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Metrics Grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 16px;
+}
+
+.metric {
+  text-align: center;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+}
+
+.metric.urgent {
+  background: #fef2f2;
+}
+
+.metric-value {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.metric.urgent .metric-value {
+  color: #dc2626;
+}
+
+.metric-label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* Lists */
+.simple-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+/* Badges */
+.status-badge, .priority-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  text-transform: capitalize;
+  font-weight: 500;
+}
+
+.priority-badge.urgent { background: #fecaca; color: #991b1b; }
+.priority-badge.high { background: #fed7aa; color: #9a3412; }
+.priority-badge.medium { background: #bfdbfe; color: #1e40af; }
+.priority-badge.low { background: #bbf7d0; color: #166534; }
+
+.status-badge.open { background: #e0f2fe; color: #0369a1; }
+.status-badge.assigned { background: #fef3c7; color: #92400e; }
+.status-badge.in_progress { background: #ddd6fe; color: #5b21b6; }
+.status-badge.completed { background: #bbf7d0; color: #166534; }
+.status-badge.closed { background: #e2e8f0; color: #475569; }
+
+.badge.operator { background: #dbeafe; color: #1e40af; }
+.badge.supervisor { background: #fef3c7; color: #92400e; }
+.badge.admin { background: #fecaca; color: #991b1b; }
+
+/* Data Table */
+.data-table {
+  overflow-x: auto;
+}
+
+.data-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.data-table th {
+  font-weight: 600;
+  color: #64748b;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.data-table td {
+  font-size: 14px;
+}
+
+/* Overdue List */
+.overdue-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.overdue-item {
+  padding: 16px;
+  background: #fef2f2;
+  border-radius: 8px;
+  border-left: 3px solid #ef4444;
+  margin-bottom: 8px;
+}
+
+.item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.success-message {
+  text-align: center;
+  padding: 32px;
+  color: #10b981;
+  font-weight: 500;
+}
+
+/* Priority Chart */
+.priority-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.priority-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.priority-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 100px;
+}
+
+.priority-count {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.priority-bar-container {
+  flex: 1;
+  height: 24px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.priority-bar {
+  height: 100%;
+  background: #94a3b8;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+.priority-bar.urgent { background: #ef4444; }
+.priority-bar.high { background: #f97316; }
+.priority-bar.medium { background: #3b82f6; }
+.priority-bar.low { background: #22c55e; }
+
+.priority-percent {
+  min-width: 40px;
+  text-align: right;
+  font-size: 14px;
+  color: #64748b;
+}
+
+/* Animations */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .reports-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .filter-bar {
+    flex-wrap: wrap;
+  }
+  
+  .report-columns {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+<%- include('../partials/footer') %>

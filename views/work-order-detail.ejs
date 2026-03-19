@@ -1,0 +1,742 @@
+<%- include('partials/header', { title: title, user: user }) %>
+
+<div class="page wo-detail-page">
+  <header class="page-header">
+    <button class="btn-back" onclick="history.back()" title="Go Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+    </button>
+    <h1>Work Order</h1>
+    <div class="header-actions">
+      <button class="btn-icon" id="view-inspection-btn" title="View Inspection">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+        </svg>
+      </button>
+      <% if (user && (user.role === 'admin' || user.role === 'supervisor')) { %>
+      <button class="btn-icon" id="edit-btn" title="Edit Work Order">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+      </button>
+      <% } %>
+      <button class="btn-icon" id="more-btn" title="More Options">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="1"/>
+          <circle cx="19" cy="12" r="1"/>
+          <circle cx="5" cy="12" r="1"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="wo-detail-content" id="wo-content">
+    <!-- Content loaded dynamically -->
+    <div class="loading-skeleton">
+      <div class="skeleton-item large"></div>
+      <div class="skeleton-item"></div>
+      <div class="skeleton-item"></div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="wo-actions" id="wo-actions">
+    <button class="btn btn-secondary" id="add-note-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+      </svg>
+      Add Note
+    </button>
+    <button class="btn btn-primary" id="start-inspection-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 11l3 3L22 4"/>
+        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+      </svg>
+      Start Inspection
+    </button>
+  </div>
+</div>
+
+<!-- Status Update Modal -->
+<div class="modal hidden" id="status-modal">
+  <div class="modal-backdrop" onclick="closeStatusModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Update Status</h3>
+      <button class="btn-close" onclick="closeStatusModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="status-options" id="status-options-container">
+        <button class="status-option operator-permitted" data-status="in_progress">
+          <span class="status-dot yellow"></span>
+          <span>In Progress</span>
+        </button>
+        <button class="status-option operator-permitted" data-status="on_hold">
+          <span class="status-dot orange"></span>
+          <span>On Hold</span>
+        </button>
+        <button class="status-option supervisor-only" data-status="completed" id="status-option-completed">
+          <span class="status-dot green"></span>
+          <span>Completed</span>
+        </button>
+      </div>
+      <div id="inspection-warning" class="inspection-warning hidden" style="margin-top: 12px; padding: 10px; background: #fff3cd; border-radius: 6px; font-size: 13px; color: #856404;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        Complete inspection before marking as Complete
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary btn-block" onclick="closeStatusModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Note Modal -->
+<div class="modal hidden" id="note-modal">
+  <div class="modal-backdrop" onclick="closeNoteModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Add Note</h3>
+      <button class="btn-close" onclick="closeNoteModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <textarea id="note-text" placeholder="Enter your note..." rows="4" required></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeNoteModal()">Cancel</button>
+      <button class="btn btn-primary" id="save-note-btn" onclick="saveNote()">
+        <span class="btn-text">Save Note</span>
+        <span class="spinner hidden"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<% if (user && (user.role === 'admin' || user.role === 'supervisor')) { %>
+<!-- Edit Work Order Modal -->
+<div class="modal hidden" id="edit-modal">
+  <div class="modal-backdrop" onclick="closeEditModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Edit Work Order</h3>
+      <button class="btn-close" onclick="closeEditModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <form id="edit-form" class="modal-body">
+      <div class="form-group">
+        <label>Title *</label>
+        <input type="text" id="edit-title" required>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="edit-status">
+          <option value="open">Open</option>
+          <option value="assigned">Assigned</option>
+          <option value="in_progress">In Progress</option>
+          <option value="completed">Completed</option>
+          <option value="closed">Closed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Priority</label>
+        <select id="edit-priority">
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="urgent">Urgent</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Assigned To</label>
+        <select id="edit-assigned-to">
+          <option value="">Unassigned</option>
+        </select>
+      </div>
+    </form>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="save-edit-btn" form="edit-form">
+        <span class="btn-text">Save Changes</span>
+        <span class="spinner hidden"></span>
+      </button>
+    </div>
+  </div>
+</div>
+<% } %>
+
+<script>
+// ============================================
+// WORK ORDER DETAIL PAGE
+// ============================================
+const workOrderId = '<%= workOrderId %>';
+let workOrder = null;
+
+// ============================================
+// INITIALIZATION
+// ============================================
+document.addEventListener('DOMContentLoaded', () => {
+  checkAuth();
+  initEventListeners();
+  loadWorkOrder();
+});
+
+function initEventListeners() {
+  // View inspection button (header)
+  document.getElementById('view-inspection-btn').addEventListener('click', () => {
+    window.location.href = `/inspection/${workOrderId}`;
+  });
+  
+  // Start inspection button (bottom action)
+  document.getElementById('start-inspection-btn').addEventListener('click', () => {
+    window.location.href = `/inspection/${workOrderId}`;
+  });
+  
+  // Add note button
+  document.getElementById('add-note-btn').addEventListener('click', () => {
+    document.getElementById('note-modal').classList.remove('hidden');
+    document.getElementById('note-text').focus();
+  });
+  
+  // More options button (status modal)
+  document.getElementById('more-btn').addEventListener('click', () => {
+    document.getElementById('status-modal').classList.remove('hidden');
+  });
+  
+  // Status options
+  document.querySelectorAll('.status-option').forEach(option => {
+    option.addEventListener('click', async () => {
+      if (option.disabled) return;
+      const newStatus = option.dataset.status;
+      await updateStatus(newStatus);
+      closeStatusModal();
+    });
+  });
+  
+  <% if (user && (user.role === 'admin' || user.role === 'supervisor')) { %>
+  // Edit button
+  document.getElementById('edit-btn').addEventListener('click', openEditModal);
+  
+  // Edit form submit
+  document.getElementById('edit-form').addEventListener('submit', handleEditSubmit);
+  
+  // Load users for dropdown
+  loadUsersForDropdown();
+  <% } %>
+}
+
+// ============================================
+// DATA LOADING
+// ============================================
+async function loadWorkOrder() {
+  try {
+    const response = await fetch(`/api/work-orders/${workOrderId}`, {
+      headers: getAuthHeaders()
+    });
+    
+    if (response.status === 401) {
+      handleAuthError();
+      return;
+    }
+    
+    if (response.status === 404) {
+      showErrorState('Work order not found');
+      return;
+    }
+    
+    const data = await response.json();
+    
+    if (data.success && data.data?.work_order) {
+      workOrder = data.data.work_order;
+      renderWorkOrder(workOrder);
+      updateActionButtons(workOrder);
+    } else {
+      showErrorState('Work order not found');
+    }
+  } catch (error) {
+    console.error('[WO Detail] Error loading work order:', error);
+    showErrorState('Failed to load work order');
+  }
+}
+
+function renderWorkOrder(wo) {
+  const container = document.getElementById('wo-content');
+  const currentUserId = <%= user ? user.id : 'null' %>;
+  const userRole = '<%= user ? user.role : '' %>';
+  
+  // Check if user can update this work order status
+  const isAssigned = wo.assigned_to === currentUserId;
+  const canUpdateStatus = userRole === 'admin' || userRole === 'supervisor' || 
+                          (userRole === 'operator' && isAssigned);
+  
+  // Update status modal based on inspection status and permissions
+  const hasInspection = wo.readings && wo.readings.length > 0;
+  const completedBtn = document.getElementById('status-option-completed');
+  const warningDiv = document.getElementById('inspection-warning');
+  
+  if (completedBtn) {
+    // Check if user can complete this work order
+    const canComplete = canUpdateStatus && (hasInspection || wo.status === 'completed' || wo.status === 'closed');
+    
+    if (!canComplete && userRole === 'operator' && isAssigned && !hasInspection) {
+      // Operator can see the button but it's disabled with warning
+      completedBtn.disabled = true;
+      completedBtn.style.opacity = '0.5';
+      completedBtn.style.cursor = 'not-allowed';
+      warningDiv.classList.remove('hidden');
+    } else if (!canComplete) {
+      // User can't complete - hide the button entirely
+      completedBtn.style.display = 'none';
+      warningDiv.classList.add('hidden');
+    } else {
+      // User can complete
+      completedBtn.disabled = false;
+      completedBtn.style.opacity = '1';
+      completedBtn.style.cursor = 'pointer';
+      completedBtn.style.display = 'flex';
+      warningDiv.classList.add('hidden');
+    }
+  }
+  
+  // Hide status options for users who can't update status at all
+  if (!canUpdateStatus) {
+    document.querySelectorAll('.status-option').forEach(btn => {
+      btn.style.display = 'none';
+    });
+    document.getElementById('status-options-container').innerHTML = 
+      '<p style="padding: 16px; color: #666; text-align: center;">You do not have permission to update this work order status.</p>';
+  }
+  
+  try {
+    container.innerHTML = `
+      <div class="wo-detail-header">
+        <div class="wo-number-large">${wo.wo_number || 'N/A'}</div>
+        <span class="wo-status-badge ${wo.status}">${formatStatus(wo.status)}</span>
+      </div>
+      
+      <h2 class="wo-detail-title">${escapeHtml(wo.title)}</h2>
+      
+      <div class="wo-detail-info">
+        <div class="info-row">
+          <span class="info-label">Equipment</span>
+          <span class="info-value">${wo.equipment_code || 'N/A'} - ${wo.equipment_name || 'Unknown'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Location</span>
+          <span class="info-value">${wo.location || 'N/A'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Priority</span>
+          <span class="info-value priority-${wo.priority}">${wo.priority || 'low'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Type</span>
+          <span class="info-value">${formatStatus(wo.wo_type)}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Scheduled</span>
+          <span class="info-value">${formatDateTime(wo.scheduled_start)}</span>
+        </div>
+        ${wo.estimated_hours ? `
+        <div class="info-row">
+          <span class="info-label">Est. Hours</span>
+          <span class="info-value">${wo.estimated_hours}h</span>
+        </div>
+        ` : ''}
+        ${wo.assigned_to_name ? `
+        <div class="info-row">
+          <span class="info-label">Assigned To</span>
+          <span class="info-value">${wo.assigned_to_name}</span>
+        </div>
+        ` : ''}
+      </div>
+      
+      ${wo.description ? `
+      <div class="wo-section">
+        <h3>Description</h3>
+        <p class="wo-description-text">${escapeHtml(wo.description)}</p>
+      </div>
+      ` : ''}
+      
+      ${wo.completion_notes ? `
+      <div class="wo-section">
+        <h3>Completion Notes</h3>
+        <p class="wo-description-text">${escapeHtml(wo.completion_notes)}</p>
+      </div>
+      ` : ''}
+      
+      <div class="wo-section">
+        <h3>Inspection Status</h3>
+        ${wo.readings && wo.readings.length > 0 ? `
+          <div class="inspection-status-badge" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; background: #d4edda; color: #155724; border-radius: 6px; font-size: 14px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            Inspection Completed (${wo.readings.length} readings)
+          </div>
+          <div class="readings-list" style="margin-top: 12px;">
+            ${wo.readings.map(r => `
+              <div class="reading-item ${r.is_passing ? 'passing' : 'failing'}">
+                <span class="reading-point">${r.point_code}</span>
+                <span class="reading-value">${r.reading_value} ${r.unit_of_measure || ''}</span>
+              </div>
+            `).join('')}
+          </div>
+        ` : `
+          <div class="inspection-status-badge pending" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; background: #fff3cd; color: #856404; border-radius: 6px; font-size: 14px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            Inspection Pending - Required before completion
+          </div>
+        `}
+      </div>
+      
+      ${wo.notes && wo.notes.length > 0 ? `
+      <div class="wo-section">
+        <h3>Notes (${wo.notes.length})</h3>
+        <div class="notes-list">
+          ${wo.notes.map(n => `
+            <div class="note-item">
+              <p class="note-text">${escapeHtml(n.note)}</p>
+              <span class="note-meta">${n.created_by_name || 'Unknown'} - ${formatDate(n.created_at)}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      ` : ''}
+    `;
+  } catch (err) {
+    console.error('[WO Detail] Render error:', err);
+    showErrorState('Error displaying work order');
+  }
+}
+
+function showErrorState(message) {
+  const container = document.getElementById('wo-content');
+  container.innerHTML = `
+    <div class="error-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <p>${message}</p>
+      <button class="btn btn-secondary btn-sm" onclick="loadWorkOrder()" style="margin-top: 16px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+          <path d="M23 4v6h-6M1 20v-6h6"/>
+          <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+        </svg>
+        Try Again
+      </button>
+    </div>
+  `;
+}
+
+function updateActionButtons(wo) {
+  const inspectionBtn = document.getElementById('start-inspection-btn');
+  const addNoteBtn = document.getElementById('add-note-btn');
+  
+  // Update inspection button based on status
+  if (wo.status === 'completed' || wo.status === 'closed') {
+    inspectionBtn.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+      Completed
+    `;
+    inspectionBtn.disabled = true;
+    inspectionBtn.classList.remove('btn-primary');
+    inspectionBtn.classList.add('btn-secondary');
+  } else if (wo.status === 'in_progress') {
+    inspectionBtn.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+      Continue Inspection
+    `;
+  }
+}
+
+// ============================================
+// ACTIONS
+// ============================================
+async function updateStatus(newStatus) {
+  const btn = document.querySelector(`[data-status="${newStatus}"]`);
+  if (btn) btn.disabled = true;
+  
+  try {
+    const response = await fetch(`/api/work-orders/${workOrderId}/status`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ status: newStatus })
+    });
+    
+    if (response.status === 401) {
+      handleAuthError();
+      return;
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showToast(`Status updated to ${formatStatus(newStatus)}`, 'success');
+      loadWorkOrder();
+    } else {
+      showToast(data.message || 'Failed to update status', 'error');
+    }
+  } catch (error) {
+    console.error('[WO Detail] Error updating status:', error);
+    showToast('Failed to update status', 'error');
+  } finally {
+    if (btn && !btn.id.includes('completed')) {
+      btn.disabled = false;
+    }
+  }
+}
+
+async function saveNote() {
+  const noteText = document.getElementById('note-text').value.trim();
+  
+  if (!noteText) {
+    showToast('Please enter a note', 'error');
+    return;
+  }
+  
+  const saveBtn = document.getElementById('save-note-btn');
+  const btnText = saveBtn.querySelector('.btn-text');
+  const spinner = saveBtn.querySelector('.spinner');
+  
+  // Set loading state
+  saveBtn.disabled = true;
+  btnText.classList.add('hidden');
+  spinner.classList.remove('hidden');
+  
+  try {
+    const response = await fetch(`/api/work-orders/${workOrderId}/notes`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ note: noteText })
+    });
+    
+    if (response.status === 401) {
+      handleAuthError();
+      return;
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showToast('Note added successfully', 'success');
+      closeNoteModal();
+      document.getElementById('note-text').value = '';
+      loadWorkOrder();
+    } else {
+      showToast(data.message || 'Failed to add note', 'error');
+    }
+  } catch (error) {
+    console.error('[WO Detail] Error adding note:', error);
+    showToast('Failed to add note', 'error');
+  } finally {
+    saveBtn.disabled = false;
+    btnText.classList.remove('hidden');
+    spinner.classList.add('hidden');
+  }
+}
+
+<% if (user && (user.role === 'admin' || user.role === 'supervisor')) { %>
+// ============================================
+// EDIT MODAL (Admin only)
+// ============================================
+async function loadUsersForDropdown() {
+  try {
+    const response = await fetch('/api/users?active=true', {
+      headers: getAuthHeaders()
+    });
+    
+    const data = await response.json();
+    
+    if (data.success && data.data?.users) {
+      const select = document.getElementById('edit-assigned-to');
+      select.innerHTML = '<option value="">Unassigned</option>' +
+        data.data.users.map(u => `<option value="${u.id}">${u.full_name || u.username} (${u.role})</option>`).join('');
+    }
+  } catch (error) {
+    console.error('[WO Detail] Error loading users:', error);
+  }
+}
+
+function openEditModal() {
+  if (!workOrder) {
+    showToast('Work order not loaded yet', 'error');
+    return;
+  }
+  
+  document.getElementById('edit-title').value = workOrder.title || '';
+  document.getElementById('edit-status').value = workOrder.status;
+  document.getElementById('edit-priority').value = workOrder.priority;
+  document.getElementById('edit-assigned-to').value = workOrder.assigned_to || '';
+  document.getElementById('edit-modal').classList.remove('hidden');
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.add('hidden');
+}
+
+async function handleEditSubmit(e) {
+  e.preventDefault();
+  
+  const saveBtn = document.getElementById('save-edit-btn');
+  const btnText = saveBtn.querySelector('.btn-text');
+  const spinner = saveBtn.querySelector('.spinner');
+  
+  // Set loading state
+  saveBtn.disabled = true;
+  btnText.classList.add('hidden');
+  spinner.classList.remove('hidden');
+  
+  const formData = {
+    title: document.getElementById('edit-title').value,
+    status: document.getElementById('edit-status').value,
+    priority: document.getElementById('edit-priority').value,
+    assigned_to: document.getElementById('edit-assigned-to').value || null
+  };
+  
+  try {
+    const response = await fetch(`/api/work-orders/${workOrderId}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(formData)
+    });
+    
+    if (response.status === 401) {
+      handleAuthError();
+      return;
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showToast('Work order updated successfully', 'success');
+      closeEditModal();
+      loadWorkOrder();
+    } else {
+      showToast(data.message || 'Failed to update work order', 'error');
+    }
+  } catch (error) {
+    console.error('[WO Detail] Error updating work order:', error);
+    showToast('Failed to update work order', 'error');
+  } finally {
+    saveBtn.disabled = false;
+    btnText.classList.remove('hidden');
+    spinner.classList.add('hidden');
+  }
+}
+<% } %>
+
+// ============================================
+// MODAL HELPERS
+// ============================================
+function closeStatusModal() {
+  document.getElementById('status-modal').classList.add('hidden');
+}
+
+function closeNoteModal() {
+  document.getElementById('note-modal').classList.add('hidden');
+}
+
+// ============================================
+// UTILITIES
+// ============================================
+function formatStatus(status) {
+  if (!status) return 'Unknown';
+  return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function formatDate(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatDateTime(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', { 
+    month: 'short', day: 'numeric', 
+    hour: '2-digit', minute: '2-digit' 
+  });
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function getAuthHeaders() {
+  const token = localStorage.getItem('token');
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
+}
+
+function checkAuth() {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    window.location.href = '/login';
+  }
+}
+
+function handleAuthError() {
+  localStorage.clear();
+  window.location.href = '/login';
+}
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.classList.add('fade-out');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+</script>
+
+<%- include('partials/footer') %>

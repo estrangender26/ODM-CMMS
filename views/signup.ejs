@@ -1,0 +1,447 @@
+<%- include('partials/header', { title: title, user: null }) %>
+
+<div class="login-page signup-page">
+  <div class="login-container">
+    <div class="logo-section">
+      <div class="logo">
+        <!-- ODM-CMMS Corporate Logo - Gear with Checkmark -->
+        <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="logoGradSignup" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#2563EB"/>
+              <stop offset="100%" stop-color="#0EA5E9"/>
+            </linearGradient>
+            <linearGradient id="checkGradSignup" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#10B981"/>
+              <stop offset="100%" stop-color="#059669"/>
+            </linearGradient>
+            <filter id="logoShadowSignup" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#2563EB" flood-opacity="0.2"/>
+            </filter>
+          </defs>
+          
+          <!-- Outer Gear Circle -->
+          <circle cx="60" cy="60" r="52" fill="url(#logoGradSignup)" filter="url(#logoShadowSignup)"/>
+          
+          <!-- Gear Teeth (8 teeth) -->
+          <path d="M60 8 L65 8 L67 18 L53 18 L55 8 Z" fill="url(#logoGradSignup)"/>
+          <path d="M60 112 L55 112 L53 102 L67 102 L65 112 Z" fill="url(#logoGradSignup)"/>
+          <path d="M8 60 L8 55 L18 53 L18 67 L8 65 Z" fill="url(#logoGradSignup)"/>
+          <path d="M112 60 L112 65 L102 67 L102 53 L112 55 Z" fill="url(#logoGradSignup)"/>
+          <path d="M23 23 L27 19 L34 26 L26 34 L19 27 Z" fill="url(#logoGradSignup)"/>
+          <path d="M97 97 L93 101 L86 94 L94 86 L101 93 Z" fill="url(#logoGradSignup)"/>
+          <path d="M97 23 L101 27 L94 34 L86 26 L93 19 Z" fill="url(#logoGradSignup)"/>
+          <path d="M23 97 L19 93 L26 86 L34 94 L27 101 Z" fill="url(#logoGradSignup)"/>
+          
+          <!-- Inner Circle -->
+          <circle cx="60" cy="60" r="38" fill="white"/>
+          
+          <!-- Center Gear Icon -->
+          <circle cx="60" cy="60" r="24" fill="#F1F5F9" stroke="#E2E8F0" stroke-width="2"/>
+          <circle cx="60" cy="60" r="8" fill="#CBD5E1"/>
+          
+          <!-- Gear spokes -->
+          <rect x="58" y="30" width="4" height="12" rx="2" fill="#94A3B8"/>
+          <rect x="58" y="78" width="4" height="12" rx="2" fill="#94A3B8"/>
+          <rect x="30" y="58" width="12" height="4" rx="2" fill="#94A3B8"/>
+          <rect x="78" y="58" width="12" height="4" rx="2" fill="#94A3B8"/>
+          
+          <!-- Checkmark Badge -->
+          <circle cx="88" cy="32" r="18" fill="url(#checkGradSignup)" stroke="white" stroke-width="3"/>
+          <path d="M80 32 L85 37 L96 26" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h1>Create Account</h1>
+      <p>Join ODM-CMMS Maintenance System</p>
+    </div>
+
+    <form class="login-form" id="signup-form" novalidate>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="full_name">Full Name <span class="required">*</span></label>
+          <input 
+            type="text" 
+            id="full_name" 
+            name="full_name" 
+            placeholder="e.g., John Smith"
+            required
+          >
+          <span class="form-error hidden" id="full_name-error">Please enter your full name</span>
+        </div>
+        
+        <div class="form-group">
+          <label for="username">Username <span class="required">*</span></label>
+          <input 
+            type="text" 
+            id="username" 
+            name="username" 
+            placeholder="Choose a username"
+            autocomplete="username"
+            required
+          >
+          <span class="form-error hidden" id="username-error">Please choose a username</span>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="email">Email Address <span class="required">*</span></label>
+        <input 
+          type="email" 
+          id="email" 
+          name="email" 
+          placeholder="your.email@company.com"
+          autocomplete="email"
+          required
+        >
+        <span class="form-error hidden" id="email-error">Please enter a valid email</span>
+      </div>
+      
+      <div class="form-group">
+        <label for="phone">Phone Number</label>
+        <div class="phone-input-group" style="display: flex; gap: 0;">
+          <span style="padding: 10px 12px; background: var(--bg-tertiary); border: 1px solid var(--border-light); border-right: none; border-radius: var(--radius) 0 0 var(--radius); font-size: var(--text-sm); color: var(--text-secondary); font-weight: 500;">+63</span>
+          <input type="tel" id="phone" name="phone" 
+                 placeholder="917 123 4567" 
+                 maxlength="12"
+                 oninput="formatPhoneNumber(this)"
+                 style="flex: 1; border-radius: 0 var(--radius) var(--radius) 0;">
+        </div>
+        <small class="form-hint">Philippine mobile number (e.g., +63 917 123 4567)</small>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="password">Password <span class="required">*</span></label>
+          <div class="password-input">
+            <input 
+              type="password" 
+              id="password" 
+              name="password" 
+              placeholder="Create a password"
+              autocomplete="new-password"
+              required
+            >
+            <button type="button" class="toggle-password" id="toggle-password" title="Toggle password visibility">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="eye-icon">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <small class="form-hint">Minimum 6 characters</small>
+          <span class="form-error hidden" id="password-error">Password must be at least 6 characters</span>
+        </div>
+        
+        <div class="form-group">
+          <label for="role">Role <span class="required">*</span></label>
+          <select id="role" name="role" required>
+            <option value="">Select your role</option>
+            <option value="operator">Operator</option>
+            <option value="supervisor">Supervisor</option>
+          </select>
+          <span class="form-error hidden" id="role-error">Please select a role</span>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top: var(--space-4);">
+        <label class="checkbox" style="font-size: var(--text-xs); color: var(--text-secondary);">
+          <input type="checkbox" id="terms" name="terms" required>
+          <span>I agree to the <a href="#" onclick="showTermsModal(); return false;" style="color: var(--primary);">Terms of Service</a> and <a href="#" onclick="showPrivacyModal(); return false;" style="color: var(--primary);">Privacy Policy</a></span>
+        </label>
+        <span class="form-error hidden" id="terms-error">You must agree to the terms</span>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block btn-lg" id="signup-btn" style="margin-top: var(--space-4);">
+        <span class="btn-text">Create Account</span>
+        <span class="spinner hidden"></span>
+      </button>
+    </form>
+
+    <div class="login-footer">
+      <p>Already have an account? <a href="/login" style="color: var(--primary); font-weight: 500;">Sign In</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- Terms Modal -->
+<div id="terms-modal" class="modal hidden">
+  <div class="modal-overlay" onclick="closeTermsModal()"></div>
+  <div class="modal-content" style="max-width: 560px;">
+    <div class="modal-header">
+      <h3>Terms of Service</h3>
+      <button class="btn-close" onclick="closeTermsModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+      <p style="font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.6;">
+        By using ODM-CMMS, you agree to:
+      </p>
+      <ul style="font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.8; margin-top: var(--space-3); padding-left: var(--space-5);">
+        <li>Use the system for authorized maintenance operations only</li>
+        <li>Keep your login credentials secure</li>
+        <li>Report any system issues to your administrator</li>
+        <li>Follow your organization's maintenance procedures</li>
+        <li>Respect data privacy and confidentiality</li>
+      </ul>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" onclick="closeTermsModal()">Close</button>
+      <button type="button" class="btn btn-primary" onclick="acceptTerms()">I Understand</button>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Signup Page Specific Styles */
+.phone-input-group input {
+  border-left: none;
+}
+
+.phone-input-group input:focus {
+  box-shadow: none;
+  border-color: var(--border-light);
+}
+
+.phone-input-group:focus-within input {
+  border-color: var(--primary);
+}
+
+.phone-input-group:focus-within span {
+  border-color: var(--primary);
+  border-right-color: var(--border-light);
+}
+</style>
+
+<script>
+// ============================================
+// SIGNUP PAGE
+// ============================================
+
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('[Signup] Page loaded, initializing...');
+  
+  const form = document.getElementById('signup-form');
+  const togglePassword = document.getElementById('toggle-password');
+  
+  console.log('[Signup] Form found:', !!form);
+  console.log('[Signup] Toggle password found:', !!togglePassword);
+  
+  if (form) {
+    form.addEventListener('submit', handleSignup);
+    console.log('[Signup] Submit handler attached');
+  }
+  
+  if (togglePassword) {
+    togglePassword.addEventListener('click', function() {
+      const passwordInput = document.getElementById('password');
+      const eyeIcon = document.getElementById('eye-icon');
+      
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        eyeIcon.innerHTML = `
+          <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/>
+          <line x1="1" y1="1" x2="23" y2="23"/>
+        `;
+      } else {
+        passwordInput.type = 'password';
+        eyeIcon.innerHTML = `
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        `;
+      }
+    });
+  }
+  
+  // Clear errors on input
+  ['full_name', 'username', 'email', 'password', 'role'].forEach(field => {
+    const input = document.getElementById(field);
+    if (input) {
+      input.addEventListener('input', function() {
+        clearFieldError(field);
+      });
+    }
+  });
+  
+  console.log('[Signup] Initialization complete');
+});
+
+async function handleSignup(e) {
+  e.preventDefault();
+  console.log('[Signup] Form submitted');
+  
+  // Clear previous errors
+  document.querySelectorAll('.form-error').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('input, select').forEach(el => el.classList.remove('error'));
+  
+  // Get form values
+  const fullName = document.getElementById('full_name').value.trim();
+  const username = document.getElementById('username').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const password = document.getElementById('password').value;
+  const role = document.getElementById('role').value;
+  const terms = document.getElementById('terms').checked;
+  
+  console.log('[Signup] Form values:', { fullName, username, email, phone: phone ? '***' : '', role });
+  
+  // Validate
+  let hasError = false;
+  
+  if (!fullName) {
+    showFieldError('full_name', 'Please enter your full name');
+    hasError = true;
+  }
+  
+  if (!username) {
+    showFieldError('username', 'Please choose a username');
+    hasError = true;
+  }
+  
+  if (!email || !isValidEmail(email)) {
+    showFieldError('email', 'Please enter a valid email address');
+    hasError = true;
+  }
+  
+  if (password.length < 6) {
+    showFieldError('password', 'Password must be at least 6 characters');
+    hasError = true;
+  }
+  
+  if (!role) {
+    showFieldError('role', 'Please select a role');
+    hasError = true;
+  }
+  
+  if (!terms) {
+    showFieldError('terms', 'You must agree to the terms and conditions');
+    hasError = true;
+  }
+  
+  if (hasError) {
+    console.log('[Signup] Validation failed');
+    return;
+  }
+  
+  // Format phone number
+  const formattedPhone = phone ? '+63' + phone.replace(/\s/g, '') : null;
+  
+  console.log('[Signup] Validation passed, submitting...');
+  
+  // Show loading state
+  const submitBtn = document.getElementById('signup-btn');
+  const btnText = submitBtn.querySelector('.btn-text');
+  const spinner = submitBtn.querySelector('.spinner');
+  
+  btnText.classList.add('hidden');
+  spinner.classList.remove('hidden');
+  submitBtn.disabled = true;
+  
+  try {
+    const response = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username,
+        email,
+        password,
+        full_name: fullName,
+        phone: formattedPhone,
+        role
+      })
+    });
+    
+    console.log('[Signup] Response status:', response.status);
+    
+    const data = await response.json();
+    console.log('[Signup] Response data:', data);
+    
+    if (data.success) {
+      showToast('Account created successfully! Please sign in.', 'success');
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 1500);
+    } else {
+      showToast(data.message || 'Failed to create account', 'error');
+    }
+  } catch (error) {
+    console.error('[Signup] Error:', error);
+    showToast('Network error. Please try again.', 'error');
+  } finally {
+    btnText.classList.remove('hidden');
+    spinner.classList.add('hidden');
+    submitBtn.disabled = false;
+  }
+}
+
+function showFieldError(fieldName, message) {
+  const input = document.getElementById(fieldName);
+  const error = document.getElementById(`${fieldName}-error`);
+  
+  if (input) input.classList.add('error');
+  if (error) {
+    error.textContent = message;
+    error.classList.remove('hidden');
+  }
+}
+
+function clearFieldError(fieldName) {
+  const input = document.getElementById(fieldName);
+  const error = document.getElementById(`${fieldName}-error`);
+  
+  if (input) input.classList.remove('error');
+  if (error) error.classList.add('hidden');
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function formatPhoneNumber(input) {
+  let value = input.value.replace(/\D/g, '').substring(0, 10);
+  if (value.length >= 7) {
+    value = value.substring(0, 3) + ' ' + value.substring(3, 6) + ' ' + value.substring(6);
+  } else if (value.length >= 4) {
+    value = value.substring(0, 3) + ' ' + value.substring(3);
+  }
+  input.value = value;
+}
+
+function showTermsModal() {
+  document.getElementById('terms-modal').classList.remove('hidden');
+}
+
+function closeTermsModal() {
+  document.getElementById('terms-modal').classList.add('hidden');
+}
+
+function acceptTerms() {
+  document.getElementById('terms').checked = true;
+  closeTermsModal();
+  clearFieldError('terms');
+}
+
+function showPrivacyModal() {
+  showToast('Privacy Policy - Your data is protected and will not be shared.', 'info');
+}
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.classList.add('fade-out');
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+</script>
+
+<%- include('partials/footer') %>

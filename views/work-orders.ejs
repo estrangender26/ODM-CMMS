@@ -1,0 +1,844 @@
+<%- include('partials/header', { title: title, user: user }) %>
+
+<div class="page work-orders-page">
+  <!-- Header -->
+  <header class="page-header">
+    <button class="btn-back" onclick="history.back()" title="Go Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+    </button>
+    <h1 id="page-title">My Tasks</h1>
+    <div class="header-actions">
+      <button class="btn-icon" id="filter-btn" title="Filter">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="4" y1="21" x2="4" y2="14"/>
+          <line x1="4" y1="10" x2="4" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="12"/>
+          <line x1="12" y1="8" x2="12" y2="3"/>
+          <line x1="20" y1="21" x2="20" y2="16"/>
+          <line x1="20" y1="12" x2="20" y2="3"/>
+          <line x1="1" y1="14" x2="7" y2="14"/>
+          <line x1="9" y1="8" x2="15" y2="8"/>
+          <line x1="17" y1="16" x2="23" y2="16"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Filter Panel -->
+  <div class="filter-panel hidden" id="filter-panel">
+    <div class="filter-group">
+      <label>Status</label>
+      <div class="filter-tags" id="status-filters">
+        <button class="filter-tag active" data-value="">All</button>
+        <button class="filter-tag" data-value="open">Open</button>
+        <button class="filter-tag" data-value="assigned">Assigned</button>
+        <button class="filter-tag" data-value="in_progress">In Progress</button>
+        <button class="filter-tag" data-value="completed">Completed</button>
+        <button class="filter-tag" data-value="closed">Closed</button>
+      </div>
+    </div>
+    <div class="filter-group">
+      <label>Priority</label>
+      <div class="filter-tags" id="priority-filters">
+        <button class="filter-tag active" data-value="">All</button>
+        <button class="filter-tag urgent" data-value="urgent">Urgent</button>
+        <button class="filter-tag" data-value="high">High</button>
+        <button class="filter-tag" data-value="medium">Medium</button>
+        <button class="filter-tag" data-value="low">Low</button>
+      </div>
+    </div>
+    <button class="filter-clear" id="clear-filters" style="display: none;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+      Clear Filters
+    </button>
+  </div>
+
+  <!-- Stats Summary -->
+  <div class="wo-stats" id="wo-stats">
+    <div class="stat-item stat-filter" data-filter="all" onclick="filterByStat('all')">
+      <span class="stat-value" id="stat-total">0</span>
+      <span class="stat-label">Total</span>
+    </div>
+    <div class="stat-item stat-filter" data-filter="open" onclick="filterByStat('open')">
+      <span class="stat-value" id="stat-open">0</span>
+      <span class="stat-label">Open</span>
+    </div>
+    <div class="stat-item stat-filter" data-filter="in_progress" onclick="filterByStat('in_progress')">
+      <span class="stat-value" id="stat-inprogress">0</span>
+      <span class="stat-label">In Progress</span>
+    </div>
+    <div class="stat-item stat-filter" data-filter="completed" onclick="filterByStat('completed')">
+      <span class="stat-value" id="stat-completed">0</span>
+      <span class="stat-label">Completed</span>
+    </div>
+  </div>
+  
+  <!-- Active Filter Indicator -->
+  <div id="stat-filter-bar" class="hidden" style="display: none; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--primary-50); border-radius: var(--radius); margin-bottom: var(--space-3); margin-top: var(--space-2);">
+    <span id="stat-filter-text" style="font-size: var(--text-sm); color: var(--primary-700); font-weight: 500;">Filtered</span>
+    <button onclick="clearStatFilter()" style="background: none; border: none; color: var(--primary); font-size: var(--text-xs); font-weight: 600; cursor: pointer; padding: 4px 8px;">Clear</button>
+  </div>
+
+  <!-- Work Order List -->
+  <div class="work-order-list" id="wo-list">
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading work orders...</p>
+    </div>
+  </div>
+</div>
+
+<% if (user && (user.role === 'admin' || user.role === 'supervisor')) { %>
+<!-- Edit Work Order Modal -->
+<div class="modal hidden" id="edit-wo-modal">
+  <div class="modal-overlay" onclick="closeEditModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Edit Work Order</h2>
+      <button class="btn-close" onclick="closeEditModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <form id="edit-wo-form" class="modal-body">
+      <input type="hidden" id="edit-wo-id">
+      
+      <div class="form-group">
+        <label for="edit-wo-number">Work Order #</label>
+        <input type="text" id="edit-wo-number" disabled>
+      </div>
+      
+      <div class="form-group">
+        <label for="edit-title">Title *</label>
+        <input type="text" id="edit-title" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="edit-status">Status</label>
+        <select id="edit-status">
+          <option value="open">Open</option>
+          <option value="assigned">Assigned</option>
+          <option value="in_progress">In Progress</option>
+          <option value="completed">Completed</option>
+          <option value="closed">Closed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="edit-priority">Priority</label>
+        <select id="edit-priority">
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="urgent">Urgent</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="edit-assigned-to">Assigned To</label>
+        <select id="edit-assigned-to">
+          <option value="">Unassigned</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="edit-description">Description</label>
+        <textarea id="edit-description" rows="3"></textarea>
+      </div>
+    </form>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="save-wo-btn" form="edit-wo-form">
+        <span class="btn-text">Save Changes</span>
+        <span class="spinner hidden"></span>
+      </button>
+    </div>
+  </div>
+</div>
+<% } %>
+
+<script>
+// ============================================
+// STATE MANAGEMENT - Single Source of Truth
+// ============================================
+const state = {
+  user: <%- JSON.stringify(user || {}) %>,
+  filters: {
+    mine: true,        // true = my tasks, false = all tasks
+    status: '',        // '', 'open', 'assigned', 'in_progress', 'completed', 'closed'
+    priority: ''       // '', 'urgent', 'high', 'medium', 'low'
+  },
+  workOrders: [],      // Raw data from API
+  filteredWorkOrders: [], // After client-side filtering
+  isLoading: false,
+  isAdmin: <%- user && (user.role === 'admin' || user.role === 'supervisor') ? 'true' : 'false' %>
+};
+
+// ============================================
+// INITIALIZATION - Runs on EVERY page entry
+// ============================================
+function initPage() {
+  const currentFilter = new URLSearchParams(window.location.search).get('filter') || 'default';
+  console.log('[WORK-ORDERS INIT] page entered, current filter:', currentFilter);
+  
+  checkAuth();
+  initFiltersFromURL();
+  initEventListeners();
+  updatePageTitle();
+  updateUIFromState();
+  
+  // ALWAYS reset loading and reload data on page entry
+  console.log('[WORK-ORDERS INIT] calling loadWorkOrders');
+  state.isLoading = false;
+  loadWorkOrders();
+}
+
+// DOMContentLoaded - first page load
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('[WORK-ORDERS INIT] DOMContentLoaded fired');
+  initPage();
+});
+
+// Pageshow - fires on every page display including back/forward navigation
+window.addEventListener('pageshow', (event) => {
+  console.log('[WORK-ORDERS INIT] pageshow fired, persisted:', event.persisted);
+  // ALWAYS re-init on pageshow - critical for back/forward navigation
+  state.isLoading = false;
+  initPage();
+});
+
+// Fallback: also try init after a short delay to catch any race conditions
+setTimeout(() => {
+  if (state.isLoading && state.workOrders.length === 0) {
+    console.log('[WORK-ORDERS INIT] Fallback timeout - forcing reload');
+    state.isLoading = false;
+    loadWorkOrders();
+  }
+}, 500);
+
+function checkAuth() {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    window.location.href = '/login';
+  }
+}
+
+// ============================================
+// FILTER STATE MANAGEMENT
+// ============================================
+function initFiltersFromURL() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const url = window.location.search;
+  
+  console.log('[FILTERS] URL:', url);
+  
+  // Parse 'filter' param (my/all)
+  const filterParam = urlParams.get('filter');
+  
+  if (filterParam === 'my') {
+    state.filters.mine = true;
+  } else if (filterParam === 'all') {
+    state.filters.mine = false;
+  } else {
+    // Default based on role
+    state.filters.mine = !state.isAdmin;
+  }
+  
+  // Parse status filter
+  const statusParam = urlParams.get('status');
+  if (statusParam) {
+    state.filters.status = statusParam.toLowerCase().trim();
+  } else {
+    state.filters.status = '';
+  }
+  
+  // Parse priority filter
+  const priorityParam = urlParams.get('priority');
+  if (priorityParam) {
+    state.filters.priority = priorityParam.toLowerCase().trim();
+  } else {
+    state.filters.priority = '';
+  }
+  
+  console.log('[FILTERS] Initialized:', JSON.parse(JSON.stringify(state.filters)));
+}
+
+function updateURLFromState() {
+  const url = new URL(window.location.href);
+  
+  // Set filter param (my/all)
+  url.searchParams.set('filter', state.filters.mine ? 'my' : 'all');
+  
+  // Set status filter
+  if (state.filters.status) {
+    url.searchParams.set('status', state.filters.status);
+  } else {
+    url.searchParams.delete('status');
+  }
+  
+  // Set priority filter
+  if (state.filters.priority) {
+    url.searchParams.set('priority', state.filters.priority);
+  } else {
+    url.searchParams.delete('priority');
+  }
+  
+  window.history.replaceState({}, '', url);
+  console.log('[WO] URL updated:', url.toString());
+}
+
+function updateUIFromState() {
+  console.log('=== UI SYNC ===');
+  console.log('Status filter:', state.filters.status);
+  console.log('Priority filter:', state.filters.priority);
+  
+  // Update status filter UI
+  document.querySelectorAll('#status-filters .filter-tag').forEach(tag => {
+    const tagValue = (tag.dataset.value || '').toLowerCase().trim();
+    const filterValue = (state.filters.status || '').toLowerCase().trim();
+    const isActive = tagValue === filterValue;
+    
+    console.log(`  Status "${tagValue}" === "${filterValue}" ? ${isActive}`);
+    tag.classList.toggle('active', isActive);
+  });
+  
+  // Update priority filter UI
+  document.querySelectorAll('#priority-filters .filter-tag').forEach(tag => {
+    const tagValue = (tag.dataset.value || '').toLowerCase().trim();
+    const filterValue = (state.filters.priority || '').toLowerCase().trim();
+    const isActive = tagValue === filterValue;
+    
+    console.log(`  Priority "${tagValue}" === "${filterValue}" ? ${isActive}`);
+    tag.classList.toggle('active', isActive);
+  });
+  
+  updateClearButton();
+}
+
+// ============================================
+// EVENT LISTENERS
+// ============================================
+let listenersAttached = false;
+
+function initEventListeners() {
+  // Only attach listeners once to prevent duplicates
+  if (listenersAttached) return;
+  listenersAttached = true;
+  
+  console.log('[WORK-ORDERS INIT] Attaching event listeners');
+  
+  // Filter button toggle
+  document.getElementById('filter-btn').addEventListener('click', () => {
+    document.getElementById('filter-panel').classList.toggle('hidden');
+  });
+  
+  // View toggle (admin only)
+  const toggleBtn = document.getElementById('view-toggle-btn');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', toggleViewMode);
+  }
+  
+  // Status filter tags
+  document.querySelectorAll('#status-filters .filter-tag').forEach(tag => {
+    tag.addEventListener('click', () => {
+      const value = tag.dataset.value;
+      state.filters.status = value;
+      
+      // Update UI
+      document.querySelectorAll('#status-filters .filter-tag').forEach(t => t.classList.remove('active'));
+      tag.classList.add('active');
+      
+      // Update URL and reload data from API
+      updateURLFromState();
+      loadWorkOrders();
+      updateClearButton();
+    });
+  });
+  
+  // Priority filter tags
+  document.querySelectorAll('#priority-filters .filter-tag').forEach(tag => {
+    tag.addEventListener('click', () => {
+      const value = tag.dataset.value;
+      state.filters.priority = value;
+      
+      // Update UI
+      document.querySelectorAll('#priority-filters .filter-tag').forEach(t => t.classList.remove('active'));
+      tag.classList.add('active');
+      
+      // Update URL and reload data from API
+      updateURLFromState();
+      loadWorkOrders();
+      updateClearButton();
+    });
+  });
+  
+  // Clear filters button
+  const clearBtn = document.getElementById('clear-filters');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', clearFilters);
+  }
+  
+  // Edit form submit
+  const editForm = document.getElementById('edit-wo-form');
+  if (editForm) {
+    editForm.addEventListener('submit', handleEditSubmit);
+  }
+}
+
+function updateClearButton() {
+  const clearBtn = document.getElementById('clear-filters');
+  if (clearBtn) {
+    const hasFilters = state.filters.status || state.filters.priority;
+    clearBtn.style.display = hasFilters ? 'flex' : 'none';
+  }
+}
+
+function clearFilters() {
+  state.filters.status = '';
+  state.filters.priority = '';
+  
+  // Reset UI
+  document.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.filter-tag[data-value=""]').forEach(t => t.classList.add('active'));
+  
+  updateURLFromState();
+  loadWorkOrders();
+  updateClearButton();
+}
+
+// ============================================
+// VIEW MODE TOGGLE
+// ============================================
+function toggleViewMode() {
+  state.filters.mine = !state.filters.mine;
+  
+  updateURLFromState();
+  updatePageTitle();
+  loadWorkOrders();
+}
+
+function updatePageTitle() {
+  const title = document.getElementById('page-title');
+  if (title) {
+    title.textContent = state.filters.mine ? 'My Tasks' : 'All Tasks';
+  }
+  
+  // Update toggle icon
+  const toggleIcon = document.getElementById('toggle-icon');
+  if (toggleIcon) {
+    if (state.filters.mine) {
+      toggleIcon.innerHTML = `<path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>`;
+    } else {
+      toggleIcon.innerHTML = `<path d="M12 4v16m8-8H4"/>`;
+    }
+  }
+}
+
+// ============================================
+// DATA LOADING
+// ============================================
+async function loadWorkOrders() {
+  if (state.isLoading) {
+    setTimeout(loadWorkOrders, 100);
+    return;
+  }
+  
+  state.isLoading = true;
+  render();
+
+  try {
+    // Build API query params from filters
+    const params = new URLSearchParams();
+    if (state.filters.status) params.append('status', state.filters.status);
+    if (state.filters.priority) params.append('priority', state.filters.priority);
+    
+    const endpoint = state.filters.mine 
+      ? `/api/work-orders/my-work-orders?${params.toString()}`
+      : `/api/work-orders?${params.toString()}`;
+    
+    console.log('[WO] Loading:', endpoint);
+    
+    const res = await fetch(endpoint, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (res.status === 401) {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+      return;
+    }
+    
+    const json = await res.json();
+    
+    // SINGLE SOURCE OF TRUTH: API returns filtered results
+    state.workOrders = json?.data?.work_orders || [];
+    state.filteredWorkOrders = [...state.workOrders]; // Create copy for client-side filtering
+    
+    console.log('[WO] Data loaded:', state.workOrders.length, 'orders');
+    
+    console.log('RAW WORK ORDERS:', state.workOrders.length);
+    console.log('FILTERED WORK ORDERS:', state.filteredWorkOrders.length);
+    console.log('ACTIVE FILTERS:', JSON.stringify(state.filters));
+
+    computeStats();
+
+  } catch (e) {
+    console.error('[WO] ERROR:', e);
+    state.workOrders = [];
+    state.filteredWorkOrders = [];
+  } finally {
+    state.isLoading = false;
+    render();
+  }
+}
+
+// ============================================
+// STATS - Uses filteredWorkOrders
+// ============================================
+function normalizeStatus(status) {
+  return (status || '').toString().toLowerCase().trim();
+}
+
+function computeStats() {
+  const workOrders = state.filteredWorkOrders;
+  
+  console.log('[STATS] Computing from', workOrders.length, 'work orders');
+  
+  const stats = {
+    total: workOrders.length,
+    open: 0,
+    inProgress: 0,
+    completed: 0
+  };
+  
+  workOrders.forEach(wo => {
+    const status = normalizeStatus(wo.status);
+    if (status === 'open' || status === 'assigned') stats.open++;
+    else if (status === 'in_progress') stats.inProgress++;
+    else if (status === 'completed' || status === 'closed') stats.completed++;
+  });
+  
+  console.log('[STATS] Result:', stats);
+  
+  document.getElementById('stat-total').textContent = stats.total;
+  document.getElementById('stat-open').textContent = stats.open;
+  document.getElementById('stat-inprogress').textContent = stats.inProgress;
+  document.getElementById('stat-completed').textContent = stats.completed;
+}
+
+// ============================================
+// RENDERING - Uses filteredWorkOrders
+// ============================================
+function render() {
+  const container = document.getElementById('wo-list');
+  if (!container) return;
+  
+  // ALWAYS use filteredWorkOrders for rendering
+  const workOrders = state.filteredWorkOrders;
+  
+  console.log('RENDER:', workOrders.length, 'cards, loading:', state.isLoading);
+  
+  if (state.isLoading) {
+    container.innerHTML = `
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading work orders...</p>
+      </div>
+    `;
+    return;
+  }
+  
+  if (!Array.isArray(workOrders) || workOrders.length === 0) {
+    const hasFilters = state.filters.status || state.filters.priority;
+    const message = hasFilters 
+      ? 'No work orders match your filters'
+      : (state.filters.mine ? 'No tasks assigned to you' : 'No work orders found');
+    
+    container.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+        </svg>
+        <p>${message}</p>
+        ${hasFilters ? `<button class="btn btn-secondary btn-sm" onclick="clearFilters()">Clear Filters</button>` : ''}
+      </div>
+    `;
+    return;
+  }
+  
+  // Render cards from filteredWorkOrders
+  container.innerHTML = workOrders.map(wo => `
+    <div class="wo-card ${wo.priority || 'low'}">
+      <a href="/work-orders/${wo.id}" class="wo-card-link">
+        <div class="wo-header">
+          <span class="wo-number">${escapeHtml(wo.wo_number) || 'N/A'}</span>
+          <span class="wo-status ${normalizeStatus(wo.status)}">${formatStatus(wo.status)}</span>
+        </div>
+        <h3 class="wo-title">${escapeHtml(wo.title)}</h3>
+        ${wo.description ? `<p class="wo-description">${escapeHtml(wo.description)}</p>` : ''}
+        <div class="wo-meta">
+          <span class="wo-equipment">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2"/>
+            </svg>
+            ${escapeHtml(wo.equipment_code) || 'N/A'} - ${escapeHtml(wo.equipment_name) || 'Unknown'}
+          </span>
+        </div>
+        <div class="wo-footer">
+          <span class="wo-priority ${wo.priority || 'low'}">${wo.priority || 'low'}</span>
+          <span class="wo-date">${formatDate(wo.scheduled_start)}</span>
+        </div>
+      </a>
+      ${state.isAdmin ? `
+      <div class="wo-actions">
+        <button class="btn-icon edit-btn" onclick="event.preventDefault(); event.stopPropagation(); editWorkOrder(${wo.id})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </button>
+      </div>
+      ` : ''}
+    </div>
+  `).join('');
+}
+
+// ============================================
+// EDIT MODAL (Admin only)
+// ============================================
+async function loadUsersForDropdown() {
+  try {
+    const response = await fetch('/api/users?active=true', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    const data = await response.json();
+    
+    if (data.success && data.data?.users) {
+      const select = document.getElementById('edit-assigned-to');
+      select.innerHTML = '<option value="">Unassigned</option>' + 
+        data.data.users.map(u => `<option value="${u.id}">${escapeHtml(u.full_name || u.username)} (${u.role})</option>`).join('');
+    }
+  } catch (error) {
+    console.error('[WO] Error loading users:', error);
+  }
+}
+
+async function editWorkOrder(id) {
+  if (!state.isAdmin) return;
+  
+  await loadUsersForDropdown();
+  
+  try {
+    const response = await fetch(`/api/work-orders/${id}`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    const data = await response.json();
+    
+    if (data.success && data.data?.work_order) {
+      const wo = data.data.work_order;
+      document.getElementById('edit-wo-id').value = wo.id;
+      document.getElementById('edit-wo-number').value = wo.wo_number || '';
+      document.getElementById('edit-title').value = wo.title || '';
+      document.getElementById('edit-status').value = wo.status || 'open';
+      document.getElementById('edit-priority').value = wo.priority || 'medium';
+      document.getElementById('edit-assigned-to').value = wo.assigned_to || '';
+      document.getElementById('edit-description').value = wo.description || '';
+      
+      document.getElementById('edit-wo-modal').classList.remove('hidden');
+    }
+  } catch (error) {
+    console.error('[WO] Error loading work order:', error);
+    showToast('Error loading work order', 'error');
+  }
+}
+
+function closeEditModal() {
+  document.getElementById('edit-wo-modal').classList.add('hidden');
+}
+
+async function handleEditSubmit(e) {
+  e.preventDefault();
+  
+  const saveBtn = document.getElementById('save-wo-btn');
+  const btnText = saveBtn.querySelector('.btn-text');
+  const spinner = saveBtn.querySelector('.spinner');
+  
+  saveBtn.disabled = true;
+  btnText.classList.add('hidden');
+  spinner.classList.remove('hidden');
+  
+  const id = document.getElementById('edit-wo-id').value;
+  const formData = {
+    title: document.getElementById('edit-title').value,
+    status: document.getElementById('edit-status').value,
+    priority: document.getElementById('edit-priority').value,
+    assigned_to: document.getElementById('edit-assigned-to').value || null,
+    description: document.getElementById('edit-description').value
+  };
+  
+  try {
+    const response = await fetch(`/api/work-orders/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(formData)
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showToast('Work order updated successfully', 'success');
+      closeEditModal();
+      loadWorkOrders();
+    } else {
+      showToast(data.message || 'Failed to update', 'error');
+    }
+  } catch (error) {
+    console.error('[WO] Error updating:', error);
+    showToast('Error updating work order', 'error');
+  } finally {
+    saveBtn.disabled = false;
+    btnText.classList.remove('hidden');
+    spinner.classList.add('hidden');
+  }
+}
+
+// ============================================
+// UTILITIES
+// ============================================
+function formatStatus(status) {
+  if (!status) return 'Unknown';
+  return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function formatDate(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.classList.add('fade-out');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+// ============================================
+// STAT FILTER FUNCTIONS
+// ============================================
+let activeStatFilter = null;
+
+function filterByStat(filterType) {
+  activeStatFilter = filterType;
+  
+  // Update UI - highlight active stat
+  document.querySelectorAll('.wo-stats .stat-item').forEach(item => {
+    item.classList.remove('active');
+  });
+  document.querySelector(`.wo-stats .stat-item[data-filter="${filterType}"]`)?.classList.add('active');
+  
+  // Filter the work orders
+  let filtered = [...state.workOrders];
+  
+  switch (filterType) {
+    case 'all':
+      filtered = state.workOrders;
+      break;
+    case 'open':
+      filtered = state.workOrders.filter(wo => {
+        const status = normalizeStatus(wo.status);
+        return status === 'open' || status === 'assigned';
+      });
+      break;
+    case 'in_progress':
+      filtered = state.workOrders.filter(wo => normalizeStatus(wo.status) === 'in_progress');
+      break;
+    case 'completed':
+      filtered = state.workOrders.filter(wo => {
+        const status = normalizeStatus(wo.status);
+        return status === 'completed' || status === 'closed';
+      });
+      break;
+  }
+  
+  // Update state and render
+  state.filteredWorkOrders = filtered;
+  
+  // Show filter bar
+  const filterBar = document.getElementById('stat-filter-bar');
+  const filterText = document.getElementById('stat-filter-text');
+  filterBar.classList.remove('hidden');
+  filterBar.style.display = 'flex';
+  
+  const filterLabels = {
+    'all': 'All Tasks',
+    'open': 'Open Tasks',
+    'in_progress': 'In Progress',
+    'completed': 'Completed Tasks'
+  };
+  filterText.textContent = `${filterLabels[filterType]} (${filtered.length})`;
+  
+  // Recompute stats based on filtered data and render
+  computeStats();
+  render();
+  
+  console.log('[WO] Stat filter applied:', filterType, 'Results:', filtered.length);
+}
+
+function clearStatFilter() {
+  activeStatFilter = null;
+  
+  // Remove active states
+  document.querySelectorAll('.wo-stats .stat-item').forEach(item => {
+    item.classList.remove('active');
+  });
+  
+  // Hide filter bar
+  const filterBar = document.getElementById('stat-filter-bar');
+  filterBar.classList.add('hidden');
+  filterBar.style.display = 'none';
+  
+  // Reset to all work orders
+  state.filteredWorkOrders = [...state.workOrders];
+  
+  // Recompute stats and render
+  computeStats();
+  render();
+  
+  console.log('[WO] Stat filter cleared');
+}
+</script>
+
+<%- include('partials/footer') %>

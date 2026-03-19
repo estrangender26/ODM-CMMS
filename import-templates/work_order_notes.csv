@@ -1,0 +1,8 @@
+# Table: work_order_notes
+# Description: work_order_notes table
+# Total Columns: 6
+
+id,work_order_id,user_id,note,note_type,created_at
+# DATA_TYPES:,int,int,int,text,enum,timestamp
+# NULLABLE:,NO,NO,NO,NO,YES,YES
+# DEFAULTS:,,,,,"general","CURRENT_TIMESTAMP"

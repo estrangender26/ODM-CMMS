@@ -1,0 +1,13 @@
+# Table: users
+# Description: System users and operators
+# Total Columns: 11
+
+id,username,email,password_hash,full_name,phone,role,is_active,last_login,created_at,updated_at
+# DATA_TYPES:,int,varchar,varchar,varchar,varchar,varchar,enum,tinyint,datetime,timestamp,timestamp
+# NULLABLE:,NO,NO,NO,NO,NO,YES,YES,YES,YES,YES,YES
+# DEFAULTS:,,,,,,,"operator","1",,"CURRENT_TIMESTAMP","CURRENT_TIMESTAMP"
+
+# SAMPLE DATA:
+1,admin,admin@odm-cmms.com,$2a$10$yd4ahmBASaqi.4M0FBkcmOoBqIvwBd2BL9XMkXskD4VbJ4nKaZua.,System Administrator,,admin,1,Tue Mar 17 2026 12:46:12 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:44:05 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:46:11 GMT+0800 (Singapore Standard Time)
+2,operator1,operator1@odm-cmms.com,$2a$10$yd4ahmBASaqi.4M0FBkcmOoBqIvwBd2BL9XMkXskD4VbJ4nKaZua.,Operator One,,operator,1,Tue Mar 17 2026 13:00:26 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:44:05 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 13:00:26 GMT+0800 (Singapore Standard Time)
+3,operator2,operator2@odm-cmms.com,$2a$10$yd4ahmBASaqi.4M0FBkcmOoBqIvwBd2BL9XMkXskD4VbJ4nKaZua.,Operator Two,,operator,1,,Tue Mar 17 2026 12:44:05 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:44:05 GMT+0800 (Singapore Standard Time)

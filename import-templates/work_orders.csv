@@ -1,0 +1,13 @@
+# Table: work_orders
+# Description: Work order assignments
+# Total Columns: 25
+
+id,wo_number,schedule_id,equipment_id,task_master_id,title,description,wo_type,priority,status,assigned_to,requested_by,requested_date,scheduled_start,scheduled_end,actual_start,actual_end,estimated_hours,actual_hours,completion_notes,completion_percentage,is_recurring,parent_wo_id,created_at,updated_at
+# DATA_TYPES:,int,varchar,int,int,int,varchar,text,enum,enum,enum,int,int,timestamp,datetime,datetime,datetime,datetime,int,int,text,int,tinyint,int,timestamp,timestamp
+# NULLABLE:,NO,NO,YES,NO,YES,NO,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES
+# DEFAULTS:,,,,,,,,"corrective","medium","open",,,"CURRENT_TIMESTAMP",,,,,,,,"0","0",,"CURRENT_TIMESTAMP","CURRENT_TIMESTAMP"
+
+# SAMPLE DATA:
+1,WO-2024-001,,1,1,Pump A Inspection - Jan 15,,preventive,medium,assigned,2,,Tue Mar 17 2026 12:50:46 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 00:00:00 GMT+0800 (Singapore Standard Time),,,,,,,0,0,,Tue Mar 17 2026 12:50:46 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:50:46 GMT+0800 (Singapore Standard Time)
+2,WO-2024-002,,2,1,Pump B Inspection - Jan 16,,preventive,medium,assigned,2,,Tue Mar 17 2026 12:50:46 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 00:00:00 GMT+0800 (Singapore Standard Time),,,,,,,0,0,,Tue Mar 17 2026 12:50:46 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:50:46 GMT+0800 (Singapore Standard Time)
+3,WO-2024-003,,3,2,Motor Weekly Check - Jan 17,,preventive,high,in_progress,3,,Tue Mar 17 2026 12:50:46 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 00:00:00 GMT+0800 (Singapore Standard Time),,,,,,,0,0,,Tue Mar 17 2026 12:50:46 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:50:46 GMT+0800 (Singapore Standard Time)

@@ -1,0 +1,8 @@
+# Table: audit_log
+# Description: System activity log
+# Total Columns: 10
+
+id,user_id,action,entity_type,entity_id,old_values,new_values,ip_address,user_agent,created_at
+# DATA_TYPES:,bigint,int,varchar,varchar,int,json,json,varchar,text,timestamp
+# NULLABLE:,NO,YES,NO,NO,YES,YES,YES,YES,YES,YES
+# DEFAULTS:,,,,,,,,,,"CURRENT_TIMESTAMP"

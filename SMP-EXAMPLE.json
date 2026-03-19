@@ -1,0 +1,44 @@
+{
+  "smps": [
+    {
+      "smpNumber": "SMP-001",
+      "title": "Monthly Pump Inspection",
+      "description": "Standard monthly inspection of main process pumps",
+      "facilityName": "Main Plant",
+      "facilityCode": "PLANT-01",
+      "equipmentName": "Main Process Pump A",
+      "equipmentCode": "PUMP-001",
+      "equipmentCategory": "Pump",
+      "manufacturer": "Grundfos",
+      "model": "CR-10-10",
+      "criticality": "high",
+      "taskType": "inspection",
+      "frequency": "monthly",
+      "estimatedTime": 45,
+      "priority": "high",
+      "steps": [
+        {
+          "description": "Check pump discharge pressure (40-60 PSI)",
+          "inputType": "numeric",
+          "minValue": 40,
+          "maxValue": 60,
+          "unit": "PSI",
+          "isCritical": true
+        },
+        {
+          "description": "Check for visible leaks",
+          "inputType": "boolean",
+          "isCritical": true
+        },
+        {
+          "description": "Measure vibration level",
+          "inputType": "numeric",
+          "minValue": 0,
+          "maxValue": 5,
+          "unit": "mm/s",
+          "isCritical": false
+        }
+      ]
+    }
+  ]
+}

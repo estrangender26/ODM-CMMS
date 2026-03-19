@@ -1,0 +1,8 @@
+# Table: inspection_readings
+# Description: Recorded inspection data
+# Total Columns: 16
+
+id,work_order_id,inspection_point_id,equipment_id,reading_value,reading_numeric,reading_text,reading_boolean,reading_photo_url,is_passing,notes,taken_by,taken_at,latitude,longitude,created_at
+# DATA_TYPES:,int,int,int,int,varchar,decimal,text,tinyint,varchar,tinyint,text,int,timestamp,decimal,decimal,timestamp
+# NULLABLE:,NO,NO,NO,NO,YES,YES,YES,YES,YES,YES,YES,NO,YES,YES,YES,YES
+# DEFAULTS:,,,,,,,,,,,,,"CURRENT_TIMESTAMP",,,"CURRENT_TIMESTAMP"

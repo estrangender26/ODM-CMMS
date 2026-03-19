@@ -1,0 +1,517 @@
+<%- include('partials/header', { title: title, user: user }) %>
+
+<div class="page inspection-page">
+  <header class="page-header">
+    <button class="btn-back" onclick="history.back()" title="Go Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+    </button>
+    <h1>Inspection</h1>
+    <div class="header-actions">
+      <span class="progress-indicator" id="progress-text">0/0</span>
+    </div>
+  </header>
+
+  <!-- Progress Bar -->
+  <div class="progress-bar">
+    <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+  </div>
+
+  <!-- Inspection Points -->
+  <div class="inspection-content" id="inspection-content">
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading inspection points...</p>
+    </div>
+  </div>
+
+  <!-- Submit Button -->
+  <div class="inspection-actions" id="inspection-actions">
+    <button class="btn btn-secondary" id="save-draft-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/>
+        <polyline points="7 3 7 8 15 8"/>
+      </svg>
+      Save Draft
+    </button>
+    <button class="btn btn-primary" id="submit-inspection-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+      Submit
+    </button>
+  </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal hidden" id="submit-modal">
+  <div class="modal-backdrop" onclick="closeSubmitModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Submit Inspection</h3>
+      <button class="btn-close" onclick="closeSubmitModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p>Are you sure you want to submit this inspection? This action cannot be undone.</p>
+      <p id="submit-warning" style="color: var(--warning); font-size: 14px; margin-top: 12px; display: none;">
+        <strong>Warning:</strong> Not all inspection points are complete.
+      </p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeSubmitModal()">Cancel</button>
+      <button class="btn btn-primary" id="confirm-submit-btn" onclick="submitInspection()">
+        <span class="btn-text">Submit</span>
+        <span class="spinner hidden"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================
+// INSPECTION PAGE
+// ============================================
+const workOrderId = '<%= workOrderId %>';
+let inspectionPoints = [];
+let readings = {};
+let workOrder = null;
+
+// ============================================
+// INITIALIZATION
+// ============================================
+document.addEventListener('DOMContentLoaded', () => {
+  checkAuth();
+  initEventListeners();
+  loadInspectionData();
+});
+
+function initEventListeners() {
+  // Submit button
+  document.getElementById('submit-inspection-btn').addEventListener('click', showSubmitModal);
+  
+  // Save draft button
+  document.getElementById('save-draft-btn').addEventListener('click', saveDraft);
+}
+
+// ============================================
+// DATA LOADING
+// ============================================
+async function loadInspectionData() {
+  try {
+    // Load work order details
+    const woRes = await fetch(`/api/work-orders/${workOrderId}`, {
+      headers: getAuthHeaders()
+    });
+    
+    if (woRes.status === 401) {
+      handleAuthError();
+      return;
+    }
+    
+    if (woRes.status === 404) {
+      showErrorState('Work order not found');
+      return;
+    }
+    
+    const woData = await woRes.json();
+    
+    if (!woData.success || !woData.data?.work_order) {
+      showErrorState('Work order not found');
+      return;
+    }
+    
+    workOrder = woData.data.work_order;
+    
+    // If task has inspection points, load them
+    if (workOrder.task_master_id) {
+      try {
+        const pointsRes = await fetch(`/api/inspections/points/task/${workOrder.task_master_id}`, {
+          headers: getAuthHeaders()
+        });
+        
+        const pointsData = await pointsRes.json();
+        
+        if (pointsData.success && pointsData.data?.inspection_points?.length > 0) {
+          inspectionPoints = pointsData.data.inspection_points;
+        } else {
+          // Create generic inspection points
+          inspectionPoints = getGenericInspectionPoints();
+        }
+      } catch (error) {
+        console.error('[Inspection] Error loading inspection points:', error);
+        inspectionPoints = getGenericInspectionPoints();
+      }
+    } else {
+      // Generic inspection
+      inspectionPoints = getGenericInspectionPoints();
+    }
+    
+    // Load existing readings
+    try {
+      const readingsRes = await fetch(`/api/inspections/readings/work-order/${workOrderId}`, {
+        headers: getAuthHeaders()
+      });
+      
+      const readingsData = await readingsRes.json();
+      
+      if (readingsData.success && readingsData.data?.readings) {
+        readingsData.data.readings.forEach(r => {
+          readings[r.inspection_point_id] = r.reading_value;
+        });
+      }
+    } catch (error) {
+      console.error('[Inspection] Error loading readings:', error);
+    }
+    
+    renderInspectionPoints();
+    updateProgress();
+    
+  } catch (error) {
+    console.error('[Inspection] Error loading inspection data:', error);
+    showErrorState('Failed to load inspection data');
+  }
+}
+
+function getGenericInspectionPoints() {
+  return [
+    { id: 1, point_code: 'VISUAL', description: 'Visual Inspection - Check for damage, leaks, unusual wear', input_type: 'boolean', expected_value: 'true' },
+    { id: 2, point_code: 'OPERATION', description: 'Operational Check - Equipment runs smoothly', input_type: 'boolean', expected_value: 'true' },
+    { id: 3, point_code: 'NOTES', description: 'Additional Notes', input_type: 'text', expected_value: null }
+  ];
+}
+
+// ============================================
+// RENDERING
+// ============================================
+function renderInspectionPoints() {
+  const container = document.getElementById('inspection-content');
+  
+  console.log('[Inspection] Rendering points:', inspectionPoints.length);
+  
+  if (!inspectionPoints || inspectionPoints.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 11l3 3L22 4"/>
+            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+          </svg>
+        </div>
+        <h3>No Inspection Points</h3>
+        <p>This work order doesn't have any inspection points configured.</p>
+      </div>
+    `;
+    return;
+  }
+  
+  try {
+    container.innerHTML = inspectionPoints.map((point, index) => {
+      const currentValue = readings[point.id] || '';
+      
+      let inputHtml = '';
+      switch (point.input_type) {
+        case 'numeric':
+          inputHtml = `
+            <div class="numeric-input">
+              <input type="number" 
+                     id="point-${point.id}" 
+                     value="${currentValue}"
+                     step="0.01"
+                     placeholder="Enter value">
+              ${point.unit_of_measure ? `<span class="unit">${point.unit_of_measure}</span>` : ''}
+            </div>
+            ${point.min_value !== null || point.max_value !== null ? `
+              <span class="range-hint">Range: ${point.min_value !== null ? point.min_value : '-'} to ${point.max_value !== null ? point.max_value : '-'}</span>
+            ` : ''}
+          `;
+          break;
+          
+        case 'boolean':
+          inputHtml = `
+            <div class="boolean-input">
+              <button type="button" 
+                      class="boolean-btn ${currentValue === 'true' ? 'active' : ''}" 
+                      data-value="true"
+                      onclick="setBoolean(${point.id}, 'true')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 6L9 17l-5-5"/>
+                </svg>
+                Yes / Pass
+              </button>
+              <button type="button" 
+                      class="boolean-btn ${currentValue === 'false' ? 'active' : ''}" 
+                      data-value="false"
+                      onclick="setBoolean(${point.id}, 'false')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+                No / Fail
+              </button>
+            </div>
+          `;
+          break;
+          
+        case 'text':
+          inputHtml = `
+            <textarea id="point-${point.id}" 
+                      rows="3" 
+                      placeholder="Enter notes...">${currentValue}</textarea>
+          `;
+          break;
+          
+        case 'select':
+          const options = point.acceptable_values ? JSON.parse(point.acceptable_values) : ['excellent', 'good', 'fair', 'poor'];
+          inputHtml = `
+            <select id="point-${point.id}">
+              <option value="">Select...</option>
+              ${options.map(opt => `<option value="${opt}" ${currentValue === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+            </select>
+          `;
+          break;
+          
+        default:
+          inputHtml = `<input type="text" id="point-${point.id}" value="${currentValue}" placeholder="Enter value">`;
+      }
+      
+      return `
+        <div class="inspection-point ${currentValue ? 'completed' : ''}" data-point-id="${point.id}">
+          <div class="point-header">
+            <span class="point-number">${index + 1}</span>
+            <div class="point-title">
+              <h3>${point.description}</h3>
+              ${point.help_text ? `<p class="point-help">${point.help_text}</p>` : ''}
+            </div>
+            ${point.is_critical ? '<span class="critical-badge">Critical</span>' : ''}
+          </div>
+          <div class="point-input">
+            ${inputHtml}
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    // Add change listeners for non-boolean inputs
+    inspectionPoints.forEach(point => {
+      if (point.input_type !== 'boolean') {
+        const input = document.getElementById(`point-${point.id}`);
+        if (input) {
+          input.addEventListener('change', () => {
+            readings[point.id] = input.value;
+            updateProgress();
+            const pointEl = document.querySelector(`[data-point-id="${point.id}"]`);
+            if (pointEl) pointEl.classList.toggle('completed', !!input.value);
+          });
+        }
+      }
+    });
+  } catch (err) {
+    console.error('[Inspection] Render error:', err);
+    showErrorState('Error displaying inspection form');
+  }
+}
+
+function showErrorState(message) {
+  const container = document.getElementById('inspection-content');
+  container.innerHTML = `
+    <div class="error-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <p>${message}</p>
+      <button class="btn btn-secondary btn-sm" onclick="loadInspectionData()" style="margin-top: 16px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+          <path d="M23 4v6h-6M1 20v-6h6"/>
+          <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+        </svg>
+        Try Again
+      </button>
+    </div>
+  `;
+}
+
+// ============================================
+// ACTIONS
+// ============================================
+function setBoolean(pointId, value) {
+  readings[pointId] = value;
+  
+  // Update UI
+  const container = document.querySelector(`[data-point-id="${pointId}"] .boolean-input`);
+  if (container) {
+    container.querySelectorAll('.boolean-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === value);
+    });
+  }
+  
+  // Mark as completed
+  const pointEl = document.querySelector(`[data-point-id="${pointId}"]`);
+  if (pointEl) pointEl.classList.add('completed');
+  
+  updateProgress();
+}
+
+function updateProgress() {
+  const total = inspectionPoints.length;
+  const completed = Object.keys(readings).filter(k => readings[k] !== '').length;
+  const percentage = total > 0 ? (completed / total) * 100 : 0;
+  
+  const progressFill = document.getElementById('progress-fill');
+  const progressText = document.getElementById('progress-text');
+  
+  if (progressFill) progressFill.style.width = `${percentage}%`;
+  if (progressText) progressText.textContent = `${completed}/${total}`;
+}
+
+function showSubmitModal() {
+  const total = inspectionPoints.length;
+  const completed = Object.keys(readings).filter(k => readings[k] !== '').length;
+  
+  // Show warning if not all points are complete
+  const warningEl = document.getElementById('submit-warning');
+  if (warningEl) {
+    warningEl.style.display = completed < total ? 'block' : 'none';
+  }
+  
+  document.getElementById('submit-modal').classList.remove('hidden');
+}
+
+function closeSubmitModal() {
+  document.getElementById('submit-modal').classList.add('hidden');
+}
+
+function saveDraft() {
+  // In a real app, save to localStorage or backend
+  localStorage.setItem(`inspection-draft-${workOrderId}`, JSON.stringify(readings));
+  showToast('Draft saved', 'success');
+}
+
+async function submitInspection() {
+  const readingsArray = Object.entries(readings).map(([pointId, value]) => ({
+    inspection_point_id: parseInt(pointId),
+    equipment_id: workOrder?.equipment_id,
+    reading_value: value
+  }));
+  
+  if (readingsArray.length === 0) {
+    showToast('Please complete at least one inspection point', 'error');
+    return;
+  }
+  
+  const submitBtn = document.getElementById('confirm-submit-btn');
+  const btnText = submitBtn.querySelector('.btn-text');
+  const spinner = submitBtn.querySelector('.spinner');
+  
+  // Set loading state
+  submitBtn.disabled = true;
+  btnText.classList.add('hidden');
+  spinner.classList.remove('hidden');
+  
+  try {
+    // Submit readings
+    const response = await fetch(`/api/inspections/readings/work-order/${workOrderId}/bulk`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ readings: readingsArray })
+    });
+    
+    if (response.status === 401) {
+      handleAuthError();
+      return;
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      // Update work order status to completed
+      await fetch(`/api/work-orders/${workOrderId}/status`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ 
+          status: 'completed',
+          completion_percentage: 100
+        })
+      });
+      
+      // Clear draft
+      localStorage.removeItem(`inspection-draft-${workOrderId}`);
+      
+      showToast('Inspection submitted successfully', 'success');
+      setTimeout(() => {
+        window.location.href = `/work-orders/${workOrderId}`;
+      }, 1500);
+    } else {
+      showToast(data.message || 'Failed to submit inspection', 'error');
+    }
+  } catch (error) {
+    console.error('[Inspection] Error submitting:', error);
+    showToast('Failed to submit inspection', 'error');
+  } finally {
+    submitBtn.disabled = false;
+    btnText.classList.remove('hidden');
+    spinner.classList.add('hidden');
+    closeSubmitModal();
+  }
+}
+
+// ============================================
+// UTILITIES
+// ============================================
+function getAuthHeaders() {
+  const token = localStorage.getItem('token');
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
+}
+
+function checkAuth() {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    window.location.href = '/login';
+  }
+}
+
+function handleAuthError() {
+  localStorage.clear();
+  window.location.href = '/login';
+}
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.classList.add('fade-out');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+// Load draft on page load
+window.addEventListener('load', () => {
+  const draft = localStorage.getItem(`inspection-draft-${workOrderId}`);
+  if (draft) {
+    try {
+      readings = JSON.parse(draft);
+      updateProgress();
+    } catch (e) {
+      console.error('[Inspection] Error loading draft:', e);
+    }
+  }
+});
+</script>
+
+<%- include('partials/footer') %>

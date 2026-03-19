@@ -1,0 +1,107 @@
+{
+  "smps": [
+    {
+      "smpNumber": "SMP-001",
+      "title": "Monthly Pump Inspection",
+      "description": "Standard monthly inspection of main process pumps",
+      "facilityName": "Main Plant",
+      "facilityCode": "PLANT-01",
+      "facilityCity": "Industrial City",
+      "facilityState": "CA",
+      "equipmentName": "Main Process Pump A",
+      "equipmentCode": "PUMP-001",
+      "equipmentCategory": "Pump",
+      "manufacturer": "Grundfos",
+      "model": "CR-10-10",
+      "equipmentLocation": "Pump House - North Wall",
+      "criticality": "high",
+      "taskType": "inspection",
+      "frequency": "monthly",
+      "frequencyValue": 1,
+      "estimatedTime": 45,
+      "priority": "high",
+      "assignedTo": 2,
+      "toolsRequired": "Pressure gauge, vibration meter, flashlight",
+      "safetyNotes": "Lock out pump before inspection. Wear PPE.",
+      "steps": [
+        {
+          "description": "Check pump discharge pressure",
+          "inputType": "numeric",
+          "minValue": 40,
+          "maxValue": 60,
+          "unit": "PSI",
+          "expectedValue": "50",
+          "isCritical": true,
+          "helpText": "Use calibrated pressure gauge at discharge port"
+        },
+        {
+          "description": "Check for visible leaks",
+          "inputType": "boolean",
+          "expectedValue": "false",
+          "isCritical": true,
+          "helpText": "Inspect seals, flanges, and connections for leaks"
+        },
+        {
+          "description": "Measure vibration level",
+          "inputType": "numeric",
+          "minValue": 0,
+          "maxValue": 5,
+          "unit": "mm/s",
+          "expectedValue": "<3",
+          "isCritical": false,
+          "helpText": "Use vibration meter on motor bearing housing"
+        },
+        {
+          "description": "Check motor temperature",
+          "inputType": "numeric",
+          "minValue": 20,
+          "maxValue": 80,
+          "unit": "°C",
+          "expectedValue": "<60",
+          "isCritical": true
+        },
+        {
+          "description": "Overall equipment condition",
+          "inputType": "select",
+          "options": ["excellent", "good", "fair", "poor"],
+          "expectedValue": "good",
+          "isCritical": false
+        }
+      ]
+    },
+    {
+      "smpNumber": "SMP-002",
+      "title": "Weekly Conveyor Belt Check",
+      "description": "Routine inspection of conveyor belt system",
+      "facilityName": "Warehouse A",
+      "facilityCode": "WH-A-01",
+      "equipmentName": "Conveyor Belt Main",
+      "equipmentCode": "CONV-001",
+      "equipmentCategory": "Conveyor",
+      "manufacturer": "FlexLink",
+      "model": "XT-200",
+      "criticality": "medium",
+      "taskType": "inspection",
+      "frequency": "weekly",
+      "estimatedTime": 30,
+      "priority": "medium",
+      "steps": [
+        {
+          "description": "Check belt tension",
+          "inputType": "boolean",
+          "isCritical": true
+        },
+        {
+          "description": "Inspect belt for wear/damage",
+          "inputType": "boolean",
+          "isCritical": true
+        },
+        {
+          "description": "Check motor operation",
+          "inputType": "boolean",
+          "isCritical": false
+        }
+      ]
+    }
+  ]
+}

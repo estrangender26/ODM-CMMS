@@ -1,0 +1,13 @@
+# Table: schedules
+# Description: Maintenance schedule definitions
+# Total Columns: 22
+
+id,schedule_code,equipment_id,task_master_id,title,description,frequency_type,frequency_value,frequency_hours,day_of_week,day_of_month,month_of_year,start_date,end_date,next_due_date,estimated_hours,assigned_to,priority,is_active,created_by,created_at,updated_at
+# DATA_TYPES:,int,varchar,int,int,varchar,text,enum,int,int,tinyint,tinyint,tinyint,date,date,date,int,int,enum,tinyint,int,timestamp,timestamp
+# NULLABLE:,NO,NO,NO,NO,NO,YES,NO,YES,YES,YES,YES,YES,NO,YES,YES,YES,YES,YES,YES,YES,YES,YES
+# DEFAULTS:,,,,,,,,"1",,,,,,,,,,"medium","1",,"CURRENT_TIMESTAMP","CURRENT_TIMESTAMP"
+
+# SAMPLE DATA:
+1,SCH-001,1,1,Pump A Daily Check,,daily,1,,,,,Tue Mar 17 2026 00:00:00 GMT+0800 (Singapore Standard Time),,,,,medium,1,,Tue Mar 17 2026 12:50:46 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:50:46 GMT+0800 (Singapore Standard Time)
+2,SCH-002,2,1,Pump B Daily Check,,daily,1,,,,,Tue Mar 17 2026 00:00:00 GMT+0800 (Singapore Standard Time),,,,,medium,1,,Tue Mar 17 2026 12:50:46 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:50:46 GMT+0800 (Singapore Standard Time)
+3,SCH-003,3,2,Motor Weekly Check,,weekly,1,,,,,Tue Mar 17 2026 00:00:00 GMT+0800 (Singapore Standard Time),,,,,medium,1,,Tue Mar 17 2026 12:50:46 GMT+0800 (Singapore Standard Time),Tue Mar 17 2026 12:50:46 GMT+0800 (Singapore Standard Time)
