@@ -8,6 +8,7 @@
       </svg>
     </a>
     <h1>Manage Equipment</h1>
+    <% if (user && user.role === 'admin') { %>
     <div class="header-actions">
       <button class="btn-icon" id="add-btn" onclick="openModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -16,6 +17,7 @@
         </svg>
       </button>
     </div>
+    <% } %>
   </header>
 
   <!-- Search Bar -->
@@ -144,6 +146,9 @@
 
 <script>
 checkAuth();
+
+// Store user role for client-side rendering
+const isAdminUser = <%= user && user.role === 'admin' ? 'true' : 'false' %>;
 
 let editingId = null;
 let facilities = [];
@@ -281,6 +286,7 @@ function renderEquipment(equipment) {
       </div>
       <h3 class="equipment-name">${eq.name}</h3>
       <p class="equipment-facility">${eq.facility_name || ''} ${eq.category ? '• ' + eq.category : ''}</p>
+      ${isAdminUser ? `
       <div class="equipment-actions">
         <button class="btn-icon" onclick="editEquipment(${eq.id})">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -295,6 +301,7 @@ function renderEquipment(equipment) {
           </svg>
         </button>
       </div>
+      ` : ''}
     </div>
   `).join('');
 }
