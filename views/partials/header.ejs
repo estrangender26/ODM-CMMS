@@ -15,8 +15,8 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/icon-192x192.png">
   
-  <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%232563EB'/><circle cx='50' cy='50' r='30' fill='white'/><circle cx='50' cy='50' r='12' fill='%23CBD5E1'/><circle cx='72' cy='28' r='18' fill='%2310B981'/><path d='M65 28 L70 33 L79 24' stroke='white' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+  <!-- Favicon - Worker with Hard Hat -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><linearGradient id='favGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%232563EB'/><stop offset='100%25' stop-color='%230EA5E9'/></linearGradient><linearGradient id='favHelmet' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23F59E0B'/><stop offset='100%25' stop-color='%23D97706'/></linearGradient></defs><circle cx='100' cy='100' r='90' fill='url(%23favGrad)'/><g transform='translate(40,30)'><ellipse cx='60' cy='35' rx='35' ry='20' fill='url(%23favHelmet)'/><rect x='25' y='45' width='70' height='8' rx='4' fill='%23D97706'/><circle cx='60' cy='65' r='22' fill='%231E293B'/><path d='M30 90 Q60 80 90 90 L95 140 Q60 145 25 140 Z' fill='%231E293B'/><rect x='35' y='100' width='50' height='35' rx='4' fill='white'/><rect x='40' y='105' width='40' height='25' rx='2' fill='%23E2E8F0'/><ellipse cx='30' cy='115' rx='8' ry='12' fill='%231E293B'/><ellipse cx='90' cy='115' rx='8' ry='12' fill='%231E293B'/></g><circle cx='155' cy='45' r='25' fill='%2310B981' stroke='white' stroke-width='4'/><path d='M143 45 L150 52 L167 35' stroke='white' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/></svg>">
 </head>
 <body class="<%= typeof user !== 'undefined' && user ? 'logged-in' : 'logged-out' %>" data-user-role="<%= typeof user !== 'undefined' && user ? user.role : '' %>">
   <div id="app">
@@ -27,28 +27,41 @@
     <header class="top-header">
       <!-- Brand Logo -->
       <a href="/dashboard" class="brand-logo" title="ODM-CMMS Home">
-        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <linearGradient id="headerLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stop-color="#2563EB"/>
               <stop offset="100%" stop-color="#0EA5E9"/>
             </linearGradient>
+            <linearGradient id="headerHelmetGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#F59E0B"/>
+              <stop offset="100%" stop-color="#D97706"/>
+            </linearGradient>
           </defs>
-          <!-- Gear Circle -->
-          <circle cx="50" cy="50" r="42" fill="url(#headerLogoGrad)"/>
-          <!-- Gear Teeth -->
-          <path d="M50 8 L53 8 L54 16 L46 16 L47 8 Z" fill="url(#headerLogoGrad)"/>
-          <path d="M50 92 L47 92 L46 84 L54 84 L53 92 Z" fill="url(#headerLogoGrad)"/>
-          <path d="M8 50 L8 47 L16 46 L16 54 L8 53 Z" fill="url(#headerLogoGrad)"/>
-          <path d="M92 50 L92 53 L84 54 L84 46 L92 47 Z" fill="url(#headerLogoGrad)"/>
-          <!-- Inner White Circle -->
-          <circle cx="50" cy="50" r="28" fill="white"/>
-          <!-- Center Gear -->
-          <circle cx="50" cy="50" r="12" fill="#E2E8F0"/>
-          <circle cx="50" cy="50" r="5" fill="#94A3B8"/>
+          <!-- Background Circle -->
+          <circle cx="100" cy="100" r="90" fill="url(#headerLogoGrad)"/>
+          <!-- Worker Silhouette -->
+          <g transform="translate(40, 30)">
+            <!-- Hard Hat -->
+            <ellipse cx="60" cy="35" rx="35" ry="20" fill="url(#headerHelmetGrad)"/>
+            <rect x="25" y="45" width="70" height="8" rx="4" fill="#D97706"/>
+            <!-- Head -->
+            <circle cx="60" cy="65" r="22" fill="#1E293B"/>
+            <!-- Body -->
+            <path d="M30 90 Q60 80 90 90 L95 140 Q60 145 25 140 Z" fill="#1E293B"/>
+            <!-- Tablet/Device -->
+            <rect x="35" y="100" width="50" height="35" rx="4" fill="white"/>
+            <rect x="40" y="105" width="40" height="25" rx="2" fill="#E2E8F0"/>
+            <!-- Screen content -->
+            <rect x="45" y="110" width="30" height="3" rx="1" fill="#94A3B8"/>
+            <rect x="45" y="116" width="20" height="3" rx="1" fill="#CBD5E1"/>
+            <!-- Hands -->
+            <ellipse cx="30" cy="115" rx="8" ry="12" fill="#1E293B"/>
+            <ellipse cx="90" cy="115" rx="8" ry="12" fill="#1E293B"/>
+          </g>
           <!-- Checkmark Badge -->
-          <circle cx="76" cy="24" r="14" fill="#10B981" stroke="white" stroke-width="2"/>
-          <path d="M70 24 L74 28 L82 20" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="155" cy="45" r="25" fill="#10B981" stroke="white" stroke-width="4"/>
+          <path d="M143 45 L150 52 L167 35" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         <div class="brand-logo-text hide-mobile">
           <span class="brand-logo-title">ODM-CMMS</span>
