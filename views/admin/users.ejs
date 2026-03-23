@@ -282,8 +282,8 @@ function renderUsers(users) {
       <h3 class="user-name">${u.full_name || u.username}</h3>
       <p class="user-email">${u.email}</p>
       <p class="user-username">@${u.username}</p>
-      <p class="user-facility" style="font-size: 12px; color: #666; margin-top: 4px;">${u.facility_name || 'No facility assigned'}</p>
-      <div class="user-actions" style="margin-top: 8px;">
+      <p class="user-facility">${u.facility_name || 'No facility assigned'}</p>
+      <div class="user-actions">
         <button class="btn-icon" onclick="editUser(${u.id}, '${escapeHtml(u.username)}', '${escapeHtml(u.email)}', '${escapeHtml(u.full_name || '')}', '${u.role}', ${u.facility_id || 'null'}, ${u.is_active})">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
