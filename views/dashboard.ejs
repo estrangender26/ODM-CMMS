@@ -37,17 +37,17 @@
         </div>
       </div>
       
-      <div class="stat-card urgent stat-filter" data-filter="urgent" onclick="filterWorkOrders('urgent')">
+      <div class="stat-card cancelled stat-filter" data-filter="cancelled" onclick="filterWorkOrders('cancelled')">
         <div class="stat-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
+            <line x1="8" y1="8" x2="16" y2="16"/>
+            <line x1="16" y1="8" x2="8" y2="16"/>
           </svg>
         </div>
         <div class="stat-info">
-          <span class="stat-value loading" id="urgent-count">-</span>
-          <span class="stat-label">Urgent</span>
+          <span class="stat-value loading" id="cancelled-count">-</span>
+          <span class="stat-label">Cancelled</span>
         </div>
       </div>
       
@@ -281,16 +281,16 @@ async function loadDashboardData() {
       if (user.role === 'admin' || user.role === 'supervisor') {
         // Update stats display (convert strings to numbers, handle NULL)
         const totalCount = parseInt(stats.total) || 0;
-        const urgentCount = parseInt(stats.urgent_pending) || 0;
+        const cancelledCount = parseInt(stats.cancelled) || 0;
         const pendingCount = (parseInt(stats.assigned) || 0) + (parseInt(stats.in_progress) || 0);
         const completedCount = (parseInt(stats.completed) || 0) + (parseInt(stats.closed) || 0);
         
         updateStatElement('total-count', totalCount);
-        updateStatElement('urgent-count', urgentCount);
+        updateStatElement('cancelled-count', cancelledCount);
         updateStatElement('pending-count', pendingCount);
         updateStatElement('completed-count', completedCount);
         
-        console.log('[Dashboard] System stats updated:', { totalCount, urgentCount, pendingCount, completedCount });
+        console.log('[Dashboard] System stats updated:', { totalCount, cancelledCount, pendingCount, completedCount });
       } else {
         console.log('[Dashboard] Operator user - stats will be calculated from work orders');
       }
@@ -358,14 +358,14 @@ async function loadTodayWorkOrders() {
 function calculateAndUpdateStats(workOrders) {
   // Calculate stats from the actual work orders list
   const totalCount = workOrders.length;
-  let urgentCount = 0;
+  let cancelledCount = 0;
   let pendingCount = 0;
   let completedCount = 0;
   
   workOrders.forEach(wo => {
-    // Urgent = urgent priority
-    if (wo.priority === 'urgent') {
-      urgentCount++;
+    // Cancelled = cancelled status
+    if (wo.status === 'cancelled') {
+      cancelledCount++;
     }
     
     // Pending = assigned or in_progress
@@ -380,14 +380,14 @@ function calculateAndUpdateStats(workOrders) {
   });
   
   updateStatElement('total-count', totalCount);
-  updateStatElement('urgent-count', urgentCount);
+  updateStatElement('cancelled-count', cancelledCount);
   updateStatElement('pending-count', pendingCount);
   updateStatElement('completed-count', completedCount);
   
   // Store counts for filter display
-  dashboardState.stats = { total: totalCount, urgent: urgentCount, pending: pendingCount, completed: completedCount };
+  dashboardState.stats = { total: totalCount, cancelled: cancelledCount, pending: pendingCount, completed: completedCount };
   
-  console.log('[Dashboard] Stats calculated from work orders:', { totalCount, urgentCount, pendingCount, completedCount });
+  console.log('[Dashboard] Stats calculated from work orders:', { totalCount, cancelledCount, pendingCount, completedCount });
 }
 
 // ============================================
@@ -413,7 +413,7 @@ function setStatsLoading(loading) {
 }
 
 function showStatsError() {
-  const statIds = ['urgent-count', 'pending-count', 'completed-count'];
+  const statIds = ['cancelled-count', 'pending-count', 'completed-count'];
   statIds.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -444,7 +444,7 @@ function renderWorkOrders(workOrders) {
   
   try {
     container.innerHTML = workOrders.map(wo => `
-      <div class="wo-card ${wo.priority}" onclick="window.location.href='/work-orders/${wo.id}'">
+      <div class="wo-card ${wo.status === 'cancelled' ? 'cancelled' : wo.priority}" onclick="window.location.href='/work-orders/${wo.id}'">
         <div class="wo-header">
           <span class="wo-number">${wo.wo_number || 'N/A'}</span>
           <span class="wo-status ${wo.status}">${formatStatus(wo.status)}</span>
@@ -564,8 +564,8 @@ function filterWorkOrders(filterType) {
   let filtered = dashboardState.workOrders;
   
   switch (filterType) {
-    case 'urgent':
-      filtered = dashboardState.workOrders.filter(wo => wo.priority === 'urgent');
+    case 'cancelled':
+      filtered = dashboardState.workOrders.filter(wo => wo.status === 'cancelled');
       break;
     case 'pending':
       filtered = dashboardState.workOrders.filter(wo => wo.status === 'assigned' || wo.status === 'in_progress');
@@ -589,7 +589,7 @@ function filterWorkOrders(filterType) {
   
   const filterLabels = {
     'all': 'All Tasks',
-    'urgent': 'Urgent Priority',
+    'cancelled': 'Cancelled Tasks',
     'pending': 'Pending Tasks',
     'completed': 'Completed Tasks'
   };

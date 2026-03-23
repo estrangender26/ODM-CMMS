@@ -224,7 +224,7 @@ class WorkOrderModel extends BaseModel {
         COALESCE(SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END), 0) as in_progress,
         COALESCE(SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END), 0) as completed,
         COALESCE(SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END), 0) as closed,
-        COALESCE(SUM(CASE WHEN priority = 'urgent' AND status NOT IN ('completed', 'closed', 'cancelled') THEN 1 ELSE 0 END), 0) as urgent_pending
+        COALESCE(SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END), 0) as cancelled
       FROM ${this.tableName}
     `;
     const [result] = await this.query(sql);
@@ -346,7 +346,7 @@ class WorkOrderModel extends BaseModel {
         COALESCE(SUM(CASE WHEN wo.status = 'in_progress' THEN 1 ELSE 0 END), 0) as in_progress,
         COALESCE(SUM(CASE WHEN wo.status = 'completed' THEN 1 ELSE 0 END), 0) as completed,
         COALESCE(SUM(CASE WHEN wo.status = 'closed' THEN 1 ELSE 0 END), 0) as closed,
-        COALESCE(SUM(CASE WHEN wo.priority = 'urgent' AND wo.status NOT IN ('completed', 'closed', 'cancelled') THEN 1 ELSE 0 END), 0) as urgent_pending
+        COALESCE(SUM(CASE WHEN wo.status = 'cancelled' THEN 1 ELSE 0 END), 0) as cancelled
       FROM ${this.tableName} wo
       JOIN equipment e ON wo.equipment_id = e.id
       WHERE e.facility_id = ?

@@ -152,7 +152,7 @@ const getEquipmentReport = async (req, res, next) => {
       JOIN facilities f ON e.facility_id = f.id
       LEFT JOIN work_orders wo ON e.id = wo.equipment_id
       WHERE ${whereClause}
-      GROUP BY e.id
+      GROUP BY e.id, e.code, e.name, e.category, e.status, f.name
       ORDER BY total_work_orders DESC
     `;
     const equipment = await db.query(equipmentQuery, params);
@@ -228,7 +228,7 @@ const getTechnicianReport = async (req, res, next) => {
       LEFT JOIN work_orders wo ON u.id = wo.assigned_to
       ${facilityJoin}
       WHERE ${whereClause}
-      GROUP BY u.id
+      GROUP BY u.id, u.full_name, u.role
       HAVING total_assigned > 0
       ORDER BY completed DESC
     `;
@@ -503,7 +503,7 @@ async function getEquipmentData(facility_id, category) {
     JOIN facilities f ON e.facility_id = f.id
     LEFT JOIN work_orders wo ON e.id = wo.equipment_id
     WHERE ${whereClause}
-    GROUP BY e.id
+    GROUP BY e.id, e.code, e.name, f.name
   `;
   
   const equipment = await db.query(query, params);
@@ -537,7 +537,7 @@ async function getTechnicianData(start_date, end_date) {
     FROM users u
     LEFT JOIN work_orders wo ON u.id = wo.assigned_to
     WHERE ${whereClause}
-    GROUP BY u.id
+    GROUP BY u.id, u.full_name, u.role
     HAVING total_assigned > 0
   `;
   
