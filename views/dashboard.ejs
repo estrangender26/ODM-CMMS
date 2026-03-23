@@ -444,7 +444,7 @@ function renderWorkOrders(workOrders) {
   
   try {
     container.innerHTML = workOrders.map(wo => `
-      <a href="/work-orders/${wo.id}" class="wo-card ${wo.priority}">
+      <div class="wo-card ${wo.priority}" onclick="window.location.href='/work-orders/${wo.id}'">
         <div class="wo-header">
           <span class="wo-number">${wo.wo_number || 'N/A'}</span>
           <span class="wo-status ${wo.status}">${formatStatus(wo.status)}</span>
@@ -465,7 +465,7 @@ function renderWorkOrders(workOrders) {
             ${wo.estimated_hours || '-'}h
           </span>
         </div>
-      </a>
+      </div>
     `).join('');
   } catch (err) {
     console.error('[Dashboard] Error rendering work orders:', err);
