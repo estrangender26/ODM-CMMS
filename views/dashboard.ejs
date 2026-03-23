@@ -152,7 +152,7 @@
           <span>Equipment</span>
         </div>
         
-        <% if (user && (user.role === 'admin' || user.role === 'supervisor')) { %>
+        <% if (user && (user.role === 'admin' || user.role === 'supervisor' || user.role === 'operator')) { %>
         <div class="action-card" onclick="navigateTo('/admin/reports')">
           <div class="action-icon red">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
