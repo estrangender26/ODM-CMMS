@@ -79,6 +79,7 @@
             <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
           </svg>
         </div>
+        <% if (user && user.role !== 'operator') { %>
         <div class="report-actions">
           <button class="btn-icon btn-sm" onclick="event.stopPropagation(); exportReport('work-orders')" title="Export CSV">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -88,6 +89,7 @@
             </svg>
           </button>
         </div>
+        <% } %>
       </div>
       <h3>Work Order Summary</h3>
       <p>Status, priority, and completion metrics</p>
@@ -106,6 +108,7 @@
             <line x1="12" y1="17" x2="12" y2="21"/>
           </svg>
         </div>
+        <% if (user && user.role !== 'operator') { %}
         <div class="report-actions">
           <button class="btn-icon btn-sm" onclick="event.stopPropagation(); exportReport('equipment')" title="Export CSV">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -115,6 +118,7 @@
             </svg>
           </button>
         </div>
+        <% } %>
       </div>
       <h3>Equipment Status</h3>
       <p>Maintenance history by equipment</p>
@@ -150,6 +154,7 @@
             <circle cx="12" cy="7" r="4"/>
           </svg>
         </div>
+        <% if (user && user.role !== 'operator') { %>
         <div class="report-actions">
           <button class="btn-icon btn-sm" onclick="event.stopPropagation(); exportReport('technicians')" title="Export CSV">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -159,6 +164,7 @@
             </svg>
           </button>
         </div>
+        <% } %>
       </div>
       <h3>Technician Performance</h3>
       <p>Work completion by operator</p>
@@ -211,6 +217,7 @@
       <div class="modal-header">
         <h2 id="report-title">Report</h2>
         <div class="modal-actions">
+          <% if (user && user.role !== 'operator') { %>
           <button class="btn btn-secondary btn-sm" onclick="exportCurrentReport()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
@@ -219,6 +226,7 @@
             </svg>
             Export CSV
           </button>
+          <% } %>
           <button class="btn-close" onclick="closeReport()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="6" x2="6" y2="18"/>
