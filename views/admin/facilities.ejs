@@ -181,6 +181,7 @@ function renderFacilities(facilities) {
       </div>
       <h3 class="facility-name">${f.name}</h3>
       <p class="facility-location">${f.city || ''}${f.state ? ', ' + f.state : ''}</p>
+      <% if (user && user.role === 'admin') { %>
       <div class="facility-actions">
         <button class="btn-icon" onclick="editFacility(${f.id}, '${escapeHtml(f.name)}', '${escapeHtml(f.code)}', '${escapeHtml(f.description || '')}', '${escapeHtml(f.city || '')}', '${escapeHtml(f.state || '')}', '${escapeHtml(f.address || '')}', '${f.status}')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -195,6 +196,7 @@ function renderFacilities(facilities) {
           </svg>
         </button>
       </div>
+      <% } %>
     </div>
   `).join('');
 }
