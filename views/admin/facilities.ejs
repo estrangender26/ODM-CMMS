@@ -8,6 +8,7 @@
       </svg>
     </a>
     <h1>Manage Facilities</h1>
+    <% if (user && user.role === 'admin') { %>
     <div class="header-actions">
       <button class="btn-icon" id="add-btn" onclick="openModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -16,6 +17,7 @@
         </svg>
       </button>
     </div>
+    <% } %>
   </header>
 
   <!-- Facilities List -->
