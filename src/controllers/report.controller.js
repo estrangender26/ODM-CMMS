@@ -1,13 +1,13 @@
 /**
  * Report Controller
- * Generates various reports for the CMMS
+ * Multi-tenant aware report generation
  */
 
 const { WorkOrder, Equipment, Schedule, User } = require('../models');
 const { getDb } = require('../config/database');
 
 /**
- * Get work order summary report
+ * Get work order summary report (organization-aware)
  */
 const getWorkOrderSummary = async (req, res, next) => {
   try {
@@ -15,12 +15,20 @@ const getWorkOrderSummary = async (req, res, next) => {
     console.log('[REPORTS] User:', req.user?.username, 'Role:', req.user?.role, 'Facility:', req.user?.facility_id);
     console.log('[REPORTS] Query params:', req.query);
     
+    const organizationId = req.user.organization_id;
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User must belong to an organization'
+      });
+    }
+    
     const { start_date, end_date, facility_id } = req.query;
     const db = getDb();
     console.log('[REPORTS] db connected');
     
-    let conditions = ['1=1'];
-    const params = [];
+    let conditions = ['wo.organization_id = ?'];
+    const params = [organizationId];
     
     // Handle date filtering on created_at
     if (start_date && start_date !== 'undefined' && start_date !== '') {
@@ -111,18 +119,27 @@ const getWorkOrderSummary = async (req, res, next) => {
 };
 
 /**
- * Get equipment maintenance report
+ * Get equipment maintenance report (organization-aware)
  */
 const getEquipmentReport = async (req, res, next) => {
   try {
     console.log('[REPORTS] getEquipmentReport called');
     console.log('[REPORTS] User:', req.user?.username, 'Role:', req.user?.role, 'Facility:', req.user?.facility_id);
     console.log('[REPORTS] Query params:', req.query);
+    
+    const organizationId = req.user.organization_id;
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User must belong to an organization'
+      });
+    }
+    
     const { facility_id, category } = req.query;
     const db = getDb();
     
-    let conditions = ['1=1'];
-    const params = [];
+    let conditions = ['e.organization_id = ?'];
+    const params = [organizationId];
     
     if (facility_id) {
       conditions.push('e.facility_id = ?');
@@ -150,11 +167,12 @@ const getEquipmentReport = async (req, res, next) => {
         MAX(wo.actual_end) as last_maintenance_date
       FROM equipment e
       JOIN facilities f ON e.facility_id = f.id
-      LEFT JOIN work_orders wo ON e.id = wo.equipment_id
+      LEFT JOIN work_orders wo ON e.id = wo.equipment_id AND wo.organization_id = ?
       WHERE ${whereClause}
       GROUP BY e.id, e.code, e.name, e.category, e.status, f.name
       ORDER BY total_work_orders DESC
     `;
+    params.push(organizationId);
     const equipment = await db.query(equipmentQuery, params);
     
     // Category breakdown
@@ -164,7 +182,7 @@ const getEquipmentReport = async (req, res, next) => {
       WHERE ${whereClause}
       GROUP BY e.category
     `;
-    const categories = await db.query(categoryQuery, params);
+    const categories = await db.query(categoryQuery, params.slice(0, -1));
     
     console.log('[REPORTS] Equipment report success');
     res.json({
@@ -181,17 +199,26 @@ const getEquipmentReport = async (req, res, next) => {
 };
 
 /**
- * Get technician performance report
+ * Get technician performance report (organization-aware)
  */
 const getTechnicianReport = async (req, res, next) => {
   try {
     console.log('[REPORTS] getTechnicianReport called');
     console.log('[REPORTS] User:', req.user?.username, 'Role:', req.user?.role, 'Facility:', req.user?.facility_id);
+    
+    const organizationId = req.user.organization_id;
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User must belong to an organization'
+      });
+    }
+    
     const { start_date, end_date, facility_id } = req.query;
     const db = getDb();
     
-    let conditions = ['wo.assigned_to IS NOT NULL'];
-    const params = [];
+    let conditions = ['u.organization_id = ?', 'wo.assigned_to IS NOT NULL'];
+    const params = [organizationId];
     
     if (start_date && start_date !== 'undefined' && start_date !== '') {
       conditions.push('wo.created_at >= ?');
@@ -225,13 +252,14 @@ const getTechnicianReport = async (req, res, next) => {
         MIN(wo.scheduled_start) as first_assignment,
         MAX(wo.actual_end) as last_completion
       FROM users u
-      LEFT JOIN work_orders wo ON u.id = wo.assigned_to
+      LEFT JOIN work_orders wo ON u.id = wo.assigned_to AND wo.organization_id = ?
       ${facilityJoin}
       WHERE ${whereClause}
       GROUP BY u.id, u.full_name, u.role
       HAVING total_assigned > 0
       ORDER BY completed DESC
     `;
+    params.unshift(organizationId);
     
     const technicians = await db.query(query, params);
     
@@ -247,18 +275,27 @@ const getTechnicianReport = async (req, res, next) => {
 };
 
 /**
- * Get schedule compliance report
+ * Get schedule compliance report (organization-aware)
  */
 const getScheduleCompliance = async (req, res, next) => {
   try {
     console.log('[REPORTS] getScheduleCompliance called');
     console.log('[REPORTS] User:', req.user?.username, 'Role:', req.user?.role, 'Facility:', req.user?.facility_id);
     console.log('[REPORTS] Query params:', req.query);
+    
+    const organizationId = req.user.organization_id;
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User must belong to an organization'
+      });
+    }
+    
     const { facility_id } = req.query;
     const db = getDb();
     
-    let conditions = ['s.is_active = TRUE'];
-    const params = [];
+    let conditions = ['s.organization_id = ?', 's.is_active = TRUE'];
+    const params = [organizationId];
     
     if (facility_id) {
       conditions.push('e.facility_id = ?');
@@ -338,12 +375,21 @@ const getScheduleCompliance = async (req, res, next) => {
 };
 
 /**
- * Get work order trends (over time)
+ * Get work order trends (over time) (organization-aware)
  */
 const getTrends = async (req, res, next) => {
   try {
     console.log('[REPORTS] getTrends called');
     console.log('[REPORTS] User:', req.user?.username, 'Role:', req.user?.role, 'Facility:', req.user?.facility_id);
+    
+    const organizationId = req.user.organization_id;
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User must belong to an organization'
+      });
+    }
+    
     const { period = 'monthly', months = 12, facility_id } = req.query;
     const db = getDb();
     
@@ -362,7 +408,7 @@ const getTrends = async (req, res, next) => {
     // Build facility filter
     let facilityJoin = '';
     let facilityWhere = '';
-    const params = [months];
+    const params = [organizationId, months];
     
     if (facility_id && facility_id !== 'undefined' && facility_id !== '') {
       facilityJoin = 'JOIN equipment e ON wo.equipment_id = e.id';
@@ -378,7 +424,7 @@ const getTrends = async (req, res, next) => {
         SUM(CASE WHEN wo.priority = 'urgent' THEN 1 ELSE 0 END) as urgent_count
       FROM work_orders wo
       ${facilityJoin}
-      WHERE wo.created_at >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
+      WHERE wo.organization_id = ? AND wo.created_at >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
       ${facilityWhere}
       GROUP BY period
       ORDER BY period ASC
@@ -399,12 +445,20 @@ const getTrends = async (req, res, next) => {
 };
 
 /**
- * Export report as CSV
+ * Export report as CSV (organization-aware)
  */
 const exportReport = async (req, res, next) => {
   try {
     const { type } = req.params;
     const { start_date, end_date } = req.query;
+    const organizationId = req.user.organization_id;
+    
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User must belong to an organization'
+      });
+    }
     
     let csv = '';
     let filename = '';
@@ -412,25 +466,25 @@ const exportReport = async (req, res, next) => {
     switch(type) {
       case 'work-orders':
         filename = 'work-order-summary.csv';
-        const woData = await getWorkOrderSummaryData(start_date, end_date, req.query.facility_id);
+        const woData = await getWorkOrderSummaryData(start_date, end_date, req.query.facility_id, organizationId);
         csv = convertToCSV(woData.status_breakdown, ['status', 'count']);
         break;
         
       case 'equipment':
         filename = 'equipment-report.csv';
-        const eqData = await getEquipmentData(req.query.facility_id, req.query.category);
+        const eqData = await getEquipmentData(req.query.facility_id, req.query.category, organizationId);
         csv = convertToCSV(eqData.equipment, ['code', 'name', 'facility_name', 'total_work_orders', 'completed_work_orders', 'pending_work_orders']);
         break;
         
       case 'technicians':
         filename = 'technician-performance.csv';
-        const techData = await getTechnicianData(start_date, end_date);
+        const techData = await getTechnicianData(start_date, end_date, organizationId);
         csv = convertToCSV(techData, ['full_name', 'role', 'total_assigned', 'completed', 'pending', 'avg_hours_per_job']);
         break;
         
       case 'compliance':
         filename = 'schedule-compliance.csv';
-        const compData = await getComplianceData(req.query.facility_id);
+        const compData = await getComplianceData(req.query.facility_id, organizationId);
         csv = convertToCSV(compData.overdue, ['equipment_code', 'equipment_name', 'task_title', 'next_due_date', 'days_overdue']);
         break;
         
@@ -447,13 +501,13 @@ const exportReport = async (req, res, next) => {
   }
 };
 
-// Helper functions for data retrieval
-async function getWorkOrderSummaryData(start_date, end_date, facility_id) {
+// Helper functions for data retrieval (organization-aware)
+async function getWorkOrderSummaryData(start_date, end_date, facility_id, organizationId) {
   const { getDb } = require('../config/database');
   const db = getDb();
   
-  let conditions = ['1=1'];
-  const params = [];
+  let conditions = ['wo.organization_id = ?'];
+  const params = [organizationId];
   
   if (start_date) {
     conditions.push('wo.created_at >= ?');
@@ -476,12 +530,12 @@ async function getWorkOrderSummaryData(start_date, end_date, facility_id) {
   return { status_breakdown: statusBreakdown };
 }
 
-async function getEquipmentData(facility_id, category) {
+async function getEquipmentData(facility_id, category, organizationId) {
   const { getDb } = require('../config/database');
   const db = getDb();
   
-  let conditions = ['1=1'];
-  const params = [];
+  let conditions = ['e.organization_id = ?'];
+  const params = [organizationId];
   
   if (facility_id) {
     conditions.push('e.facility_id = ?');
@@ -501,21 +555,22 @@ async function getEquipmentData(facility_id, category) {
       SUM(CASE WHEN wo.status IN ('open', 'assigned', 'in_progress') THEN 1 ELSE 0 END) as pending_work_orders
     FROM equipment e
     JOIN facilities f ON e.facility_id = f.id
-    LEFT JOIN work_orders wo ON e.id = wo.equipment_id
+    LEFT JOIN work_orders wo ON e.id = wo.equipment_id AND wo.organization_id = ?
     WHERE ${whereClause}
     GROUP BY e.id, e.code, e.name, f.name
   `;
+  params.push(organizationId);
   
   const equipment = await db.query(query, params);
   return { equipment };
 }
 
-async function getTechnicianData(start_date, end_date) {
+async function getTechnicianData(start_date, end_date, organizationId) {
   const { getDb } = require('../config/database');
   const db = getDb();
   
-  let conditions = ['wo.assigned_to IS NOT NULL'];
-  const params = [];
+  let conditions = ['u.organization_id = ?', 'wo.assigned_to IS NOT NULL'];
+  const params = [organizationId];
   
   if (start_date) {
     conditions.push('wo.created_at >= ?');
@@ -535,21 +590,22 @@ async function getTechnicianData(start_date, end_date) {
       SUM(CASE WHEN wo.status IN ('open', 'assigned', 'in_progress') THEN 1 ELSE 0 END) as pending,
       AVG(wo.actual_hours) as avg_hours_per_job
     FROM users u
-    LEFT JOIN work_orders wo ON u.id = wo.assigned_to
+    LEFT JOIN work_orders wo ON u.id = wo.assigned_to AND wo.organization_id = ?
     WHERE ${whereClause}
     GROUP BY u.id, u.full_name, u.role
     HAVING total_assigned > 0
   `;
+  params.unshift(organizationId);
   
   return await db.query(query, params);
 }
 
-async function getComplianceData(facility_id) {
+async function getComplianceData(facility_id, organizationId) {
   const { getDb } = require('../config/database');
   const db = getDb();
   
-  let conditions = ['s.is_active = TRUE'];
-  const params = [];
+  let conditions = ['s.organization_id = ?', 's.is_active = TRUE'];
+  const params = [organizationId];
   
   if (facility_id) {
     conditions.push('e.facility_id = ?');

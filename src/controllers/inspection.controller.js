@@ -1,16 +1,28 @@
 /**
  * Inspection Controller
+ * Multi-tenant aware inspection management
  */
 
 const { Inspection, TaskMaster, WorkOrder } = require('../models');
 
 /**
- * Get inspection points for a task
+ * Get inspection points for a task (organization-aware)
  */
 const getPointsForTask = async (req, res, next) => {
   try {
     const { taskId } = req.params;
-    const points = await Inspection.getPointsForTask(taskId);
+    const organizationId = req.user.organization_id;
+    
+    // Verify task belongs to organization
+    const task = await TaskMaster.findById(taskId);
+    if (!task || task.organization_id !== organizationId) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found'
+      });
+    }
+    
+    const points = await Inspection.getPointsForTask(taskId, organizationId);
     
     res.json({
       success: true,
@@ -22,13 +34,24 @@ const getPointsForTask = async (req, res, next) => {
 };
 
 /**
- * Get readings for a work order
+ * Get readings for a work order (organization-aware)
  */
 const getReadingsForWorkOrder = async (req, res, next) => {
   try {
     const { workOrderId } = req.params;
-    const readings = await Inspection.getReadingsForWorkOrder(workOrderId);
-    const stats = await Inspection.getReadingsStats(workOrderId);
+    const organizationId = req.user.organization_id;
+    
+    // Verify work order belongs to organization
+    const belongs = await WorkOrder.belongsToOrganization(workOrderId, organizationId);
+    if (!belongs) {
+      return res.status(404).json({
+        success: false,
+        message: 'Work order not found'
+      });
+    }
+    
+    const readings = await Inspection.getReadingsForWorkOrder(workOrderId, organizationId);
+    const stats = await Inspection.getReadingsStats(workOrderId, organizationId);
     
     res.json({
       success: true,
@@ -40,16 +63,26 @@ const getReadingsForWorkOrder = async (req, res, next) => {
 };
 
 /**
- * Submit inspection reading
+ * Submit inspection reading (organization-aware)
  */
 const submitReading = async (req, res, next) => {
   try {
     const { workOrderId } = req.params;
     const { inspection_point_id, reading_value, notes } = req.body;
+    const organizationId = req.user.organization_id;
+
+    // Verify work order belongs to organization
+    const belongs = await WorkOrder.belongsToOrganization(workOrderId, organizationId);
+    if (!belongs) {
+      return res.status(404).json({
+        success: false,
+        message: 'Work order not found'
+      });
+    }
 
     // Get inspection point for validation
     const point = await Inspection.findById(inspection_point_id);
-    if (!point) {
+    if (!point || point.organization_id !== organizationId) {
       return res.status(404).json({
         success: false,
         message: 'Inspection point not found'
@@ -105,7 +138,7 @@ const submitReading = async (req, res, next) => {
         readingData.is_passing = true;
     }
 
-    const reading = await Inspection.createReading(readingData);
+    const reading = await Inspection.createReading(readingData, organizationId);
 
     res.status(201).json({
       success: true,
@@ -118,12 +151,22 @@ const submitReading = async (req, res, next) => {
 };
 
 /**
- * Submit multiple readings at once
+ * Submit multiple readings at once (organization-aware)
  */
 const submitBulkReadings = async (req, res, next) => {
   try {
     const { workOrderId } = req.params;
     const { readings } = req.body;
+    const organizationId = req.user.organization_id;
+
+    // Verify work order belongs to organization
+    const belongs = await WorkOrder.belongsToOrganization(workOrderId, organizationId);
+    if (!belongs) {
+      return res.status(404).json({
+        success: false,
+        message: 'Work order not found'
+      });
+    }
 
     const results = [];
     const errors = [];
@@ -131,7 +174,7 @@ const submitBulkReadings = async (req, res, next) => {
     for (const readingData of readings) {
       try {
         const point = await Inspection.findById(readingData.inspection_point_id);
-        if (!point) {
+        if (!point || point.organization_id !== organizationId) {
           errors.push({ point_id: readingData.inspection_point_id, error: 'Point not found' });
           continue;
         }
@@ -170,7 +213,7 @@ const submitBulkReadings = async (req, res, next) => {
             data.is_passing = true;
         }
 
-        const result = await Inspection.createReading(data);
+        const result = await Inspection.createReading(data, organizationId);
         results.push(result);
       } catch (err) {
         errors.push({ point_id: readingData.inspection_point_id, error: err.message });
@@ -178,7 +221,7 @@ const submitBulkReadings = async (req, res, next) => {
     }
 
     // Update work order completion percentage
-    const stats = await Inspection.getReadingsStats(workOrderId);
+    const stats = await Inspection.getReadingsStats(workOrderId, organizationId);
     if (stats.total_points > 0) {
       const percentage = Math.round((stats.readings_taken / stats.total_points) * 100);
       await WorkOrder.update(workOrderId, { completion_percentage: percentage });
@@ -195,15 +238,16 @@ const submitBulkReadings = async (req, res, next) => {
 };
 
 /**
- * Create inspection point for task
+ * Create inspection point for task (organization-aware)
  */
 const createInspectionPoint = async (req, res, next) => {
   try {
     const { taskId } = req.params;
+    const organizationId = req.user.organization_id;
     
-    // Verify task exists
+    // Verify task exists and belongs to organization
     const task = await TaskMaster.findById(taskId);
-    if (!task) {
+    if (!task || task.organization_id !== organizationId) {
       return res.status(404).json({
         success: false,
         message: 'Task not found'
@@ -212,7 +256,8 @@ const createInspectionPoint = async (req, res, next) => {
 
     const data = {
       ...req.body,
-      task_master_id: taskId
+      task_master_id: taskId,
+      organization_id: organizationId
     };
 
     const point = await Inspection.create(data);
@@ -227,17 +272,28 @@ const createInspectionPoint = async (req, res, next) => {
 };
 
 /**
- * Update inspection point
+ * Update inspection point (organization-aware)
  */
 const updateInspectionPoint = async (req, res, next) => {
   try {
     const { pointId } = req.params;
-    const point = await Inspection.update(pointId, req.body);
+    const organizationId = req.user.organization_id;
+    
+    // Verify point belongs to organization
+    const point = await Inspection.findById(pointId);
+    if (!point || point.organization_id !== organizationId) {
+      return res.status(404).json({
+        success: false,
+        message: 'Inspection point not found'
+      });
+    }
+    
+    const updated = await Inspection.update(pointId, req.body);
     
     res.json({
       success: true,
       message: 'Inspection point updated',
-      data: { inspection_point: point }
+      data: { inspection_point: updated }
     });
   } catch (error) {
     next(error);
@@ -245,11 +301,22 @@ const updateInspectionPoint = async (req, res, next) => {
 };
 
 /**
- * Delete inspection point
+ * Delete inspection point (organization-aware)
  */
 const deleteInspectionPoint = async (req, res, next) => {
   try {
     const { pointId } = req.params;
+    const organizationId = req.user.organization_id;
+    
+    // Verify point belongs to organization
+    const point = await Inspection.findById(pointId);
+    if (!point || point.organization_id !== organizationId) {
+      return res.status(404).json({
+        success: false,
+        message: 'Inspection point not found'
+      });
+    }
+    
     await Inspection.delete(pointId);
     
     res.json({

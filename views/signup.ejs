@@ -7,10 +7,62 @@
         <img src="/img/logo.png?v=4" alt="ODM-CMMS Logo">
       </div>
       <h1>Create Account</h1>
-      <p>Join ODM-CMMS Maintenance System</p>
+      <p id="signup-subtitle">Join ODM-CMMS Maintenance System</p>
+    </div>
+
+    <!-- Toggle between Join Existing vs Create New -->
+    <div class="signup-toggle" style="display: flex; gap: var(--space-2); margin-bottom: var(--space-4); padding: var(--space-1); background: var(--bg-tertiary); border-radius: var(--radius-lg);">
+      <button type="button" class="toggle-btn active" id="btn-join-org" onclick="setSignupMode('join')" style="flex: 1; padding: var(--space-2) var(--space-3); border: none; border-radius: var(--radius); background: var(--bg-primary); color: var(--text-primary); font-size: var(--text-sm); font-weight: 500; cursor: pointer; transition: all 0.2s;">
+        Join Organization
+      </button>
+      <button type="button" class="toggle-btn" id="btn-create-org" onclick="setSignupMode('create')" style="flex: 1; padding: var(--space-2) var(--space-3); border: none; border-radius: var(--radius); background: transparent; color: var(--text-secondary); font-size: var(--text-sm); font-weight: 500; cursor: pointer; transition: all 0.2s;">
+        Create Organization
+      </button>
     </div>
 
     <form class="login-form" id="signup-form" novalidate>
+      <!-- Invitation Token (hidden, populated from URL) -->
+      <input type="hidden" id="invitation_token" name="invitation_token">
+      
+      <!-- Organization Name (only for Create Organization mode) -->
+      <div class="form-group hidden" id="org-name-group">
+        <label for="organization_name">Organization Name <span class="required">*</span></label>
+        <input 
+          type="text" 
+          id="organization_name" 
+          name="organization_name" 
+          placeholder="e.g., Acme Manufacturing"
+        >
+        <span class="form-error hidden" id="organization_name-error">Please enter your organization name</span>
+      </div>
+      
+      <!-- Organization Selector (only for Join Organization mode) -->
+      <div class="form-group" id="org-selector-group">
+        <label for="organization_id">Organization <span class="required">*</span></label>
+        <select id="organization_id" name="organization_id" required>
+          <option value="">Select organization to join</option>
+        </select>
+        <span class="form-error hidden" id="organization_id-error">Please select an organization</span>
+        <small class="form-hint" id="org-selector-hint">Or <a href="/signup?mode=create">create your own organization</a></small>
+      </div>
+      
+      <!-- Invitation Info (shown when using invitation link) -->
+      <div class="form-group hidden" id="invitation-info-group">
+        <div style="padding: var(--space-3); background: var(--primary-light); border: 1px solid var(--primary); border-radius: var(--radius);">
+          <div style="display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" style="width: 20px; height: 20px;">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            <span style="font-weight: 600; color: var(--primary);">You're Invited!</span>
+          </div>
+          <p style="margin: 0; font-size: var(--text-sm); color: var(--text-secondary);">
+            You've been invited to join <strong id="invited-org-name" style="color: var(--text-primary);">-</strong> 
+            as <strong id="invited-role" style="color: var(--text-primary);">-</strong>.
+          </p>
+        </div>
+      </div>
+
       <div class="form-row">
         <div class="form-group">
           <label for="full_name">Full Name <span class="required">*</span></label>
@@ -87,7 +139,7 @@
           <span class="form-error hidden" id="password-error">Password must be at least 6 characters</span>
         </div>
         
-        <div class="form-group">
+        <div class="form-group" id="role-group">
           <label for="role">Role <span class="required">*</span></label>
           <select id="role" name="role" required>
             <option value="">Select your role</option>
@@ -95,6 +147,15 @@
             <option value="supervisor">Supervisor</option>
           </select>
           <span class="form-error hidden" id="role-error">Please select a role</span>
+        </div>
+        
+        <!-- Admin badge (only for Create Organization mode) -->
+        <div class="form-group hidden" id="admin-badge-group">
+          <label>Role</label>
+          <div style="padding: 10px 12px; background: var(--primary-light); border: 1px solid var(--primary); border-radius: var(--radius); color: var(--primary); font-weight: 500; font-size: var(--text-sm);">
+            Organization Admin
+          </div>
+          <small class="form-hint" style="color: var(--primary);">You'll be the admin of your new organization</small>
         </div>
       </div>
 
@@ -176,6 +237,9 @@
 // SIGNUP PAGE
 // ============================================
 
+// Current signup mode: 'join' or 'create'
+let signupMode = 'join';
+
 document.addEventListener('DOMContentLoaded', function() {
   console.log('[Signup] Page loaded, initializing...');
   
@@ -212,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   // Clear errors on input
-  ['full_name', 'username', 'email', 'password', 'role'].forEach(field => {
+  ['full_name', 'username', 'email', 'password', 'role', 'organization_name'].forEach(field => {
     const input = document.getElementById(field);
     if (input) {
       input.addEventListener('input', function() {
@@ -221,12 +285,151 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   
+  // Load organizations for selector
+  loadOrganizations();
+  
+  // Check for invitation token in URL
+  checkInvitationToken();
+  
+  // Check for mode in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const mode = urlParams.get('mode');
+  if (mode === 'create') {
+    setSignupMode('create');
+  }
+  
   console.log('[Signup] Initialization complete');
 });
 
+async function loadOrganizations() {
+  try {
+    const response = await fetch('/api/organizations/public');
+    const data = await response.json();
+    
+    if (data.success && data.data.organizations) {
+      const select = document.getElementById('organization_id');
+      select.innerHTML = '<option value="">Select organization to join</option>';
+      
+      data.data.organizations.forEach(org => {
+        const option = document.createElement('option');
+        option.value = org.id;
+        option.textContent = org.organization_name;
+        select.appendChild(option);
+      });
+      
+      console.log('[Signup] Loaded', data.data.organizations.length, 'organizations');
+    }
+  } catch (error) {
+    console.error('[Signup] Failed to load organizations:', error);
+  }
+}
+
+async function checkInvitationToken() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('token');
+  
+  if (!token) return;
+  
+  console.log('[Signup] Found invitation token:', token);
+  
+  try {
+    const response = await fetch(`/api/invitations/validate/${token}`);
+    const data = await response.json();
+    
+    if (data.success) {
+      const invitation = data.data.invitation;
+      console.log('[Signup] Valid invitation:', invitation);
+      
+      // Set mode to join
+      setSignupMode('join');
+      
+      // Hide org selector, show invitation info
+      document.getElementById('org-selector-group').classList.add('hidden');
+      document.getElementById('invitation-info-group').classList.remove('hidden');
+      
+      // Populate invitation info
+      document.getElementById('invited-org-name').textContent = invitation.organization.name;
+      document.getElementById('invited-role').textContent = invitation.role;
+      
+      // Set email (read-only)
+      const emailInput = document.getElementById('email');
+      emailInput.value = invitation.email;
+      emailInput.readOnly = true;
+      emailInput.style.background = 'var(--bg-tertiary)';
+      
+      // Store token
+      document.getElementById('invitation_token').value = token;
+      
+      showToast(`You've been invited to join ${invitation.organization.name}!`, 'success');
+    } else {
+      showToast('Invalid or expired invitation link', 'error');
+    }
+  } catch (error) {
+    console.error('[Signup] Failed to validate invitation:', error);
+    showToast('Failed to validate invitation', 'error');
+  }
+}
+
+function setSignupMode(mode) {
+  signupMode = mode;
+  console.log('[Signup] Mode changed to:', mode);
+  
+  const btnJoin = document.getElementById('btn-join-org');
+  const btnCreate = document.getElementById('btn-create-org');
+  const orgNameGroup = document.getElementById('org-name-group');
+  const roleGroup = document.getElementById('role-group');
+  const adminBadgeGroup = document.getElementById('admin-badge-group');
+  const subtitle = document.getElementById('signup-subtitle');
+  const submitBtn = document.getElementById('signup-btn');
+  
+  if (mode === 'join') {
+    // Join Existing Organization
+    btnJoin.classList.add('active');
+    btnJoin.style.background = 'var(--bg-primary)';
+    btnJoin.style.color = 'var(--text-primary)';
+    btnCreate.classList.remove('active');
+    btnCreate.style.background = 'transparent';
+    btnCreate.style.color = 'var(--text-secondary)';
+    
+    orgNameGroup.classList.add('hidden');
+    roleGroup.classList.remove('hidden');
+    adminBadgeGroup.classList.add('hidden');
+    
+    subtitle.textContent = 'Join an existing ODM-CMMS organization';
+    submitBtn.querySelector('.btn-text').textContent = 'Create Account';
+    
+    // Make organization_name not required
+    document.getElementById('organization_name').removeAttribute('required');
+    document.getElementById('role').setAttribute('required', '');
+  } else {
+    // Create New Organization
+    btnCreate.classList.add('active');
+    btnCreate.style.background = 'var(--bg-primary)';
+    btnCreate.style.color = 'var(--text-primary)';
+    btnJoin.classList.remove('active');
+    btnJoin.style.background = 'transparent';
+    btnJoin.style.color = 'var(--text-secondary)';
+    
+    orgNameGroup.classList.remove('hidden');
+    roleGroup.classList.add('hidden');
+    adminBadgeGroup.classList.remove('hidden');
+    
+    subtitle.textContent = 'Create your own ODM-CMMS organization';
+    submitBtn.querySelector('.btn-text').textContent = 'Create Organization & Account';
+    
+    // Make organization_name required
+    document.getElementById('organization_name').setAttribute('required', '');
+    document.getElementById('role').removeAttribute('required');
+  }
+  
+  // Clear any errors
+  document.querySelectorAll('.form-error').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('input, select').forEach(el => el.classList.remove('error'));
+}
+
 async function handleSignup(e) {
   e.preventDefault();
-  console.log('[Signup] Form submitted');
+  console.log('[Signup] Form submitted, mode:', signupMode);
   
   // Clear previous errors
   document.querySelectorAll('.form-error').forEach(el => el.classList.add('hidden'));
@@ -238,10 +441,13 @@ async function handleSignup(e) {
   const email = document.getElementById('email').value.trim();
   const phone = document.getElementById('phone').value.trim();
   const password = document.getElementById('password').value;
+  const organizationName = document.getElementById('organization_name').value.trim();
+  const organizationId = document.getElementById('organization_id').value;
   const role = document.getElementById('role').value;
+  const invitationToken = document.getElementById('invitation_token').value;
   const terms = document.getElementById('terms').checked;
   
-  console.log('[Signup] Form values:', { fullName, username, email, phone: phone ? '***' : '', role });
+  console.log('[Signup] Form values:', { signupMode, fullName, username, email, organizationName, organizationId, role, invitationToken });
   
   // Validate
   let hasError = false;
@@ -266,7 +472,17 @@ async function handleSignup(e) {
     hasError = true;
   }
   
-  if (!role) {
+  if (signupMode === 'create' && !organizationName) {
+    showFieldError('organization_name', 'Please enter your organization name');
+    hasError = true;
+  }
+  
+  if (signupMode === 'join' && !invitationToken && !organizationId) {
+    showFieldError('organization_id', 'Please select an organization');
+    hasError = true;
+  }
+  
+  if (signupMode === 'join' && !role) {
     showFieldError('role', 'Please select a role');
     hasError = true;
   }
@@ -295,18 +511,49 @@ async function handleSignup(e) {
   spinner.classList.remove('hidden');
   submitBtn.disabled = true;
   
+  // Determine endpoint and payload based on mode
+  let endpoint, payload;
+  
+  if (invitationToken) {
+    // Accepting invitation
+    endpoint = '/api/invitations/accept';
+    payload = {
+      token: invitationToken,
+      username,
+      password,
+      full_name: fullName,
+      phone: formattedPhone
+    };
+  } else if (signupMode === 'create') {
+    // Creating new organization
+    endpoint = '/api/auth/organization-signup';
+    payload = {
+      organization_name: organizationName,
+      username,
+      email,
+      password,
+      full_name: fullName,
+      phone: formattedPhone
+    };
+  } else {
+    // Joining existing organization (legacy - with org selection)
+    endpoint = '/api/auth/signup';
+    payload = {
+      username,
+      email,
+      password,
+      full_name: fullName,
+      phone: formattedPhone,
+      role,
+      organization_id: organizationId
+    };
+  }
+  
   try {
-    const response = await fetch('/api/auth/signup', {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username,
-        email,
-        password,
-        full_name: fullName,
-        phone: formattedPhone,
-        role
-      })
+      body: JSON.stringify(payload)
     });
     
     console.log('[Signup] Response status:', response.status);
@@ -315,10 +562,26 @@ async function handleSignup(e) {
     console.log('[Signup] Response data:', data);
     
     if (data.success) {
-      showToast('Account created successfully! Please sign in.', 'success');
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 1500);
+      if (invitationToken) {
+        // Invitation accepted
+        showToast('Invitation accepted! Welcome to the organization!', 'success');
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1500);
+      } else if (signupMode === 'create') {
+        // Auto-login for organization creation
+        showToast('Organization created successfully! Welcome!', 'success');
+        // Store token and redirect to dashboard
+        localStorage.setItem('token', data.data.token);
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 1000);
+      } else {
+        showToast('Account created successfully! Please sign in.', 'success');
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1500);
+      }
     } else {
       showToast(data.message || 'Failed to create account', 'error');
     }

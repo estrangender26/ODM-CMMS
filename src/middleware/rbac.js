@@ -426,13 +426,38 @@ const canManageSchedule = async (req, res, next) => {
 const canCreateUser = async (req, res, next) => {
   const role = req.user?.role;
   const userFacilityId = req.user?.facility_id;
+  const isOrgAdmin = req.user?.is_organization_admin;
   const { facility_id, role: newUserRole } = req.body;
   
-  console.log('[canCreateUser] User role:', role, 'Facility:', userFacilityId);
+  console.log('[canCreateUser] User role:', role, 'Facility:', userFacilityId, 'IsOrgAdmin:', isOrgAdmin);
   console.log('[canCreateUser] Request body:', { facility_id, newUserRole });
   
-  // Admin can create any user
+  // Admin can create users, but NOT other admins (prevents privilege escalation)
+  // Only organization admins can create other admins within their organization
   if (role === 'admin') {
+    // Check if trying to create an admin
+    if (newUserRole === 'admin') {
+      // Only organization admins can create other admins
+      if (!isOrgAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Only organization administrators can create admin accounts'
+        });
+      }
+      
+      // Limit number of admins per organization (optional safety measure)
+      const { User } = require('../models');
+      const organizationId = req.user.organization_id;
+      const adminCount = await User.countByOrganization(organizationId, { role: 'admin' });
+      
+      if (adminCount >= 3) {
+        return res.status(403).json({
+          success: false,
+          message: 'Maximum number of admin accounts (3) reached for this organization'
+        });
+      }
+    }
+    
     return next();
   }
   

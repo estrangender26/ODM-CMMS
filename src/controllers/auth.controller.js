@@ -1,10 +1,12 @@
 /**
  * Authentication Controller
+ * Multi-tenant aware authentication
  */
 
 const jwt = require('jsonwebtoken');
 const authConfig = require('../config/auth');
-const { User } = require('../models');
+const { User, Organization, OrganizationSubscription } = require('../models');
+const subscriptionService = require('../services/subscription.service');
 const { hashPassword, comparePassword, sanitizeUser } = require('../utils/helpers');
 
 /**
@@ -14,7 +16,12 @@ const { hashPassword, comparePassword, sanitizeUser } = require('../utils/helper
  */
 const generateToken = (user) => {
   return jwt.sign(
-    { userId: user.id, role: user.role },
+    { 
+      userId: user.id, 
+      organizationId: user.organization_id,
+      role: user.role,
+      isOrgAdmin: user.is_organization_admin
+    },
     authConfig.jwt.secret,
     { expiresIn: authConfig.jwt.expiresIn }
   );
@@ -44,6 +51,17 @@ const login = async (req, res, next) => {
       });
     }
 
+    // Check if organization is active (if user belongs to an organization)
+    if (user.organization_id) {
+      const isOrgActive = await Organization.isActive(user.organization_id);
+      if (!isOrgActive) {
+        return res.status(403).json({
+          success: false,
+          message: 'Organization is not active'
+        });
+      }
+    }
+
     // Verify password
     const isValidPassword = await comparePassword(password, user.password_hash);
     if (!isValidPassword) {
@@ -68,7 +86,8 @@ const login = async (req, res, next) => {
       message: 'Login successful',
       data: {
         user: sanitizeUser(user),
-        token
+        token,
+        organization_id: user.organization_id
       }
     });
   } catch (error) {
@@ -79,10 +98,11 @@ const login = async (req, res, next) => {
 /**
  * Public signup (self-registration)
  * Only allows operator and supervisor roles
+ * Users can select which organization to join
  */
 const signup = async (req, res, next) => {
   try {
-    const { username, email, password, full_name, phone, role } = req.body;
+    const { username, email, password, full_name, phone, role, organization_id } = req.body;
 
     // Validate required fields
     if (!username || !email || !password || !full_name) {
@@ -100,7 +120,7 @@ const signup = async (req, res, next) => {
       });
     }
 
-    // Check if username exists
+    // Check if username exists (globally for now)
     const existingUsername = await User.findByUsername(username);
     if (existingUsername) {
       return res.status(409).json({
@@ -109,7 +129,7 @@ const signup = async (req, res, next) => {
       });
     }
 
-    // Check if email exists
+    // Check if email exists (globally for now)
     const existingEmail = await User.findByEmail(email);
     if (existingEmail) {
       return res.status(409).json({
@@ -126,6 +146,28 @@ const signup = async (req, res, next) => {
     // Hash password
     const passwordHash = await hashPassword(password);
 
+    // Use selected organization or default to org 1
+    const targetOrgId = organization_id ? parseInt(organization_id) : 1;
+
+    // Check if organization exists
+    const org = await Organization.findById(targetOrgId);
+    if (!org) {
+      return res.status(404).json({
+        success: false,
+        message: 'Selected organization not found'
+      });
+    }
+
+    // Check seat availability for the target organization
+    const canAdd = await subscriptionService.canAddUser(targetOrgId);
+    if (!canAdd) {
+      return res.status(403).json({
+        success: false,
+        message: 'This organization has reached its seat limit. Please contact the organization admin.',
+        code: 'SEAT_LIMIT_REACHED'
+      });
+    }
+
     // Create user
     const user = await User.create({
       username,
@@ -134,8 +176,14 @@ const signup = async (req, res, next) => {
       full_name,
       phone,
       role: userRole,
-      is_active: true
+      organization_id: targetOrgId,
+      is_active: true,
+      status: 'active',
+      is_billable: true
     });
+
+    // Update seat usage
+    await subscriptionService.recalculateSeats(targetOrgId);
 
     res.status(201).json({
       success: true,
@@ -148,13 +196,23 @@ const signup = async (req, res, next) => {
 };
 
 /**
- * Register new user (admin only)
+ * Register new user (admin only, within same organization)
  */
 const register = async (req, res, next) => {
   try {
     const { username, email, password, full_name, phone, role } = req.body;
 
-    // Check if username exists
+    // Get admin's organization
+    const organizationId = req.user.organization_id;
+    
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin must belong to an organization'
+      });
+    }
+
+    // Check if username exists in this organization
     const existingUsername = await User.findByUsername(username);
     if (existingUsername) {
       return res.status(409).json({
@@ -163,7 +221,7 @@ const register = async (req, res, next) => {
       });
     }
 
-    // Check if email exists
+    // Check if email exists in this organization
     const existingEmail = await User.findByEmail(email);
     if (existingEmail) {
       return res.status(409).json({
@@ -175,14 +233,16 @@ const register = async (req, res, next) => {
     // Hash password
     const passwordHash = await hashPassword(password);
 
-    // Create user
+    // Create user in same organization as admin
     const user = await User.create({
       username,
       email,
       password_hash: passwordHash,
       full_name,
       phone,
-      role: role || 'operator'
+      role: role || 'operator',
+      organization_id: organizationId,
+      is_active: true
     });
 
     res.status(201).json({
@@ -211,7 +271,22 @@ const logout = (req, res) => {
  */
 const getProfile = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
+    // Include organization info
+    const sql = `
+      SELECT u.*, o.organization_name, o.subscription_plan, o.subscription_status
+      FROM users u
+      LEFT JOIN organizations o ON u.organization_id = o.id
+      WHERE u.id = ?
+    `;
+    const [user] = await User.query(sql, [req.user.id]);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
     res.json({
       success: true,
       data: { user: sanitizeUser(user) }
@@ -275,9 +350,135 @@ const changePassword = async (req, res, next) => {
   }
 };
 
+/**
+ * Public organization signup
+ * Creates a new organization with the first user as admin
+ * Assigns a default Free subscription plan
+ */
+const organizationSignup = async (req, res, next) => {
+  try {
+    const { 
+      organization_name,
+      username, 
+      email, 
+      password, 
+      full_name, 
+      phone 
+    } = req.body;
+
+    // Validate required fields
+    if (!organization_name || !username || !email || !password || !full_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Organization name, username, email, password, and full name are required'
+      });
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters'
+      });
+    }
+
+    // Check if username exists
+    const existingUsername = await User.findByUsername(username);
+    if (existingUsername) {
+      return res.status(409).json({
+        success: false,
+        message: 'Username already exists'
+      });
+    }
+
+    // Check if email exists
+    const existingEmail = await User.findByEmail(email);
+    if (existingEmail) {
+      return res.status(409).json({
+        success: false,
+        message: 'Email already exists'
+      });
+    }
+
+    // Check if organization name exists
+    const existingOrg = await Organization.findByName(organization_name);
+    if (existingOrg) {
+      return res.status(409).json({
+        success: false,
+        message: 'Organization name already exists'
+      });
+    }
+
+    // Create organization
+    const organization = await Organization.create({
+      organization_name,
+      billing_email: email
+    });
+
+    // Hash password
+    const passwordHash = await hashPassword(password);
+
+    // Create admin user for the organization
+    const admin = await User.create({
+      username,
+      email,
+      password_hash: passwordHash,
+      full_name,
+      phone,
+      role: 'admin',
+      organization_id: organization.id,
+      is_organization_admin: true,
+      is_active: true,
+      status: 'active',
+      is_billable: true
+    });
+
+    // Get the Free plan
+    const freePlan = await subscriptionService.getPlanByCode('free');
+    
+    if (freePlan) {
+      // Create subscription for the organization
+      await OrganizationSubscription.createForOrganization(
+        organization.id,
+        freePlan.id,
+        {
+          status: 'active',
+          billing_cycle: 'monthly',
+          current_period_start: new Date(),
+          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+        }
+      );
+      
+      // Update organization with subscription reference
+      await Organization.update(organization.id, {
+        subscription_id: (await OrganizationSubscription.findByOrganization(organization.id))?.id
+      });
+    }
+
+    // Generate token for auto-login
+    const token = generateToken(admin);
+
+    res.status(201).json({
+      success: true,
+      message: 'Organization created successfully. Welcome!',
+      data: { 
+        organization: {
+          id: organization.id,
+          organization_name: organization.organization_name
+        },
+        user: sanitizeUser(admin),
+        token
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   login,
   signup,
+  organizationSignup,
   register,
   logout,
   getProfile,

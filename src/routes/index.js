@@ -10,6 +10,9 @@ console.log('[ROUTES] Loading routes...');
 // API routes
 router.use('/auth', require('./auth.routes'));
 router.use('/users', require('./user.routes'));
+router.use('/organizations', require('./organization.routes'));
+router.use('/subscriptions', require('./subscription.routes'));
+router.use('/invitations', require('./invitation.routes'));
 router.use('/facilities', require('./facility.routes'));
 router.use('/equipment', require('./equipment.routes'));
 router.use('/tasks', require('./task.routes'));

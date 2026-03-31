@@ -1,17 +1,26 @@
 /**
  * Schedule Controller
+ * Multi-tenant aware schedule management
  */
 
 const { Schedule } = require('../models');
 const { calculateNextDueDate } = require('../utils/helpers');
 
 /**
- * Get all schedules
- * Admin sees all, Supervisor sees only their facility's schedules
+ * Get all schedules (organization-aware)
+ * Admin sees all in org, Supervisor sees only their facility's schedules
  */
 const getAll = async (req, res, next) => {
   try {
+    const organizationId = req.user.organization_id;
     const { role, facility_id } = req.user;
+    
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User must belong to an organization'
+      });
+    }
     
     const filters = {
       equipment_id: req.query.equipment_id,
@@ -23,10 +32,10 @@ const getAll = async (req, res, next) => {
     
     // Supervisor only sees schedules in their facility
     if (role === 'supervisor' && facility_id) {
-      schedules = await Schedule.getByFacility(facility_id, filters);
+      schedules = await Schedule.getByFacility(facility_id, organizationId, filters);
     } else {
-      // Admin sees all schedules
-      schedules = await Schedule.getAllWithDetails(filters);
+      // Admin sees all schedules in organization
+      schedules = await Schedule.getAllWithDetails(organizationId, filters);
     }
     
     res.json({
@@ -39,14 +48,16 @@ const getAll = async (req, res, next) => {
 };
 
 /**
- * Get schedule by ID
+ * Get schedule by ID (organization-aware)
  */
 const getById = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const organizationId = req.user.organization_id;
+    
     const schedule = await Schedule.findById(id);
     
-    if (!schedule) {
+    if (!schedule || schedule.organization_id !== organizationId) {
       return res.status(404).json({
         success: false,
         message: 'Schedule not found'
@@ -63,12 +74,22 @@ const getById = async (req, res, next) => {
 };
 
 /**
- * Create new schedule
+ * Create new schedule (organization-aware)
  */
 const create = async (req, res, next) => {
   try {
+    const organizationId = req.user.organization_id;
+    
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User must belong to an organization'
+      });
+    }
+
     const data = {
       ...req.body,
+      organization_id: organizationId,
       created_by: req.user.id
     };
 
@@ -89,17 +110,28 @@ const create = async (req, res, next) => {
 };
 
 /**
- * Update schedule
+ * Update schedule (organization-aware)
  */
 const update = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const schedule = await Schedule.update(id, req.body);
+    const organizationId = req.user.organization_id;
+    
+    // Verify schedule belongs to organization
+    const schedule = await Schedule.findById(id);
+    if (!schedule || schedule.organization_id !== organizationId) {
+      return res.status(404).json({
+        success: false,
+        message: 'Schedule not found'
+      });
+    }
+    
+    const updated = await Schedule.update(id, req.body);
     
     res.json({
       success: true,
       message: 'Schedule updated successfully',
-      data: { schedule }
+      data: { schedule: updated }
     });
   } catch (error) {
     next(error);
@@ -107,11 +139,22 @@ const update = async (req, res, next) => {
 };
 
 /**
- * Delete schedule
+ * Delete schedule (organization-aware)
  */
 const remove = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const organizationId = req.user.organization_id;
+    
+    // Verify schedule belongs to organization
+    const schedule = await Schedule.findById(id);
+    if (!schedule || schedule.organization_id !== organizationId) {
+      return res.status(404).json({
+        success: false,
+        message: 'Schedule not found'
+      });
+    }
+    
     await Schedule.delete(id);
     
     res.json({
@@ -124,18 +167,26 @@ const remove = async (req, res, next) => {
 };
 
 /**
- * Get overdue schedules
- * Admin sees all, Supervisor sees only their facility's overdue schedules
+ * Get overdue schedules (organization-aware)
+ * Admin sees all in org, Supervisor sees only their facility's overdue schedules
  */
 const getOverdue = async (req, res, next) => {
   try {
+    const organizationId = req.user.organization_id;
     const { role, facility_id } = req.user;
+    
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User must belong to an organization'
+      });
+    }
     
     let schedules;
     if (role === 'supervisor' && facility_id) {
-      schedules = await Schedule.getOverdueByFacility(facility_id);
+      schedules = await Schedule.getOverdueByFacility(facility_id, organizationId);
     } else {
-      schedules = await Schedule.getOverdue();
+      schedules = await Schedule.getOverdue(organizationId);
     }
     
     res.json({
@@ -148,18 +199,26 @@ const getOverdue = async (req, res, next) => {
 };
 
 /**
- * Get schedules due today
- * Admin sees all, Supervisor sees only their facility's schedules due today
+ * Get schedules due today (organization-aware)
+ * Admin sees all in org, Supervisor sees only their facility's schedules due today
  */
 const getDueToday = async (req, res, next) => {
   try {
+    const organizationId = req.user.organization_id;
     const { role, facility_id } = req.user;
+    
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User must belong to an organization'
+      });
+    }
     
     let schedules;
     if (role === 'supervisor' && facility_id) {
-      schedules = await Schedule.getDueTodayByFacility(facility_id);
+      schedules = await Schedule.getDueTodayByFacility(facility_id, organizationId);
     } else {
-      schedules = await Schedule.getDueToday();
+      schedules = await Schedule.getDueToday(organizationId);
     }
     
     res.json({

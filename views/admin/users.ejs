@@ -9,7 +9,16 @@
     </a>
     <h1>Manage Users</h1>
     <div class="header-actions">
-      <button class="btn-icon" id="add-btn" onclick="openModal()">
+      <% if (user && user.role === 'admin') { %>
+      <button class="btn-icon" id="invite-btn" onclick="openInviteModal()" title="Invite User">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="16 17 12 21 8 17"/>
+          <line x1="12" y1="12" x2="12" y2="21"/>
+        </svg>
+      </button>
+      <% } %>
+      <button class="btn-icon" id="add-btn" onclick="openModal()" title="Add User">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="12" y1="5" x2="12" y2="19"/>
           <line x1="5" y1="12" x2="19" y2="12"/>
@@ -25,12 +34,91 @@
   </div>
   <% } %>
 
+  <% if (user && user.role === 'admin') { %>
+  <!-- Tabs -->
+  <div class="tabs" style="display: flex; gap: var(--space-1); margin-bottom: var(--space-4); border-bottom: 1px solid var(--border-light);">
+    <button class="tab-btn active" id="tab-users" onclick="showTab('users')" style="padding: var(--space-2) var(--space-4); border: none; border-bottom: 2px solid var(--primary); background: transparent; color: var(--primary); font-weight: 500; cursor: pointer;">
+      Users
+    </button>
+    <button class="tab-btn" id="tab-invitations" onclick="showTab('invitations')" style="padding: var(--space-2) var(--space-4); border: none; border-bottom: 2px solid transparent; background: transparent; color: var(--text-secondary); font-weight: 500; cursor: pointer;">
+      Invitations <span id="invitation-badge" style="display: none; background: var(--primary); color: white; padding: 2px 6px; border-radius: 10px; font-size: 12px; margin-left: 4px;">0</span>
+    </button>
+  </div>
+  <% } %>
+
   <!-- Users List -->
-  <div class="user-list" id="user-list">
-    <div class="loading-skeleton">
-      <div class="skeleton-item"></div>
-      <div class="skeleton-item"></div>
+  <div class="tab-content" id="users-tab">
+    <div class="user-list" id="user-list">
+      <div class="loading-skeleton">
+        <div class="skeleton-item"></div>
+        <div class="skeleton-item"></div>
+      </div>
     </div>
+  </div>
+
+  <% if (user && user.role === 'admin') { %>
+  <!-- Invitations List -->
+  <div class="tab-content hidden" id="invitations-tab">
+    <div class="invitations-list" id="invitations-list">
+      <div class="loading-skeleton">
+        <div class="skeleton-item"></div>
+        <div class="skeleton-item"></div>
+      </div>
+    </div>
+  </div>
+  <% } %>
+</div>
+
+<!-- Invite User Modal -->
+<div class="modal hidden" id="invite-modal">
+  <div class="modal-overlay" onclick="closeInviteModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Invite User</h2>
+      <button class="btn-close" onclick="closeInviteModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <form id="invite-form" class="modal-body">
+      <div class="form-group">
+        <label for="invite-email">Email Address *</label>
+        <input type="email" id="invite-email" name="email" required placeholder="user@company.com">
+        <small class="form-hint">Invitation will be sent to this email</small>
+      </div>
+      
+      <div class="form-group">
+        <label for="invite-role">Role *</label>
+        <select id="invite-role" name="role" required>
+          <option value="operator">Operator</option>
+          <option value="supervisor">Supervisor</option>
+          <option value="admin">Administrator</option>
+        </select>
+        <small class="form-hint">User will be assigned this role when they accept</small>
+      </div>
+      
+      <div class="form-info" style="background: var(--primary-light); padding: var(--space-3); border-radius: var(--radius); margin-bottom: var(--space-3);">
+        <div style="display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" style="width: 20px; height: 20px;">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="16" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          <span style="font-weight: 600; color: var(--primary);">How it works</span>
+        </div>
+        <p style="margin: 0; font-size: var(--text-sm); color: var(--text-secondary);">
+          An email invitation will be sent. The recipient can click the link to create their account. 
+          The invitation expires in 7 days.
+        </p>
+      </div>
+      
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeInviteModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Send Invitation</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -124,6 +212,9 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log('Users page loaded');
   loadUsers();
   loadFacilities();
+  <% if (user && user.role === 'admin') { %>
+  loadInvitations();
+  <% } %>
   
   // Add button event listener
   const addBtn = document.getElementById('add-btn');
@@ -138,6 +229,14 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     console.error('Add button not found!');
   }
+  
+  <% if (user && user.role === 'admin') { %>
+  // Invite form submission
+  const inviteForm = document.getElementById('invite-form');
+  if (inviteForm) {
+    inviteForm.addEventListener('submit', handleInviteSubmit);
+  }
+  <% } %>
 });
 
 // Form submission
@@ -423,6 +522,310 @@ function showToast(message, type = 'info') {
   container.appendChild(toast);
   setTimeout(() => toast.remove(), 3000);
 }
+
+<% if (user && user.role === 'admin') { %>
+// Tab switching
+function showTab(tab) {
+  console.log('[Users] Switching to tab:', tab);
+  
+  // Update tab buttons
+  document.getElementById('tab-users').classList.toggle('active', tab === 'users');
+  document.getElementById('tab-users').style.borderBottomColor = tab === 'users' ? 'var(--primary)' : 'transparent';
+  document.getElementById('tab-users').style.color = tab === 'users' ? 'var(--primary)' : 'var(--text-secondary)';
+  
+  document.getElementById('tab-invitations').classList.toggle('active', tab === 'invitations');
+  document.getElementById('tab-invitations').style.borderBottomColor = tab === 'invitations' ? 'var(--primary)' : 'transparent';
+  document.getElementById('tab-invitations').style.color = tab === 'invitations' ? 'var(--primary)' : 'var(--text-secondary)';
+  
+  // Show/hide tab content
+  document.getElementById('users-tab').classList.toggle('hidden', tab !== 'users');
+  document.getElementById('invitations-tab').classList.toggle('hidden', tab !== 'invitations');
+}
+
+// Invite modal functions
+function openInviteModal() {
+  console.log('[Invite] Opening invite modal');
+  document.getElementById('invite-form').reset();
+  document.getElementById('invite-modal').classList.remove('hidden');
+}
+
+function closeInviteModal() {
+  document.getElementById('invite-modal').classList.add('hidden');
+}
+
+// Handle invite form submission
+async function handleInviteSubmit(e) {
+  e.preventDefault();
+  
+  const email = document.getElementById('invite-email').value.trim();
+  const role = document.getElementById('invite-role').value;
+  
+  if (!email || !isValidEmail(email)) {
+    showToast('Please enter a valid email address', 'error');
+    return;
+  }
+  
+  console.log('[Invite] Sending invitation to:', email, 'Role:', role);
+  
+  try {
+    const response = await fetch('/api/invitations', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ email, role })
+    });
+    
+    const data = await response.json();
+    console.log('[Invite] Response:', data);
+    
+    if (data.success) {
+      showToast('Invitation sent successfully!', 'success');
+      closeInviteModal();
+      loadInvitations();
+      showTab('invitations');
+    } else {
+      showToast(data.message || 'Failed to send invitation', 'error');
+    }
+  } catch (error) {
+    console.error('[Invite] Error:', error);
+    showToast('Error sending invitation', 'error');
+  }
+}
+
+// Load invitations
+async function loadInvitations() {
+  try {
+    console.log('[Invitations] Loading...');
+    const response = await fetch('/api/invitations', {
+      headers: getAuthHeaders()
+    });
+    
+    const data = await response.json();
+    console.log('[Invitations] Loaded:', data);
+    
+    if (data.success) {
+      renderInvitations(data.data.invitations);
+      updateInvitationBadge(data.data.stats.pending_count);
+    }
+  } catch (error) {
+    console.error('[Invitations] Error:', error);
+  }
+}
+
+// Render invitations list
+function renderInvitations(invitations) {
+  const container = document.getElementById('invitations-list');
+  
+  if (!invitations || invitations.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="16 17 12 21 8 17"/>
+          <line x1="12" y1="12" x2="12" y2="21"/>
+        </svg>
+        <p>No pending invitations</p>
+        <button class="btn btn-primary" onclick="openInviteModal()">Invite First User</button>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = invitations.map(inv => {
+    const expiresDate = new Date(inv.expires_at);
+    const isExpired = expiresDate < new Date();
+    const statusClass = isExpired ? 'expired' : inv.status;
+    
+    return `
+      <div class="invitation-card ${statusClass}">
+        <div class="invitation-header">
+          <span class="invitation-email">${escapeHtml(inv.email)}</span>
+          <span class="invitation-status ${statusClass}">${isExpired ? 'Expired' : inv.status}</span>
+        </div>
+        <div class="invitation-details">
+          <p><strong>Role:</strong> ${inv.role}</p>
+          <p><strong>Invited by:</strong> ${escapeHtml(inv.invited_by_name || 'Unknown')}</p>
+          <p><strong>Expires:</strong> ${expiresDate.toLocaleDateString()}</p>
+          ${inv.status === 'pending' && !isExpired ? `
+            <div class="invitation-link" style="margin-top: 8px; padding: 8px; background: var(--bg-tertiary); border-radius: 4px; font-size: 12px; word-break: break-all;">
+              <strong>Link:</strong> ${window.location.origin}/signup?token=${inv.token}
+            </div>
+          ` : ''}
+        </div>
+        ${inv.status === 'pending' && !isExpired ? `
+          <div class="invitation-actions">
+            <button class="btn btn-sm btn-secondary" onclick="copyInviteLink('${inv.token}')">Copy Link</button>
+            <button class="btn btn-sm btn-secondary" onclick="resendInvitation(${inv.id})">Resend</button>
+            <button class="btn btn-sm btn-danger" onclick="cancelInvitation(${inv.id})">Cancel</button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+// Update invitation badge
+function updateInvitationBadge(count) {
+  const badge = document.getElementById('invitation-badge');
+  if (count > 0) {
+    badge.textContent = count;
+    badge.style.display = 'inline';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// Copy invitation link
+function copyInviteLink(token) {
+  const link = `${window.location.origin}/signup?token=${token}`;
+  navigator.clipboard.writeText(link).then(() => {
+    showToast('Link copied to clipboard!', 'success');
+  }).catch(() => {
+    showToast('Failed to copy link', 'error');
+  });
+}
+
+// Cancel invitation
+async function cancelInvitation(id) {
+  if (!confirm('Are you sure you want to cancel this invitation?')) return;
+  
+  try {
+    const response = await fetch(`/api/invitations/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showToast('Invitation cancelled', 'success');
+      loadInvitations();
+    } else {
+      showToast(data.message || 'Failed to cancel', 'error');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    showToast('Error cancelling invitation', 'error');
+  }
+}
+
+// Resend invitation
+async function resendInvitation(id) {
+  try {
+    const response = await fetch(`/api/invitations/${id}/resend`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showToast('Invitation resent successfully!', 'success');
+      loadInvitations();
+    } else {
+      showToast(data.message || 'Failed to resend', 'error');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    showToast('Error resending invitation', 'error');
+  }
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+<% } %>
 </script>
+
+<style>
+/* Invitation Card Styles */
+.invitation-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.invitation-card.expired {
+  opacity: 0.7;
+  background: var(--bg-tertiary);
+}
+
+.invitation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.invitation-email {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.invitation-status {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.invitation-status.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.invitation-status.accepted {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.invitation-status.expired,
+.invitation-status.cancelled {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.invitation-details {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+.invitation-details p {
+  margin: 4px 0;
+}
+
+.invitation-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.invitation-actions .btn {
+  padding: 6px 12px;
+  font-size: var(--text-sm);
+}
+
+/* Tab Styles */
+.tab-btn.active {
+  border-bottom-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: var(--space-8);
+  color: var(--text-secondary);
+}
+
+.empty-state svg {
+  width: 48px;
+  height: 48px;
+  margin-bottom: var(--space-3);
+  opacity: 0.5;
+}
+</style>
 
 <%- include('../partials/footer') %>

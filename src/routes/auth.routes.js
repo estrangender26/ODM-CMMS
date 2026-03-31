@@ -11,6 +11,7 @@ const { loginValidation, registerValidation } = require('../middleware/validatio
 // Public routes
 router.post('/login', loginValidation, authController.login);
 router.post('/signup', authController.signup);
+router.post('/organization-signup', authController.organizationSignup);
 router.post('/logout', authController.logout);
 
 // Protected routes

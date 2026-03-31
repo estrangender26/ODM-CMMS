@@ -1,16 +1,25 @@
 /**
  * Work Order Controller
+ * Multi-tenant aware work order management
  */
 
 const { WorkOrder } = require('../models');
 
 /**
- * Get all work orders
- * Admin sees all, Supervisor sees only their facility's work orders
+ * Get all work orders (organization-aware)
+ * Admin sees all in org, Supervisor sees only their facility's work orders
  */
 const getAll = async (req, res, next) => {
   try {
+    const organizationId = req.user.organization_id;
     const { role, facility_id } = req.user;
+    
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User must belong to an organization'
+      });
+    }
     
     const filters = {
       status: req.query.status,
@@ -28,10 +37,10 @@ const getAll = async (req, res, next) => {
     
     // Supervisor only sees work orders in their facility
     if (role === 'supervisor' && facility_id) {
-      workOrders = await WorkOrder.getByFacility(facility_id, filters, options);
+      workOrders = await WorkOrder.getByFacility(facility_id, organizationId, filters, options);
     } else {
-      // Admin sees all work orders
-      workOrders = await WorkOrder.getAllWithDetails(filters, options);
+      // Admin sees all work orders in organization
+      workOrders = await WorkOrder.getAllWithDetails(organizationId, filters, options);
     }
     
     res.json({
@@ -44,12 +53,14 @@ const getAll = async (req, res, next) => {
 };
 
 /**
- * Get work order by ID
+ * Get work order by ID (organization-aware)
  */
 const getById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const workOrder = await WorkOrder.getWithReadings(id);
+    const organizationId = req.user.organization_id;
+    
+    const workOrder = await WorkOrder.getWithReadings(id, organizationId);
     
     if (!workOrder) {
       return res.status(404).json({
@@ -68,12 +79,31 @@ const getById = async (req, res, next) => {
 };
 
 /**
- * Create new work order
+ * Create new work order (organization-aware)
  */
 const create = async (req, res, next) => {
   try {
-    const workOrderId = await WorkOrder.create(req.body);
-    const workOrder = await WorkOrder.getById(workOrderId);
+    const organizationId = req.user.organization_id;
+    
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User must belong to an organization'
+      });
+    }
+
+    // Generate work order number
+    const woNumber = await WorkOrder.generateNumber(organizationId);
+    
+    const data = {
+      ...req.body,
+      organization_id: organizationId,
+      wo_number: woNumber,
+      requested_by: req.user.id
+    };
+    
+    const result = await WorkOrder.create(data);
+    const workOrder = await WorkOrder.findByIdWithOrg(result.id, organizationId);
     
     res.status(201).json({
       success: true,
@@ -86,7 +116,7 @@ const create = async (req, res, next) => {
 };
 
 /**
- * Update work order
+ * Update work order (organization-aware)
  * Validates that status cannot be changed to completed/closed without inspection (except admin)
  */
 const update = async (req, res, next) => {
@@ -94,10 +124,20 @@ const update = async (req, res, next) => {
     const { id } = req.params;
     const { status } = req.body;
     const userRole = req.user?.role;
+    const organizationId = req.user.organization_id;
+    
+    // Verify work order belongs to user's organization
+    const belongs = await WorkOrder.belongsToOrganization(id, organizationId);
+    if (!belongs) {
+      return res.status(404).json({
+        success: false,
+        message: 'Work order not found'
+      });
+    }
     
     // Check if trying to mark as completed/closed via general update (admin can bypass)
     if ((status === 'completed' || status === 'closed') && userRole !== 'admin') {
-      const hasReadings = await WorkOrder.hasInspectionReadings(id);
+      const hasReadings = await WorkOrder.hasInspectionReadings(id, organizationId);
       if (!hasReadings) {
         return res.status(400).json({
           success: false,
@@ -107,7 +147,7 @@ const update = async (req, res, next) => {
     }
     
     await WorkOrder.update(id, req.body);
-    const workOrder = await WorkOrder.getById(id);
+    const workOrder = await WorkOrder.findByIdWithOrg(id, organizationId);
     
     res.json({
       success: true,
@@ -120,7 +160,7 @@ const update = async (req, res, next) => {
 };
 
 /**
- * Update work order status
+ * Update work order status (organization-aware)
  * Admin can complete without inspection, others require inspection
  */
 const updateStatus = async (req, res, next) => {
@@ -128,10 +168,20 @@ const updateStatus = async (req, res, next) => {
     const { id } = req.params;
     const { status, actual_hours, completion_notes, completion_percentage } = req.body;
     const userRole = req.user?.role;
+    const organizationId = req.user.organization_id;
+    
+    // Verify work order belongs to user's organization
+    const belongs = await WorkOrder.belongsToOrganization(id, organizationId);
+    if (!belongs) {
+      return res.status(404).json({
+        success: false,
+        message: 'Work order not found'
+      });
+    }
     
     // Validate inspection is completed before allowing "completed" status (admin can bypass)
     if ((status === 'completed' || status === 'closed') && userRole !== 'admin') {
-      const hasReadings = await WorkOrder.hasInspectionReadings(id);
+      const hasReadings = await WorkOrder.hasInspectionReadings(id, organizationId);
       if (!hasReadings) {
         return res.status(400).json({
           success: false,
@@ -161,11 +211,22 @@ const updateStatus = async (req, res, next) => {
 };
 
 /**
- * Delete work order
+ * Delete work order (organization-aware)
  */
 const remove = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const organizationId = req.user.organization_id;
+    
+    // Verify work order belongs to user's organization
+    const belongs = await WorkOrder.belongsToOrganization(id, organizationId);
+    if (!belongs) {
+      return res.status(404).json({
+        success: false,
+        message: 'Work order not found'
+      });
+    }
+    
     await WorkOrder.delete(id);
     
     res.json({
@@ -178,18 +239,26 @@ const remove = async (req, res, next) => {
 };
 
 /**
- * Get work order statistics
- * Admin sees all stats, Supervisor sees only their facility's stats
+ * Get work order statistics (organization-aware)
+ * Admin sees all org stats, Supervisor sees only their facility's stats
  */
 const getStats = async (req, res, next) => {
   try {
+    const organizationId = req.user.organization_id;
     const { role, facility_id } = req.user;
+    
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User must belong to an organization'
+      });
+    }
     
     let stats;
     if (role === 'supervisor' && facility_id) {
-      stats = await WorkOrder.getStatsByFacility(facility_id);
+      stats = await WorkOrder.getStatsByFacility(facility_id, organizationId);
     } else {
-      stats = await WorkOrder.getStats();
+      stats = await WorkOrder.getStats(organizationId);
     }
     
     res.json({
@@ -202,28 +271,32 @@ const getStats = async (req, res, next) => {
 };
 
 /**
- * Get my work orders (for operators)
+ * Get my work orders (for operators) - organization-aware
  */
 const getMyWorkOrders = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    console.log('[API] getMyWorkOrders - User ID:', userId);
+    const organizationId = req.user.organization_id;
+    
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User must belong to an organization'
+      });
+    }
+    
+    console.log('[API] getMyWorkOrders - User ID:', userId, 'Org ID:', organizationId);
     
     const filters = {
-      assigned_to: userId,
       status: req.query.status,
       priority: req.query.priority
     };
-    // DEBUG: Log SQL query details
-    console.log('[API] getMyWorkOrders - Filters:', filters);
-    console.log('[API] getMyWorkOrders - User ID:', userId);
     
     const options = {
       limit: req.query.limit ? parseInt(req.query.limit) : null
     };
-    console.log('[API] getMyWorkOrders - Options:', options);
     
-    const workOrders = await WorkOrder.getAllWithDetails(filters, options);
+    const workOrders = await WorkOrder.getAssignedToOperator(userId, organizationId, filters);
     console.log('[API] getMyWorkOrders - Found:', workOrders.length, 'work orders');
     
     res.json({
@@ -236,12 +309,14 @@ const getMyWorkOrders = async (req, res, next) => {
 };
 
 /**
- * Get work order by number
+ * Get work order by number (organization-aware)
  */
 const getByNumber = async (req, res, next) => {
   try {
     const { number } = req.params;
-    const workOrder = await WorkOrder.getByNumber(number);
+    const organizationId = req.user.organization_id;
+    
+    const workOrder = await WorkOrder.findByNumber(number, organizationId);
     
     if (!workOrder) {
       return res.status(404).json({
@@ -260,13 +335,14 @@ const getByNumber = async (req, res, next) => {
 };
 
 /**
- * Add note to work order
+ * Add note to work order (organization-aware)
  */
 const addNote = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { note } = req.body;
     const userId = req.user.id;
+    const organizationId = req.user.organization_id;
     
     if (!note || !note.trim()) {
       return res.status(400).json({
@@ -275,7 +351,16 @@ const addNote = async (req, res, next) => {
       });
     }
     
-    await WorkOrder.addNote(id, userId, note.trim());
+    // Verify work order belongs to user's organization
+    const belongs = await WorkOrder.belongsToOrganization(id, organizationId);
+    if (!belongs) {
+      return res.status(404).json({
+        success: false,
+        message: 'Work order not found'
+      });
+    }
+    
+    await WorkOrder.addNote(id, userId, note.trim(), 'general', organizationId);
     
     res.json({
       success: true,
@@ -287,16 +372,26 @@ const addNote = async (req, res, next) => {
 };
 
 /**
- * Re-assign work order to another user
+ * Re-assign work order to another user (organization-aware)
  */
 const reassign = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { assigned_to, notes } = req.body;
     const userId = req.user.id;
+    const organizationId = req.user.organization_id;
+    
+    // Verify work order belongs to user's organization
+    const belongs = await WorkOrder.belongsToOrganization(id, organizationId);
+    if (!belongs) {
+      return res.status(404).json({
+        success: false,
+        message: 'Work order not found'
+      });
+    }
     
     // Validate work order exists
-    const workOrder = await WorkOrder.getWithReadings(id);
+    const workOrder = await WorkOrder.getWithReadings(id, organizationId);
     if (!workOrder) {
       return res.status(404).json({
         success: false,
@@ -316,11 +411,11 @@ const reassign = async (req, res, next) => {
     
     // Add note about reassignment if provided
     if (notes && notes.trim()) {
-      await WorkOrder.addNote(id, userId, notes.trim(), 'assignment');
+      await WorkOrder.addNote(id, userId, notes.trim(), 'assignment', organizationId);
     }
     
     // Get updated work order
-    const updated = await WorkOrder.getWithReadings(id);
+    const updated = await WorkOrder.getWithReadings(id, organizationId);
     
     res.json({
       success: true,
