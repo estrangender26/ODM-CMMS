@@ -1,0 +1,73 @@
+<% title = 'Home' %>
+<% showBack = false %>
+<% showNav = true %>
+<% activeNav = 'home' %>
+
+<!-- Dashboard Stats -->
+<div class="dashboard-stats">
+    <div class="stat-card">
+        <div class="stat-value">5</div>
+        <div class="stat-label">Today's Tasks</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value danger">2</div>
+        <div class="stat-label">Overdue</div>
+    </div>
+</div>
+
+<!-- Overdue Alert -->
+<div class="alert-banner">
+    <span class="alert-icon">⚠️</span>
+    <div class="alert-content">
+        <div class="alert-title">2 Overdue Inspections</div>
+        <div class="alert-subtitle">Requires immediate attention</div>
+    </div>
+</div>
+
+<!-- Quick Scan Button -->
+<button class="btn-scan-large" onclick="openQRScanner()">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7"/>
+        <rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/>
+        <rect x="3" y="14" width="7" height="7"/>
+    </svg>
+    Scan Asset QR
+</button>
+
+<!-- Recent Work Orders -->
+<div class="card">
+    <div class="card-title">Priority Tasks</div>
+    
+    <div class="wo-card card" style="margin-bottom: 8px;">
+        <div class="wo-header">
+            <div>
+                <div class="wo-title">Pump P-101</div>
+                <div class="wo-meta">WO-2026-0042 • North Plant</div>
+            </div>
+            <span class="status-badge status-released">Released</span>
+        </div>
+        <div class="wo-equipment">Centrifugal Pump</div>
+        <div class="wo-footer">
+            <span class="wo-due today">Due Today</span>
+            <button class="btn btn-primary" style="min-width: 80px;">Start</button>
+        </div>
+    </div>
+    
+    <div class="wo-card card" style="margin-bottom: 0;">
+        <div class="wo-header">
+            <div>
+                <div class="wo-title">Motor M-205</div>
+                <div class="wo-meta">WO-2026-0038 • South Plant</div>
+            </div>
+            <span class="status-badge status-released">Released</span>
+        </div>
+        <div class="wo-equipment">Electric Motor</div>
+        <div class="wo-footer">
+            <span class="wo-due overdue">2 Days Overdue</span>
+            <button class="btn btn-danger" style="min-width: 80px;">Start</button>
+        </div>
+    </div>
+</div>
+
+<a href="/mobile/work-orders" class="btn btn-outline btn-full">View All Tasks</a>

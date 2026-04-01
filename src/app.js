@@ -6,6 +6,7 @@
 const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
+const expressLayouts = require('express-ejs-layouts');
 require('dotenv').config();
 
 const routes = require('./routes');
@@ -18,6 +19,10 @@ const app = express();
 // View engine setup
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../views'));
+
+// Layouts setup
+app.use(expressLayouts);
+app.set('layout', false); // Disable default layout
 
 // Middleware
 app.use(express.json());

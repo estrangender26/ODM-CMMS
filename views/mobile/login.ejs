@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1976d2">
+    <title>ODM - Login</title>
+    <link rel="stylesheet" href="/css/odm-mobile.css">
+    <style>
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 24px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        }
+        
+        .login-logo {
+            text-align: center;
+            margin-bottom: 48px;
+            color: white;
+        }
+        
+        .login-logo h1 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .login-logo p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        .login-form {
+            background: white;
+            border-radius: 16px;
+            padding: 32px 24px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-600);
+            margin-bottom: 8px;
+        }
+        
+        .form-input {
+            width: 100%;
+            height: 56px;
+            padding: 0 16px;
+            font-size: 16px;
+            border: 2px solid var(--gray-300);
+            border-radius: 12px;
+            transition: border-color 0.2s;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        .organization-select {
+            margin-bottom: 24px;
+        }
+        
+        .btn-login {
+            width: 100%;
+            height: 56px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .btn-login:active {
+            background: var(--primary-dark);
+        }
+        
+        .login-footer {
+            text-align: center;
+            margin-top: 24px;
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+        }
+        
+        .biometric-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            height: 48px;
+            margin-top: 16px;
+            background: transparent;
+            border: 2px solid var(--gray-300);
+            border-radius: 12px;
+            font-size: 16px;
+            color: var(--gray-600);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-logo">
+            <h1>ODM</h1>
+            <p>Operator Driven Maintenance</p>
+        </div>
+        
+        <div class="login-form">
+            <div class="organization-select">
+                <label class="form-label">Organization</label>
+                <select class="form-input">
+                    <option value="">Select Organization</option>
+                    <option value="ORG-001">Acme Manufacturing</option>
+                    <option value="ORG-002">Global Utilities Inc</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-input" placeholder="your@email.com">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" class="form-input" placeholder="Enter password">
+            </div>
+            
+            <button class="btn-login" onclick="location.href='/mobile/home'">Sign In</button>
+            
+            <button class="biometric-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2a10 10 0 0 0-10 10c0 5.523 4.477 10 10 10s10-4.477 10-10A10 10 0 0 0 12 2zm0 16a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm0-4a1 1 0 0 1-1-1V7a1 1 0 0 1 2 0v6a1 1 0 0 1-1 1z"/>
+                </svg>
+                Use Biometric
+            </button>
+        </div>
+        
+        <div class="login-footer">
+            <p>v1.0.0 • Terms of Service • Privacy</p>
+        </div>
+    </div>
+</body>
+</html>

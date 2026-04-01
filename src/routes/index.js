@@ -39,8 +39,11 @@ router.use('/findings', require('./finding.routes'));
 // SAP S/4HANA PM Catalogs (A, B, C, 5)
 router.use('/sap-catalogs', require('./sap-catalog.routes'));
 
-// Mobile Inspection Workflow
+// Mobile Inspection Workflow (API)
 router.use('/m', require('./mobile-inspection.routes'));
+
+// Mobile UI Routes (Views)
+router.use('/mobile', require('./mobile.routes'));
 
 // Health check
 router.get('/health', (req, res) => {

@@ -1,0 +1,141 @@
+<% title = 'Inspection' %>
+<% showBack = true %>
+<% showNav = false %>
+<% activeNav = '' %>
+
+<!-- Progress Bar -->
+<div class="inspection-progress">
+    <div class="progress-bar">
+        <div class="progress-fill" style="width: 8%;"></div>
+    </div>
+    <div class="progress-text">Item 1 of 12</div>
+</div>
+
+<!-- Inspection Card -->
+<div class="inspection-card">
+    <div class="inspection-context">Coupling Assembly • Mechanical Component</div>
+    <div class="inspection-prompt">Check coupling for wear or damage</div>
+    
+    <!-- Pass/Fail Input -->
+    <div class="input-pass-fail">
+        <button class="btn-pass" onclick="selectPass()">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-bottom: 8px;">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <div>PASS</div>
+        </button>
+        <button class="btn-fail" onclick="selectFail()">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-bottom: 8px;">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+            <div>FAIL</div>
+        </button>
+    </div>
+    
+    <!-- Photo Button -->
+    <div class="input-photo">
+        <button class="btn-photo" onclick="takePhoto()">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+            </svg>
+            <span>Add Photo (Optional)</span>
+        </button>
+    </div>
+    
+    <!-- Navigation -->
+    <div class="inspection-nav">
+        <button class="btn btn-outline" disabled>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+                <polyline points="15 18 9 12 15 6"/>
+            </svg>
+            Prev
+        </button>
+        <button class="btn btn-primary" onclick="nextItem()">
+            Next
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: 8px;">
+                <polyline points="9 18 15 12 9 6"/>
+            </svg>
+        </button>
+    </div>
+</div>
+
+<!-- Finding Modal (hidden by default) -->
+<div id="findingModal" class="modal">
+    <div class="modal-content" style="padding: 20px;">
+        <h2 style="margin-bottom: 16px;">Record Finding</h2>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">Severity</label>
+            <div class="severity-selector">
+                <button class="btn-severity low" onclick="selectSeverity('low')">LOW</button>
+                <button class="btn-severity medium" onclick="selectSeverity('medium')">MEDIUM</button>
+                <button class="btn-severity high selected" onclick="selectSeverity('high')">HIGH</button>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">Observation</label>
+            <textarea placeholder="Describe the finding..." style="width: 100%; min-height: 100px; padding: 12px; border: 2px solid var(--gray-300); border-radius: 8px; font-size: 16px;"></textarea>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">Recommended Action</label>
+            <input type="text" placeholder="e.g., Replace coupling" style="width: 100%; padding: 12px; border: 2px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+        </div>
+        
+        <div class="input-photo" style="margin-bottom: 20px;">
+            <button class="btn-photo" style="height: 80px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                </svg>
+                <span>Attach Photo</span>
+            </button>
+        </div>
+        
+        <div style="display: flex; gap: 12px;">
+            <button class="btn btn-outline" style="flex: 1;" onclick="closeFindingModal()">Cancel</button>
+            <button class="btn btn-danger" style="flex: 1;" onclick="saveFinding()">Save Finding</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function selectPass() {
+    document.querySelector('.btn-pass').classList.add('selected');
+    document.querySelector('.btn-fail').classList.remove('selected');
+    setTimeout(nextItem, 300);
+}
+
+function selectFail() {
+    document.querySelector('.btn-fail').classList.add('selected');
+    document.querySelector('.btn-pass').classList.remove('selected');
+    document.getElementById('findingModal').classList.add('active');
+}
+
+function selectSeverity(level) {
+    document.querySelectorAll('.btn-severity').forEach(btn => btn.classList.remove('selected'));
+    document.querySelector('.btn-severity.' + level).classList.add('selected');
+}
+
+function closeFindingModal() {
+    document.getElementById('findingModal').classList.remove('active');
+}
+
+function saveFinding() {
+    closeFindingModal();
+    nextItem();
+}
+
+function nextItem() {
+    // In real implementation, this would load the next inspection item
+    location.reload(); // Temporary: reload to show next item
+}
+
+function takePhoto() {
+    // Trigger camera input
+    alert('Camera would open here');
+}
+</script>

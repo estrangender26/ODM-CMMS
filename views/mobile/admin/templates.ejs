@@ -1,0 +1,86 @@
+<% title = 'Templates' %>
+<% showBack = true %>
+<% showNav = false %>
+<% activeNav = '' %>
+
+<!-- Add Button -->
+<button class="btn btn-primary btn-full" style="margin-bottom: 16px;" onclick="showAddTemplate()">
+    + Create Template
+</button>
+
+<!-- Templates List -->
+<% templates.forEach(function(template) { %>
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+        <div>
+            <div style="font-weight: 600;"><%= template.name %></div>
+            <div style="font-size: 13px; color: var(--gray-600);"><%= template.equipmentType %></div>
+        </div>
+        <span class="status-badge <%= template.isActive ? 'status-released' : 'status-scheduled' %>">
+            <%= template.isActive ? 'Active' : 'Inactive' %>
+        </span>
+    </div>
+    <div style="display: flex; gap: 16px; font-size: 13px; color: var(--gray-600); margin-bottom: 12px;">
+        <span>v<%= template.version %></span>
+        <span>12 items</span>
+    </div>
+    <div style="display: flex; gap: 8px;">
+        <button class="btn btn-outline" style="flex: 1; height: 40px;">Edit</button>
+        <button class="btn btn-outline" style="flex: 1; height: 40px;">Items</button>
+    </div>
+</div>
+<% }); %>
+
+<!-- Add Template Modal -->
+<div id="addTemplateModal" class="modal">
+    <div class="modal-content" style="padding: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="font-size: 20px;">Create Template</h2>
+            <button class="btn-close" onclick="hideAddTemplate()">&times;</button>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">Template Name *</label>
+            <input type="text" id="templateName" placeholder="e.g., Daily Pump Inspection" style="width: 100%; height: 48px; padding: 0 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px;">
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">Equipment Type *</label>
+            <select id="templateEquipmentType" style="width: 100%; height: 48px; padding: 0 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; background: white;">
+                <option value="">Select Equipment Type</option>
+                <option value="ETYPE-001">Centrifugal Pump</option>
+                <option value="ETYPE-002">Positive Displacement Pump</option>
+                <option value="ETYPE-013">Electric Motor</option>
+                <option value="ETYPE-038">Shell and Tube Heat Exchanger</option>
+            </select>
+        </div>
+        
+        <div style="display: flex; gap: 12px;">
+            <button class="btn btn-outline" style="flex: 1;" onclick="hideAddTemplate()">Cancel</button>
+            <button class="btn btn-primary" style="flex: 1;" onclick="createTemplate()">Create</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function showAddTemplate() {
+    document.getElementById('addTemplateModal').classList.add('active');
+}
+
+function hideAddTemplate() {
+    document.getElementById('addTemplateModal').classList.remove('active');
+}
+
+function createTemplate() {
+    const name = document.getElementById('templateName').value;
+    const type = document.getElementById('templateEquipmentType').value;
+    
+    if (!name || !type) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    hideAddTemplate();
+    // Redirect to template editor with new template
+}
+</script>

@@ -1,0 +1,61 @@
+<% title = 'WO Dashboard' %>
+<% showBack = true %>
+<% showNav = false %>
+<% activeNav = '' %>
+
+<!-- KPI Cards -->
+<div class="dashboard-stats">
+    <div class="stat-card">
+        <div class="stat-value"><%= kpis.scheduled %></div>
+        <div class="stat-label">Scheduled</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--success);"><%= kpis.completed %></div>
+        <div class="stat-label">Completed</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value danger"><%= kpis.overdue %></div>
+        <div class="stat-label">Overdue</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--warning);"><%= kpis.inProgress %></div>
+        <div class="stat-label">In Progress</div>
+    </div>
+</div>
+
+<!-- Simple Bar Chart -->
+<div class="card">
+    <div class="card-title">By Status</div>
+    <div style="margin-top: 20px;">
+        <% chartData.byStatus.forEach(function(item) { %>
+        <div style="margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span style="font-size: 14px;"><%= item.label %></span>
+                <span style="font-size: 14px; font-weight: 600;"><%= item.value %></span>
+            </div>
+            <div style="height: 24px; background: var(--gray-200); border-radius: 12px; overflow: hidden;">
+                <div style="height: 100%; width: <%= (item.value / 50) * 100 %>%; background: <%= item.color %>; border-radius: 12px; transition: width 0.3s;"></div>
+            </div>
+        </div>
+        <% }); %>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="card">
+    <div class="card-title">Recent Activity</div>
+    <div style="margin-top: 12px;">
+        <div style="padding: 12px 0; border-bottom: 1px solid var(--gray-200);">
+            <div style="font-weight: 500;">WO-2026-0042 Completed</div>
+            <div style="font-size: 13px; color: var(--gray-600);">Pump P-101 • 10 min ago</div>
+        </div>
+        <div style="padding: 12px 0; border-bottom: 1px solid var(--gray-200);">
+            <div style="font-weight: 500;">WO-2026-0043 Started</div>
+            <div style="font-size: 13px; color: var(--gray-600);">Motor M-205 • 25 min ago</div>
+        </div>
+        <div style="padding: 12px 0;">
+            <div style="font-weight: 500;">Finding Created</div>
+            <div style="font-size: 13px; color: var(--gray-600);">High severity • Heat Exchanger</div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,121 @@
+<% title = 'Calendar' %>
+<% showBack = true %>
+<% showNav = false %>
+<% activeNav = '' %>
+
+<!-- Date Navigation -->
+<div class="card" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;">
+    <button class="btn btn-outline" style="min-width: auto; padding: 8px 12px; height: 40px;" onclick="previousDay()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6"/>
+        </svg>
+    </button>
+    <div style="font-weight: 600; font-size: 16px;">April 6, 2026</div>
+    <button class="btn btn-outline" style="min-width: auto; padding: 8px 12px; height: 40px;" onclick="nextDay()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"/>
+        </svg>
+    </button>
+</div>
+
+<!-- Filters -->
+<div class="filter-bar">
+    <button class="filter-chip active">All</button>
+    <button class="filter-chip">North Plant</button>
+    <button class="filter-chip">South Plant</button>
+    <button class="filter-chip">My Tasks</button>
+</div>
+
+<!-- Work Orders for Selected Date -->
+<div class="card">
+    <div class="card-title">Monday, April 6</div>
+    
+    <div style="margin-top: 16px;">
+        <div class="wo-card card" style="margin-bottom: 12px; border-left: 4px solid var(--warning);">
+            <div class="wo-header">
+                <div>
+                    <div class="wo-title">Pump P-101</div>
+                    <div class="wo-meta">WO-2026-0042 • North Plant</div>
+                </div>
+                <span class="status-badge status-released">Due</span>
+            </div>
+            <div class="wo-equipment">Centrifugal Pump</div>
+            <div class="wo-footer">
+                <span class="wo-due today">Due Today</span>
+                <span style="font-size: 13px; color: var(--gray-600);">Juan Santos</span>
+            </div>
+        </div>
+        
+        <div class="wo-card card" style="margin-bottom: 12px; border-left: 4px solid var(--danger);">
+            <div class="wo-header">
+                <div>
+                    <div class="wo-title">Motor M-205</div>
+                    <div class="wo-meta">WO-2026-0043 • South Plant</div>
+                </div>
+                <span class="status-badge status-released">Due</span>
+            </div>
+            <div class="wo-equipment">Electric Motor</div>
+            <div class="wo-footer">
+                <span class="wo-due overdue">2 Days Overdue</span>
+                <span style="font-size: 13px; color: var(--gray-600);">Maria Garcia</span>
+            </div>
+        </div>
+        
+        <div class="wo-card card" style="margin-bottom: 0; border-left: 4px solid var(--success);">
+            <div class="wo-header">
+                <div>
+                    <div class="wo-title">Fan F-201</div>
+                    <div class="wo-meta">WO-2026-0041 • South Plant</div>
+                </div>
+                <span class="status-badge status-completed">Done</span>
+            </div>
+            <div class="wo-equipment">Centrifugal Fan</div>
+            <div class="wo-footer">
+                <span class="wo-due">Completed 8:30 AM</span>
+                <span style="font-size: 13px; color: var(--gray-600);">Juan Santos</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Week Summary -->
+<div class="card">
+    <div class="card-title">Week of Apr 6</div>
+    <div style="display: flex; gap: 8px; margin-top: 16px; overflow-x: auto;">
+        <div style="min-width: 60px; text-align: center; padding: 12px 8px; background: var(--primary); color: white; border-radius: 12px;">
+            <div style="font-size: 12px;">Mon</div>
+            <div style="font-size: 20px; font-weight: 700;">6</div>
+            <div style="font-size: 11px;">3</div>
+        </div>
+        <div style="min-width: 60px; text-align: center; padding: 12px 8px; background: var(--gray-200); border-radius: 12px;">
+            <div style="font-size: 12px;">Tue</div>
+            <div style="font-size: 20px; font-weight: 700;">7</div>
+            <div style="font-size: 11px;">1</div>
+        </div>
+        <div style="min-width: 60px; text-align: center; padding: 12px 8px; background: var(--gray-200); border-radius: 12px;">
+            <div style="font-size: 12px;">Wed</div>
+            <div style="font-size: 20px; font-weight: 700;">8</div>
+            <div style="font-size: 11px;">2</div>
+        </div>
+        <div style="min-width: 60px; text-align: center; padding: 12px 8px; background: var(--gray-200); border-radius: 12px;">
+            <div style="font-size: 12px;">Thu</div>
+            <div style="font-size: 20px; font-weight: 700;">9</div>
+            <div style="font-size: 11px;">0</div>
+        </div>
+        <div style="min-width: 60px; text-align: center; padding: 12px 8px; background: var(--gray-200); border-radius: 12px;">
+            <div style="font-size: 12px;">Fri</div>
+            <div style="font-size: 20px; font-weight: 700;">10</div>
+            <div style="font-size: 11px;">2</div>
+        </div>
+    </div>
+</div>
+
+<script>
+function previousDay() {
+    // Navigate to previous day
+}
+
+function nextDay() {
+    // Navigate to next day
+}
+</script>

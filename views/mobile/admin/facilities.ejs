@@ -1,0 +1,57 @@
+<% title = 'Facilities' %>
+<% showBack = true %>
+<% showNav = false %>
+<% activeNav = '' %>
+
+<!-- Add Button -->
+<button class="btn btn-primary btn-full" style="margin-bottom: 16px;" onclick="showAddFacility()">
+    + Add Facility
+</button>
+
+<!-- Facilities List -->
+<% facilities.forEach(function(facility) { %>
+<div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <div style="font-weight: 600;"><%= facility.name %></div>
+        <div style="font-size: 13px; color: var(--gray-600);"><%= facility.id %></div>
+    </div>
+    <div style="display: flex; gap: 8px;">
+        <button class="btn btn-outline" style="min-width: auto; padding: 8px 16px; height: 40px;">Edit</button>
+    </div>
+</div>
+<% }); %>
+
+<!-- Add Facility Modal -->
+<div id="addFacilityModal" class="modal">
+    <div class="modal-content" style="padding: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="font-size: 20px;">Add Facility</h2>
+            <button class="btn-close" onclick="hideAddFacility()">&times;</button>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">Facility Name</label>
+            <input type="text" class="form-input" placeholder="e.g., North Plant" style="width: 100%; height: 48px; padding: 0 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px;">
+        </div>
+        
+        <div style="display: flex; gap: 12px;">
+            <button class="btn btn-outline" style="flex: 1;" onclick="hideAddFacility()">Cancel</button>
+            <button class="btn btn-primary" style="flex: 1;" onclick="saveFacility()">Save</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function showAddFacility() {
+    document.getElementById('addFacilityModal').classList.add('active');
+}
+
+function hideAddFacility() {
+    document.getElementById('addFacilityModal').classList.remove('active');
+}
+
+function saveFacility() {
+    hideAddFacility();
+    // Save logic here
+}
+</script>

@@ -1,0 +1,101 @@
+<% title = 'Work Orders' %>
+<% showBack = false %>
+<% showNav = true %>
+<% activeNav = 'work-orders' %>
+
+<!-- Filters -->
+<div class="filter-bar">
+    <button class="filter-chip active">All</button>
+    <button class="filter-chip">Today</button>
+    <button class="filter-chip">Overdue</button>
+    <button class="filter-chip">In Progress</button>
+    <button class="filter-chip">North Plant</button>
+</div>
+
+<!-- Work Orders List -->
+<div class="wo-list">
+    <div class="wo-card card" onclick="location.href='/mobile/work-orders/WO-2026-0042'">
+        <div class="wo-header">
+            <div>
+                <div class="wo-title">Pump P-101</div>
+                <div class="wo-meta">WO-2026-0042 • North Plant</div>
+            </div>
+            <span class="status-badge status-released">Released</span>
+        </div>
+        <div class="wo-equipment">Centrifugal Pump</div>
+        <div class="wo-footer">
+            <span class="wo-due today">Due Today</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"/>
+            </svg>
+        </div>
+    </div>
+
+    <div class="wo-card card" onclick="location.href='/mobile/work-orders/WO-2026-0038'">
+        <div class="wo-header">
+            <div>
+                <div class="wo-title">Motor M-205</div>
+                <div class="wo-meta">WO-2026-0038 • South Plant</div>
+            </div>
+            <span class="status-badge status-released">Released</span>
+        </div>
+        <div class="wo-equipment">Electric Motor</div>
+        <div class="wo-footer">
+            <span class="wo-due overdue">2 Days Overdue</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"/>
+            </svg>
+        </div>
+    </div>
+
+    <div class="wo-card card" onclick="location.href='/mobile/work-orders/WO-2026-0035'">
+        <div class="wo-header">
+            <div>
+                <div class="wo-title">Heat Exchanger HX-301</div>
+                <div class="wo-meta">WO-2026-0035 • North Plant</div>
+            </div>
+            <span class="status-badge status-in_progress">In Progress</span>
+        </div>
+        <div class="wo-equipment">Shell and Tube Heat Exchanger</div>
+        <div class="wo-footer">
+            <span class="wo-due">Due Apr 5</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"/>
+            </svg>
+        </div>
+    </div>
+
+    <div class="wo-card card" onclick="location.href='/mobile/work-orders/WO-2026-0030'">
+        <div class="wo-header">
+            <div>
+                <div class="wo-title">Compressor C-102</div>
+                <div class="wo-meta">WO-2026-0030 • East Plant</div>
+            </div>
+            <span class="status-badge status-scheduled">Scheduled</span>
+        </div>
+        <div class="wo-equipment">Rotary Screw Compressor</div>
+        <div class="wo-footer">
+            <span class="wo-due">Due Apr 6</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"/>
+            </svg>
+        </div>
+    </div>
+
+    <div class="wo-card card" onclick="location.href='/mobile/work-orders/WO-2026-0028'">
+        <div class="wo-header">
+            <div>
+                <div class="wo-title">Fan F-201</div>
+                <div class="wo-meta">WO-2026-0028 • South Plant</div>
+            </div>
+            <span class="status-badge status-completed">Completed</span>
+        </div>
+        <div class="wo-equipment">Centrifugal Fan</div>
+        <div class="wo-footer">
+            <span class="wo-due">Completed Apr 2</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"/>
+            </svg>
+        </div>
+    </div>
+</div>

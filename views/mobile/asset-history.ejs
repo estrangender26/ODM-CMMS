@@ -1,0 +1,65 @@
+<% title = 'Inspection History' %>
+<% showBack = true %>
+<% showNav = false %>
+<% activeNav = '' %>
+
+<!-- Asset Header -->
+<div class="asset-header">
+    <div class="asset-name">Pump P-101</div>
+    <div class="asset-type">Centrifugal Pump</div>
+    <div class="asset-facility">North Plant</div>
+</div>
+
+<!-- History List -->
+<div class="card">
+    <div class="card-title">Recent Inspections</div>
+    
+    <div style="margin-top: 16px;">
+        <% inspections.forEach(function(inspection) { %>
+        <div style="display: flex; align-items: center; padding: 16px; background: var(--gray-100); border-radius: 12px; margin-bottom: 12px;">
+            <div style="flex: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <span style="font-weight: 600;"><%= inspection.date %></span>
+                    <% if (inspection.result === 'pass') { %>
+                    <span class="status-badge" style="background: #e8f5e9; color: var(--success);">Pass</span>
+                    <% } else { %>
+                    <span class="status-badge" style="background: #ffebee; color: var(--danger);">Findings</span>
+                    <% } %>
+                </div>
+                <div style="font-size: 13px; color: var(--gray-600);">
+                    <%= inspection.workOrder %> • <%= inspection.template %>
+                </div>
+                <% if (inspection.findings > 0) { %>
+                <div style="margin-top: 8px;">
+                    <span style="font-size: 13px; color: var(--danger);">
+                        <%= inspection.findings %> finding<%= inspection.findings > 1 ? 's' : '' %>
+                    </span>
+                </div>
+                <% } %>
+            </div>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--gray-400); margin-left: 12px;">
+                <polyline points="9 18 15 12 9 6"/>
+            </svg>
+        </div>
+        <% }); %>
+    </div>
+</div>
+
+<!-- Stats Summary -->
+<div class="card">
+    <div class="card-title">30-Day Summary</div>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; text-align: center;">
+        <div>
+            <div style="font-size: 24px; font-weight: 700; color: var(--success);">28</div>
+            <div style="font-size: 12px; color: var(--gray-600);">Passed</div>
+        </div>
+        <div>
+            <div style="font-size: 24px; font-weight: 700; color: var(--warning);">2</div>
+            <div style="font-size: 12px; color: var(--gray-600);">Findings</div>
+        </div>
+        <div>
+            <div style="font-size: 24px; font-weight: 700; color: var(--primary);">93%</div>
+            <div style="font-size: 12px; color: var(--gray-600);">On Time</div>
+        </div>
+    </div>
+</div>

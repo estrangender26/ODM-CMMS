@@ -1,0 +1,67 @@
+<% title = 'Findings Dashboard' %>
+<% showBack = true %>
+<% showNav = false %>
+<% activeNav = '' %>
+
+<!-- Total Findings -->
+<div class="card" style="text-align: center; padding: 24px;">
+    <div style="font-size: 48px; font-weight: 700; color: var(--warning);"><%= kpis.total %></div>
+    <div style="font-size: 16px; color: var(--gray-600);">Total Findings</div>
+</div>
+
+<!-- By Severity -->
+<div class="card">
+    <div class="card-title">By Severity</div>
+    <div style="display: flex; gap: 12px; margin-top: 16px;">
+        <% bySeverity.forEach(function(sev) { %>
+        <div style="flex: 1; text-align: center; padding: 16px; background: <%= sev.color %>20; border-radius: 12px; border: 2px solid <%= sev.color %>">
+            <div style="font-size: 28px; font-weight: 700; color: <%= sev.color %>"><%= sev.value %></div>
+            <div style="font-size: 12px; color: <%= sev.color %>; font-weight: 500;"><%= sev.label %></div>
+        </div>
+        <% }); %>
+    </div>
+</div>
+
+<!-- By Equipment Type -->
+<div class="card">
+    <div class="card-title">By Equipment Type</div>
+    <div style="margin-top: 16px;">
+        <% byEquipmentType.forEach(function(type) { %>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--gray-200);">
+            <span style="font-size: 14px;"><%= type.label %></span>
+            <span style="font-weight: 600; color: var(--warning);"><%= type.count %></span>
+        </div>
+        <% }); %>
+    </div>
+</div>
+
+<!-- Recent Findings -->
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="card-title" style="margin: 0;">Recent Findings</div>
+        <a href="#" style="font-size: 14px; color: var(--primary);">View All</a>
+    </div>
+    <div style="margin-top: 16px;">
+        <div style="padding: 12px; background: #ffebee; border-radius: 8px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-weight: 600;">Pump P-101</span>
+                <span class="status-badge" style="background: var(--danger); color: white;">HIGH</span>
+            </div>
+            <div style="font-size: 13px; color: var(--gray-600);">Bearing temperature elevated</div>
+        </div>
+        <div style="padding: 12px; background: #fff3e0; border-radius: 8px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-weight: 600;">Motor M-205</span>
+                <span class="status-badge" style="background: var(--warning); color: white;">MEDIUM</span>
+            </div>
+            <div style="font-size: 13px; color: var(--gray-600);">Vibration above normal</div>
+        </div>
+        <div style="padding: 12px; background: #f5f5f5; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-weight: 600;">Heat Exchanger HX-301</span>
+                <span class="status-badge" style="background: var(--gray-600); color: white;">LOW</span>
+            </div>
+            <div style="font-size: 13px; color: var(--gray-600);">Minor gasket leak</div>
+        </div>
+    </div>
+</div>

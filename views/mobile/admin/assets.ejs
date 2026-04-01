@@ -1,0 +1,118 @@
+<% title = 'Assets' %>
+<% showBack = true %>
+<% showNav = false %>
+<% activeNav = '' %>
+
+<!-- Add Button -->
+<button class="btn btn-primary btn-full" style="margin-bottom: 16px;" onclick="showAddAsset()">
+    + Register Asset
+</button>
+
+<!-- Search -->
+<div style="margin-bottom: 16px;">
+    <input type="text" placeholder="Search assets..." style="width: 100%; height: 48px; padding: 0 16px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 12px;">
+</div>
+
+<!-- Assets List -->
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--gray-200);">
+        <div>
+            <div style="font-weight: 600;">Pump P-101</div>
+            <div style="font-size: 13px; color: var(--gray-600);">Centrifugal Pump • North Plant</div>
+        </div>
+        <span class="status-badge status-released">Active</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--gray-200);">
+        <div>
+            <div style="font-weight: 600;">Motor M-205</div>
+            <div style="font-size: 13px; color: var(--gray-600);">Electric Motor • South Plant</div>
+        </div>
+        <span class="status-badge status-released">Active</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0;">
+        <div>
+            <div style="font-weight: 600;">Heat Exchanger HX-301</div>
+            <div style="font-size: 13px; color: var(--gray-600);">Shell and Tube • North Plant</div>
+        </div>
+        <span class="status-badge status-released">Active</span>
+    </div>
+</div>
+
+<!-- Add Asset Modal -->
+<div id="addAssetModal" class="modal">
+    <div class="modal-content" style="padding: 24px; max-height: 90vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="font-size: 20px;">Register Asset</h2>
+            <button class="btn-close" onclick="hideAddAsset()">&times;</button>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">Asset Name *</label>
+            <input type="text" id="assetName" placeholder="e.g., Pump P-101" style="width: 100%; height: 48px; padding: 0 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px;">
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">Equipment Type *</label>
+            <select id="equipmentType" style="width: 100%; height: 48px; padding: 0 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; background: white;">
+                <option value="">Select Equipment Type</option>
+                <% equipmentTypes.forEach(function(type) { %>
+                <option value="<%= type.id %>"><%= type.name %></option>
+                <% }); %>
+            </select>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">Facility *</label>
+            <select id="facility" style="width: 100%; height: 48px; padding: 0 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; background: white;">
+                <option value="">Select Facility</option>
+                <% facilities.forEach(function(facility) { %>
+                <option value="<%= facility.id %>"><%= facility.name %></option>
+                <% }); %>
+            </select>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">QR Code</label>
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="qrCode" placeholder="Auto-generated or manual" style="flex: 1; height: 48px; padding: 0 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px;">
+                <button class="btn btn-outline" style="min-width: auto; padding: 0 16px; height: 48px;" onclick="generateQR()">Generate</button>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 12px;">
+            <button class="btn btn-outline" style="flex: 1;" onclick="hideAddAsset()">Cancel</button>
+            <button class="btn btn-primary" style="flex: 1;" onclick="saveAsset()">Save</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function showAddAsset() {
+    document.getElementById('addAssetModal').classList.add('active');
+}
+
+function hideAddAsset() {
+    document.getElementById('addAssetModal').classList.remove('active');
+}
+
+function generateQR() {
+    const prefix = 'ODM-AST-';
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    document.getElementById('qrCode').value = prefix + random;
+}
+
+function saveAsset() {
+    // Validation
+    const name = document.getElementById('assetName').value;
+    const type = document.getElementById('equipmentType').value;
+    const facility = document.getElementById('facility').value;
+    
+    if (!name || !type || !facility) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    hideAddAsset();
+    // Save logic here
+}
+</script>

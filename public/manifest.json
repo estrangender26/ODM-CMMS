@@ -1,28 +1,22 @@
 {
-  "name": "ODM-CMMS",
-  "short_name": "ODM-CMMS",
-  "description": "Operator-Driven Maintenance Computerized Maintenance Management System",
-  "start_url": "/",
+  "name": "ODM - Operator Driven Maintenance",
+  "short_name": "ODM",
+  "description": "Mobile-first inspection and maintenance system",
+  "start_url": "/mobile/home",
   "display": "standalone",
-  "background_color": "#F8FAFC",
-  "theme_color": "#2563EB",
+  "background_color":="#1976d2",
+  "theme_color":"#1976d2",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icon-192x192.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
-      "src": "/icon-512x512.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
-  ],
-  "categories": ["business", "productivity", "utilities"],
-  "screenshots": [],
-  "related_applications": [],
-  "prefer_related_applications": false
+  ]
 }

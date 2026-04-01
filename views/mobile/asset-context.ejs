@@ -1,0 +1,107 @@
+<% title = 'Asset' %>
+<% showBack = true %>
+<% showNav = false %>
+<% activeNav = '' %>
+
+<!-- Asset Header -->
+<div class="asset-header">
+    <div class="asset-name">Pump P-101</div>
+    <div class="asset-type">Centrifugal Pump</div>
+    <div class="asset-facility">North Plant</div>
+</div>
+
+<!-- Open Work Orders -->
+<div class="work-order-list">
+    <div class="list-header">Open Work Orders (2)</div>
+    
+    <div class="wo-item selected" onclick="selectWO(this)">
+        <div class="wo-item-info">
+            <div class="wo-item-id">WO-2026-0042</div>
+            <div class="wo-item-due">Due Today • Daily Pump Inspection</div>
+        </div>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="4" fill="currentColor"/>
+        </svg>
+    </div>
+    
+    <div class="wo-item" onclick="selectWO(this)">
+        <div class="wo-item-info">
+            <div class="wo-item-id">WO-2026-0039</div>
+            <div class="wo-item-due">Due Apr 5 • Weekly Maintenance</div>
+        </div>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--gray-300);">
+            <circle cx="12" cy="12" r="10"/>
+        </svg>
+    </div>
+</div>
+
+<!-- Overdue Warning -->
+<div class="alert-banner">
+    <span class="alert-icon">⚠️</span>
+    <div class="alert-content">
+        <div class="alert-title">WO-2026-0038 Overdue</div>
+        <div class="alert-subtitle">2 days past due date</div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card">
+    <button class="btn btn-primary btn-large btn-full" onclick="location.href='/mobile/inspection/WO-2026-0042'" style="margin-bottom: 12px;">
+        Start Inspection
+    </button>
+    <button class="btn btn-outline btn-full" onclick="location.href='/mobile/asset/P-101/history'">
+        View Inspection History
+    </button>
+</div>
+
+<!-- Asset Details -->
+<div class="card">
+    <div class="card-title">Asset Details</div>
+    <div style="margin-top: 12px;">
+        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--gray-200);">
+            <span style="color: var(--gray-600);">Asset ID</span>
+            <span style="font-weight: 500;">AST-001</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--gray-200);">
+            <span style="color: var(--gray-600);">Equipment Type</span>
+            <span style="font-weight: 500;">ETYPE-001</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--gray-200);">
+            <span style="color: var(--gray-600);">QR Code</span>
+            <span style="font-weight: 500; font-family: monospace;">ODM-AST-001</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+            <span style="color: var(--gray-600);">Status</span>
+            <span class="status-badge status-released">Active</span>
+        </div>
+    </div>
+</div>
+
+<!-- Last Inspection -->
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="card-title" style="margin: 0;">Last Inspection</div>
+        <a href="/mobile/asset/P-101/history" style="font-size: 14px; color: var(--primary); text-decoration: none;">View All</a>
+    </div>
+    <div style="margin-top: 12px; padding: 12px; background: var(--gray-100); border-radius: 8px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span style="font-weight: 500;">Mar 29, 2026</span>
+            <span class="status-badge" style="background: #e8f5e9; color: var(--success);">Pass</span>
+        </div>
+        <div style="font-size: 13px; color: var(--gray-600);">Completed by Juan Santos • 12 items</div>
+    </div>
+</div>
+
+<script>
+function selectWO(element) {
+    document.querySelectorAll('.wo-item').forEach(item => {
+        item.classList.remove('selected');
+        item.querySelector('svg').style.color = 'var(--gray-300)';
+        item.querySelector('svg').innerHTML = '<circle cx="12" cy="12" r="10"/>';
+    });
+    element.classList.add('selected');
+    element.querySelector('svg').style.color = 'var(--primary)';
+    element.querySelector('svg').innerHTML = '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4" fill="currentColor"/>';
+}
+</script>
