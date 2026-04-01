@@ -204,6 +204,21 @@ a:hover {
   text-transform: uppercase;
 }
 
+.brand-org-name {
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--primary);
+  margin-top: 2px;
+  padding: 2px 8px;
+  background: var(--primary-50);
+  border-radius: var(--radius-sm);
+  display: inline-block;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .brand-logo-lg svg {
   width: 64px;
   height: 64px;

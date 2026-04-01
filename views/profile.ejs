@@ -45,10 +45,17 @@
           <span class="detail-label">Role</span>
           <span class="detail-value"><%= user.role %></span>
         </div>
+        <% if (user.role === 'admin') { %>
+        <div class="detail-row">
+          <span class="detail-label">Organization</span>
+          <span class="detail-value"><%= user.organization_name || 'Default Organization' %></span>
+        </div>
+        <% } else { %>
         <div class="detail-row">
           <span class="detail-label">Facility</span>
           <span class="detail-value"><%= user.facility_name || user.facility_id || 'Not assigned' %></span>
         </div>
+        <% } %>
         <div class="detail-row">
           <span class="detail-label">Status</span>
           <span class="detail-value"><%= user.is_active ? 'Active' : 'Inactive' %></span>

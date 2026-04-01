@@ -31,6 +31,9 @@
         <div class="brand-logo-text hide-mobile">
           <span class="brand-logo-title">ODM-CMMS</span>
           <span class="brand-logo-subtitle">Operator-Driven Maintenance</span>
+          <% if (user && user.organization_name) { %>
+          <span class="brand-org-name"><%= user.organization_name %></span>
+          <% } %>
         </div>
       </a>
       
