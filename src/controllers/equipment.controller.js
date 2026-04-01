@@ -7,6 +7,7 @@ const { Equipment } = require('../models');
 
 /**
  * Get all equipment (organization-aware)
+ * Includes ISO 14224 classification
  */
 const getAll = async (req, res, next) => {
   try {
@@ -16,10 +17,14 @@ const getAll = async (req, res, next) => {
       facility_id: req.query.facility_id,
       status: req.query.status,
       category: req.query.category,
-      criticality: req.query.criticality
+      criticality: req.query.criticality,
+      equipment_category_id: req.query.equipment_category_id,
+      equipment_class_id: req.query.equipment_class_id,
+      equipment_type_id: req.query.equipment_type_id
     };
 
-    const equipment = await Equipment.getAllWithFacility(organizationId, filters);
+    // Use ISO classification aware method
+    const equipment = await Equipment.getAllWithIsoClassification(organizationId, filters);
     res.json({
       success: true,
       data: { equipment }
@@ -31,13 +36,15 @@ const getAll = async (req, res, next) => {
 
 /**
  * Get equipment by ID (organization-aware)
+ * Includes ISO 14224 classification
  */
 const getById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const organizationId = req.user.organization_id;
     
-    const equipment = await Equipment.getWithDetails(id, organizationId);
+    // Use ISO classification aware method
+    const equipment = await Equipment.getWithIsoClassification(id, organizationId);
     
     if (!equipment) {
       return res.status(404).json({
@@ -196,6 +203,121 @@ const search = async (req, res, next) => {
   }
 };
 
+// ============================================================
+// QR Code Methods
+// ============================================================
+
+/**
+ * Get QR code data for equipment
+ */
+const getQRCode = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const organizationId = req.user.organization_id;
+    
+    // Get base URL from request
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    const baseUrl = `${protocol}://${host}`;
+    
+    const qrData = await Equipment.getQRCodeData(id, organizationId, baseUrl);
+    
+    if (!qrData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Equipment not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: qrData
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Generate new QR token for equipment
+ */
+const generateQRToken = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const organizationId = req.user.organization_id;
+    
+    // Verify equipment belongs to organization
+    const belongs = await Equipment.belongsToOrganization(id, organizationId);
+    if (!belongs) {
+      return res.status(404).json({
+        success: false,
+        message: 'Equipment not found'
+      });
+    }
+    
+    const token = await Equipment.generateQRToken(id, organizationId);
+    
+    // Get base URL from request
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    const baseUrl = `${protocol}://${host}`;
+    
+    res.json({
+      success: true,
+      message: 'QR token generated successfully',
+      data: {
+        qr_token: token,
+        qr_url: `${baseUrl}/m/asset/${token}`
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Lookup equipment by QR token
+ */
+const lookupByQRToken = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    
+    const equipment = await Equipment.getByQRToken(token);
+    
+    if (!equipment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invalid QR code or equipment not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: { equipment }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get equipment without QR tokens (for batch generation)
+ */
+const getWithoutQRToken = async (req, res, next) => {
+  try {
+    const organizationId = req.user.organization_id;
+    
+    const equipment = await Equipment.getWithoutQRToken(organizationId);
+    
+    res.json({
+      success: true,
+      data: { equipment }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAll,
   getById,
@@ -203,5 +325,10 @@ module.exports = {
   update,
   remove,
   getStats,
-  search
+  search,
+  // QR Code methods
+  getQRCode,
+  generateQRToken,
+  lookupByQRToken,
+  getWithoutQRToken
 };

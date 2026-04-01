@@ -14,6 +14,14 @@ router.use(authenticate);
 router.get('/', equipmentController.getAll);
 router.get('/stats', equipmentController.getStats);
 router.get('/search', equipmentController.search);
+
+// QR Code routes
+router.get('/without-qr', equipmentController.getWithoutQRToken);
+router.get('/:id/qr', equipmentController.getQRCode);
+router.post('/:id/qr', requireAdmin, equipmentController.generateQRToken);
+router.get('/qr/lookup/:token', equipmentController.lookupByQRToken);
+
+// Standard CRUD routes
 router.get('/:id', idParamValidation, equipmentController.getById);
 
 // Admin only routes

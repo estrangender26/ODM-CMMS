@@ -14,5 +14,17 @@ module.exports = {
   TaskMaster: require('./task.model'),
   Schedule: require('./schedule.model'),
   WorkOrder: require('./work-order.model'),
-  Inspection: require('./inspection.model')
+  Inspection: require('./inspection.model'),
+  // ISO 14224 Equipment Hierarchy
+  ...require('./iso-equipment.model'),
+  // ISO 14224 Levels 4-5
+  ...require('./subunit.model'),
+  // Task Templates
+  ...require('./task-template.model'),
+  // ODM Findings with SAP Catalog Support
+  Finding: require('./finding.model'),
+  // SAP S/4HANA PM Catalogs (A, B, C, 5)
+  ...require('./sap-catalog.model'),
+  // Inspection Results
+  InspectionResult: require('./inspection-result.model')
 };

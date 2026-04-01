@@ -21,7 +21,26 @@ console.log('[ROUTES] About to load work-orders routes');
 router.use('/work-orders', require('./work-order.routes'));
 console.log('[ROUTES] Work-orders routes loaded');
 router.use('/inspections', require('./inspection.routes'));
+router.use('/inspection-results', require('./inspection-result.routes'));
 router.use('/reports', require('./report.routes'));
+
+// ISO 14224 Equipment Classification
+router.use('/iso-equipment', require('./iso-equipment.routes'));
+
+// ISO 14224 Levels 4-5 (Subunits and Maintainable Items)
+router.use('/subunits', require('./subunit.routes'));
+
+// Task Templates (ISO 14224 aligned)
+router.use('/task-templates', require('./task-template.routes'));
+
+// ODM Findings with SAP Catalog Support
+router.use('/findings', require('./finding.routes'));
+
+// SAP S/4HANA PM Catalogs (A, B, C, 5)
+router.use('/sap-catalogs', require('./sap-catalog.routes'));
+
+// Mobile Inspection Workflow
+router.use('/m', require('./mobile-inspection.routes'));
 
 // Health check
 router.get('/health', (req, res) => {

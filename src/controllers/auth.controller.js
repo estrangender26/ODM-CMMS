@@ -520,8 +520,19 @@ const organizationSignup = async (req, res, next) => {
       });
     }
 
+    // Get fresh user data with organization info for token
+    const [adminWithOrg] = await User.query(`
+      SELECT u.*, o.organization_name
+      FROM users u
+      LEFT JOIN organizations o ON u.organization_id = o.id
+      WHERE u.id = ?
+    `, [admin.id]);
+
     // Generate token for auto-login
-    const token = generateToken(admin);
+    const token = generateToken(adminWithOrg);
+    
+    // Set cookie for web access
+    res.cookie(authConfig.cookie.name, token, authConfig.cookie.options);
 
     res.status(201).json({
       success: true,
@@ -531,7 +542,7 @@ const organizationSignup = async (req, res, next) => {
           id: organization.id,
           organization_name: organization.organization_name
         },
-        user: sanitizeUser(admin),
+        user: sanitizeUser(adminWithOrg),
         token
       }
     });

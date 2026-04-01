@@ -628,8 +628,10 @@ async function loadUsersForDropdown() {
     
     if (data.success && data.data?.users) {
       const select = document.getElementById('edit-assigned-to');
+      // Filter out system administrator (username === 'admin') from assignee list
+      const eligibleUsers = data.data.users.filter(u => u.username !== 'admin');
       select.innerHTML = '<option value="">Unassigned</option>' + 
-        data.data.users.map(u => `<option value="${u.id}">${escapeHtml(u.full_name || u.username)} (${u.role})</option>`).join('');
+        eligibleUsers.map(u => `<option value="${u.id}">${escapeHtml(u.full_name || u.username)} (${u.role})</option>`).join('');
     }
   } catch (error) {
     console.error('[WO] Error loading users:', error);

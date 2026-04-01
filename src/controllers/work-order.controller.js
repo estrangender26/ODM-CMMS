@@ -3,7 +3,18 @@
  * Multi-tenant aware work order management
  */
 
-const { WorkOrder } = require('../models');
+const { WorkOrder, User } = require('../models');
+
+/**
+ * Check if user is the system administrator (should not receive work orders)
+ * @param {number} userId - User ID to check
+ * @returns {Promise<boolean>} - True if user is admin
+ */
+const isSystemAdmin = async (userId) => {
+  if (!userId) return false;
+  const user = await User.findById(userId);
+  return user && user.username === 'admin';
+};
 
 /**
  * Get all work orders (organization-aware)
@@ -84,11 +95,20 @@ const getById = async (req, res, next) => {
 const create = async (req, res, next) => {
   try {
     const organizationId = req.user.organization_id;
+    const { assigned_to } = req.body;
     
     if (!organizationId) {
       return res.status(400).json({
         success: false,
         message: 'User must belong to an organization'
+      });
+    }
+    
+    // Prevent assigning work orders to system administrator
+    if (assigned_to && await isSystemAdmin(assigned_to)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot assign work orders to System Administrator'
       });
     }
 
@@ -122,7 +142,7 @@ const create = async (req, res, next) => {
 const update = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, assigned_to } = req.body;
     const userRole = req.user?.role;
     const organizationId = req.user.organization_id;
     
@@ -144,6 +164,14 @@ const update = async (req, res, next) => {
           message: 'Inspection must be completed before marking work order as complete'
         });
       }
+    }
+    
+    // Prevent assigning work orders to system administrator
+    if (assigned_to && await isSystemAdmin(assigned_to)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot assign work orders to System Administrator'
+      });
     }
     
     await WorkOrder.update(id, req.body);
@@ -396,6 +424,14 @@ const reassign = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'Work order not found'
+      });
+    }
+    
+    // Prevent assigning work orders to system administrator
+    if (assigned_to && await isSystemAdmin(assigned_to)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot assign work orders to System Administrator'
       });
     }
     

@@ -34,9 +34,23 @@ const PERMISSIONS = {
   // Inspections
   INSPECTIONS: {
     VIEW: { admin: 'all', supervisor: 'all', operator: 'all' },
+    SUBMIT: { admin: 'all', supervisor: 'all', operator: 'all' },
     SUBMIT_READINGS: { admin: 'all', supervisor: 'all', operator: 'own' },
     MANAGE_POINTS: { admin: 'all', supervisor: 'all', operator: 'none' },
     EDIT_READINGS: { admin: 'all', supervisor: 'all', operator: 'none' }
+  },
+
+  // Findings (ODM Defects)
+  FINDINGS: {
+    VIEW: { admin: 'all', supervisor: 'all', operator: 'all' },
+    CREATE: { admin: 'all', supervisor: 'all', operator: 'all' },
+    MANAGE: { admin: 'all', supervisor: 'all', operator: 'none' },
+    LINK_SAP: { admin: 'all', supervisor: 'all', operator: 'none' }
+  },
+
+  // SAP Catalogs
+  CATALOGS: {
+    VIEW: { admin: 'all', supervisor: 'all', operator: 'all' }
   },
 
   // Equipment

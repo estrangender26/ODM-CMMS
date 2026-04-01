@@ -10,14 +10,12 @@ const { User } = require('../models');
  * Verify JWT token from cookie or header
  */
 const authenticate = async (req, res, next) => {
-  console.log('[AUTH] entering', req.method, req.originalUrl);
   try {
     // Get token from cookie or Authorization header
     const token = req.cookies?.[authConfig.cookie.name] || 
                   req.headers.authorization?.replace('Bearer ', '');
 
     if (!token) {
-      console.log('[AUTH] No token found');
       return res.status(401).json({ 
         success: false, 
         message: 'Authentication required' 
@@ -37,7 +35,6 @@ const authenticate = async (req, res, next) => {
     const [user] = await User.query(sql, [decoded.userId]);
     
     if (!user || !user.is_active) {
-      console.log('[AUTH] User not found or inactive');
       return res.status(401).json({ 
         success: false, 
         message: 'User not found or inactive' 
@@ -47,10 +44,8 @@ const authenticate = async (req, res, next) => {
     // Attach user and organization context to request
     req.user = user;
     req.organization_id = user.organization_id;
-    console.log('[AUTH] user ok, org_id:', user.organization_id, 'org_name:', user.organization_name, 'calling next()');
     next();
   } catch (error) {
-    console.log('[AUTH] Error:', error.name);
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       return res.status(401).json({ 
         success: false, 
