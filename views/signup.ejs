@@ -547,13 +547,14 @@ async function handleSignup(e) {
       full_name: fullName,
       phone: formattedPhone
     };
+    // Note: email is not included as it's locked from the invitation
   } else if (signupMode === 'create') {
     // Creating new organization
     endpoint = '/api/auth/organization-signup';
     payload = {
       organization_name: organizationName,
       username,
-      email,
+      email: email || null,
       password,
       full_name: fullName,
       phone: formattedPhone
@@ -563,7 +564,7 @@ async function handleSignup(e) {
     endpoint = '/api/auth/signup';
     payload = {
       username,
-      email,
+      email: email || null,
       password,
       full_name: fullName,
       phone: formattedPhone,

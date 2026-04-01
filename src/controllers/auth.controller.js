@@ -108,7 +108,11 @@ const login = async (req, res, next) => {
  */
 const signup = async (req, res, next) => {
   try {
-    const { username, email, password, full_name, phone, role, organization_id } = req.body;
+    let { username, email, password, full_name, phone, role, organization_id } = req.body;
+    
+    // Normalize empty strings to null
+    email = email || null;
+    phone = phone || null;
 
     // Validate required fields
     if (!username || !password || !full_name) {
@@ -384,7 +388,7 @@ const changePassword = async (req, res, next) => {
  */
 const organizationSignup = async (req, res, next) => {
   try {
-    const { 
+    let { 
       organization_name,
       username, 
       email, 
@@ -392,6 +396,10 @@ const organizationSignup = async (req, res, next) => {
       full_name, 
       phone 
     } = req.body;
+    
+    // Normalize empty strings to null
+    email = email || null;
+    phone = phone || null;
 
     // Validate required fields
     if (!organization_name || !username || !password || !full_name) {
