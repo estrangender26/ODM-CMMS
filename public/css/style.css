@@ -219,6 +219,21 @@ a:hover {
   text-overflow: ellipsis;
 }
 
+/* On mobile, show org name next to logo */
+@media (max-width: 768px) {
+  .brand-logo {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .brand-org-name {
+    max-width: 100px;
+    font-size: 10px;
+    padding: 2px 6px;
+    margin-left: 4px;
+  }
+}
+
 .brand-logo-lg svg {
   width: 64px;
   height: 64px;
