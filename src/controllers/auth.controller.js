@@ -29,17 +29,24 @@ const generateToken = (user) => {
 
 /**
  * Login user
+ * Supports login by username, email, or phone number
  */
 const login = async (req, res, next) => {
   try {
     const { username, password } = req.body;
 
-    // Find user by username
-    const user = await User.findByUsername(username);
+    // Try to find user by username first, then by email/phone
+    let user = await User.findByUsername(username);
+    
+    if (!user) {
+      // Try to find by email or phone
+      user = await User.findByEmailOrPhone(username);
+    }
+    
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid username or password'
+        message: 'Invalid username, email, phone, or password'
       });
     }
 
@@ -97,18 +104,25 @@ const login = async (req, res, next) => {
 
 /**
  * Public signup (self-registration)
- * Only allows operator and supervisor roles
- * Users can select which organization to join
+ * Allows signup with email OR phone number (or both)
  */
 const signup = async (req, res, next) => {
   try {
     const { username, email, password, full_name, phone, role, organization_id } = req.body;
 
     // Validate required fields
-    if (!username || !email || !password || !full_name) {
+    if (!username || !password || !full_name) {
       return res.status(400).json({
         success: false,
-        message: 'Username, email, password, and full name are required'
+        message: 'Username, password, and full name are required'
+      });
+    }
+
+    // Validate that at least one contact method is provided
+    if (!email && !phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Either email or phone number is required'
       });
     }
 
@@ -129,13 +143,26 @@ const signup = async (req, res, next) => {
       });
     }
 
-    // Check if email exists (globally for now)
-    const existingEmail = await User.findByEmail(email);
-    if (existingEmail) {
-      return res.status(409).json({
-        success: false,
-        message: 'Email already exists'
-      });
+    // Check if email exists (if provided)
+    if (email) {
+      const existingEmail = await User.findByEmail(email);
+      if (existingEmail) {
+        return res.status(409).json({
+          success: false,
+          message: 'Email already exists'
+        });
+      }
+    }
+
+    // Check if phone exists (if provided)
+    if (phone) {
+      const existingPhone = await User.findByPhone(phone);
+      if (existingPhone) {
+        return res.status(409).json({
+          success: false,
+          message: 'Phone number already exists'
+        });
+      }
     }
 
     // Restrict self-registration to operator and supervisor only
@@ -367,10 +394,18 @@ const organizationSignup = async (req, res, next) => {
     } = req.body;
 
     // Validate required fields
-    if (!organization_name || !username || !email || !password || !full_name) {
+    if (!organization_name || !username || !password || !full_name) {
       return res.status(400).json({
         success: false,
-        message: 'Organization name, username, email, password, and full name are required'
+        message: 'Organization name, username, password, and full name are required'
+      });
+    }
+
+    // Validate that at least one contact method is provided
+    if (!email && !phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Either email or phone number is required'
       });
     }
 
@@ -391,13 +426,26 @@ const organizationSignup = async (req, res, next) => {
       });
     }
 
-    // Check if email exists
-    const existingEmail = await User.findByEmail(email);
-    if (existingEmail) {
-      return res.status(409).json({
-        success: false,
-        message: 'Email already exists'
-      });
+    // Check if email exists (if provided)
+    if (email) {
+      const existingEmail = await User.findByEmail(email);
+      if (existingEmail) {
+        return res.status(409).json({
+          success: false,
+          message: 'Email already exists'
+        });
+      }
+    }
+
+    // Check if phone exists (if provided)
+    if (phone) {
+      const existingPhone = await User.findByPhone(phone);
+      if (existingPhone) {
+        return res.status(409).json({
+          success: false,
+          message: 'Phone number already exists'
+        });
+      }
     }
 
     // Check if organization name exists
@@ -412,7 +460,7 @@ const organizationSignup = async (req, res, next) => {
     // Create organization
     const organization = await Organization.create({
       organization_name,
-      billing_email: email
+      billing_email: email || null
     });
 
     // Hash password

@@ -49,6 +49,36 @@ class UserModel extends BaseModel {
   }
 
   /**
+   * Find user by phone number
+   * @param {string} phone
+   * @param {number} organizationId - Optional organization filter
+   * @returns {Promise<Object|null>}
+   */
+  async findByPhone(phone, organizationId = null) {
+    let sql = `SELECT * FROM ${this.tableName} WHERE phone = ?`;
+    const params = [phone];
+    
+    if (organizationId) {
+      sql += ' AND organization_id = ?';
+      params.push(organizationId);
+    }
+    
+    const [row] = await this.query(sql, params);
+    return row || null;
+  }
+
+  /**
+   * Find user by email or phone (for login)
+   * @param {string} identifier - email or phone
+   * @returns {Promise<Object|null>}
+   */
+  async findByEmailOrPhone(identifier) {
+    const sql = `SELECT * FROM ${this.tableName} WHERE email = ? OR phone = ?`;
+    const [row] = await this.query(sql, [identifier, identifier]);
+    return row || null;
+  }
+
+  /**
    * Update last login time
    * @param {number} userId
    * @returns {Promise}

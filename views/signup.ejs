@@ -90,30 +90,36 @@
         </div>
       </div>
       
-      <div class="form-group">
-        <label for="email">Email Address <span class="required">*</span></label>
-        <input 
-          type="email" 
-          id="email" 
-          name="email" 
-          placeholder="your.email@company.com"
-          autocomplete="email"
-          required
-        >
-        <span class="form-error hidden" id="email-error">Please enter a valid email</span>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="email">Email Address <span id="email-required" class="required hidden">*</span></label>
+          <input 
+            type="email" 
+            id="email" 
+            name="email" 
+            placeholder="your.email@company.com"
+            autocomplete="email"
+            oninput="checkContactMethod()"
+          >
+          <span class="form-error hidden" id="email-error">Please enter a valid email</span>
+        </div>
+        
+        <div class="form-group">
+          <label for="phone">Phone Number <span id="phone-required" class="required hidden">*</span></label>
+          <div class="phone-input-group" style="display: flex; gap: 0;">
+            <span style="padding: 10px 12px; background: var(--bg-tertiary); border: 1px solid var(--border-light); border-right: none; border-radius: var(--radius) 0 0 var(--radius); font-size: var(--text-sm); color: var(--text-secondary); font-weight: 500;">+63</span>
+            <input type="tel" id="phone" name="phone" 
+                   placeholder="917 123 4567" 
+                   maxlength="12"
+                   oninput="formatPhoneNumber(this); checkContactMethod();"
+                   style="flex: 1; border-radius: 0 var(--radius) var(--radius) 0;">
+          </div>
+          <span class="form-error hidden" id="phone-error">Please enter a valid phone number</span>
+        </div>
       </div>
       
-      <div class="form-group">
-        <label for="phone">Phone Number</label>
-        <div class="phone-input-group" style="display: flex; gap: 0;">
-          <span style="padding: 10px 12px; background: var(--bg-tertiary); border: 1px solid var(--border-light); border-right: none; border-radius: var(--radius) 0 0 var(--radius); font-size: var(--text-sm); color: var(--text-secondary); font-weight: 500;">+63</span>
-          <input type="tel" id="phone" name="phone" 
-                 placeholder="917 123 4567" 
-                 maxlength="12"
-                 oninput="formatPhoneNumber(this)"
-                 style="flex: 1; border-radius: 0 var(--radius) var(--radius) 0;">
-        </div>
-        <small class="form-hint">Philippine mobile number (e.g., +63 917 123 4567)</small>
+      <div class="form-info" id="contact-hint" style="padding: var(--space-2) var(--space-3); background: var(--bg-tertiary); border-radius: var(--radius); margin-bottom: var(--space-3);">
+        <small style="color: var(--text-secondary);">Please provide either email or phone number (or both)</small>
       </div>
 
       <div class="form-row">
@@ -284,6 +290,9 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
   });
+  
+  // Check contact method initially
+  checkContactMethod();
   
   // Load organizations for selector
   loadOrganizations();
@@ -465,8 +474,19 @@ async function handleSignup(e) {
     hasError = true;
   }
   
-  if (!email || !isValidEmail(email)) {
+  // Validate contact method - at least one of email or phone required
+  const hasEmail = email && isValidEmail(email);
+  const hasPhone = phone && phone.replace(/\s/g, '').length >= 10;
+  
+  if (!hasEmail && !hasPhone) {
+    showFieldError('email', 'Please provide either email or phone number');
+    showFieldError('phone', 'Please provide either email or phone number');
+    hasError = true;
+  } else if (email && !hasEmail) {
     showFieldError('email', 'Please enter a valid email address');
+    hasError = true;
+  } else if (phone && !hasPhone) {
+    showFieldError('phone', 'Please enter a valid phone number (10 digits)');
     hasError = true;
   }
   
@@ -619,6 +639,27 @@ function clearFieldError(fieldName) {
 
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function checkContactMethod() {
+  const email = document.getElementById('email').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const emailRequired = document.getElementById('email-required');
+  const phoneRequired = document.getElementById('phone-required');
+  const contactHint = document.getElementById('contact-hint');
+  
+  // If neither is filled, show both as required
+  // If one is filled, the other becomes optional
+  if (!email && !phone) {
+    emailRequired.classList.remove('hidden');
+    phoneRequired.classList.remove('hidden');
+    contactHint.style.background = '#fef3c7'; // yellow hint
+  } else {
+    emailRequired.classList.add('hidden');
+    phoneRequired.classList.add('hidden');
+    contactHint.style.background = 'var(--bg-tertiary)';
+    contactHint.querySelector('small').textContent = 'Great! You can provide both for better account recovery options.';
+  }
 }
 
 function formatPhoneNumber(input) {

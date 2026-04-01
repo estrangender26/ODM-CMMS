@@ -26,22 +26,25 @@
 
     <form class="login-form" id="login-form" novalidate>
       <div class="form-group">
-        <label for="username">Username</label>
+        <label for="username">Username, Email, or Phone</label>
         <input 
           type="text" 
           id="username" 
           name="username" 
-          placeholder="Enter your username"
+          placeholder="Enter your username, email, or phone"
           autocomplete="username"
           required
         >
+        <small class="form-hint" style="color: var(--text-secondary); font-size: 12px; margin-top: 4px; display: block;">
+          You can login with your username, email address, or phone number
+        </small>
         <span class="form-error hidden" id="username-error">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/>
             <line x1="12" y1="8" x2="12" y2="12"/>
             <line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
-          Please enter your username
+          Please enter your username, email, or phone
         </span>
       </div>
 
