@@ -81,8 +81,17 @@ const login = async (req, res, next) => {
     // Update last login
     await User.updateLastLogin(user.id);
 
+    // Get fresh user data with organization info
+    const sql = `
+      SELECT u.*, o.organization_name
+      FROM users u
+      LEFT JOIN organizations o ON u.organization_id = o.id
+      WHERE u.id = ?
+    `;
+    const [userWithOrg] = await User.query(sql, [user.id]);
+
     // Generate token
-    const token = generateToken(user);
+    const token = generateToken(userWithOrg);
 
     // Set cookie
     res.cookie(authConfig.cookie.name, token, authConfig.cookie.options);
@@ -92,9 +101,9 @@ const login = async (req, res, next) => {
       success: true,
       message: 'Login successful',
       data: {
-        user: sanitizeUser(user),
+        user: sanitizeUser(userWithOrg),
         token,
-        organization_id: user.organization_id
+        organization_id: userWithOrg.organization_id
       }
     });
   } catch (error) {
