@@ -156,7 +156,7 @@
         </div>
         <div class="form-group">
           <label for="role">Role *</label>
-          <select id="role" name="role" required>
+          <select id="role" name="role" required onchange="handleRoleChange(this.value)">
             <option value="operator">Operator</option>
             <% if (user && user.role === 'admin') { %>
             <option value="supervisor">Supervisor</option>
@@ -419,10 +419,17 @@ function openModal() {
   document.getElementById('password').required = true;
   document.getElementById('password-hint').textContent = 'Required for new users';
   
-  // For supervisors, auto-select their facility
+  // Reset facility field state
+  document.getElementById('facility_id').disabled = false;
+  
+  // For supervisors, auto-select their facility and disable changing
   <% if (user && user.role === 'supervisor' && user.facility_id) { %>
   document.getElementById('facility_id').value = '<%= user.facility_id %>';
+  document.getElementById('facility_id').disabled = true;
   <% } %>
+  
+  // Check initial role state
+  handleRoleChange(document.getElementById('role').value);
   
   modal.classList.remove('hidden');
 }
@@ -431,7 +438,7 @@ function editUser(id, username, email, fullName, role, facilityId, isActive) {
   const currentUserId = <%= user ? user.id : 'null' %>;
   const currentUserRole = '<%= user ? user.role : '' %>';
   
-  console.log('[EditUser] Current user role:', currentUserRole, 'Editing ID:', id, 'Current ID:', currentUserId);
+  console.log('[EditUser] Current user role:', currentUserRole, 'Editing user role:', role, 'Editing ID:', id);
   
   editingId = id;
   document.getElementById('modal-title').textContent = 'Edit User';
@@ -450,6 +457,12 @@ function editUser(id, username, email, fullName, role, facilityId, isActive) {
   document.getElementById('role').disabled = false;
   document.getElementById('is_active').disabled = false;
   document.getElementById('facility_id').disabled = false;
+  
+  // Organization admins should not be assigned to any facility
+  if (role === 'admin') {
+    document.getElementById('facility_id').disabled = true;
+    document.getElementById('facility_id').value = '';
+  }
   
   // Prevent editing your own role or active status
   if (id === currentUserId) {
@@ -523,6 +536,24 @@ style.textContent = `
   }
 `;
 document.head.appendChild(style);
+
+// Handle role change - admins should not have facility assigned
+function handleRoleChange(role) {
+  const facilitySelect = document.getElementById('facility_id');
+  
+  if (role === 'admin') {
+    facilitySelect.disabled = true;
+    facilitySelect.value = '';
+    console.log('[RoleChange] Admin selected - facility disabled');
+  } else {
+    // Only enable if current user is not a supervisor
+    const currentUserRole = '<%= user ? user.role : '' %>';
+    if (currentUserRole !== 'supervisor') {
+      facilitySelect.disabled = false;
+      console.log('[RoleChange] Non-admin selected - facility enabled');
+    }
+  }
+}
 
 function escapeHtml(text) {
   const div = document.createElement('div');
