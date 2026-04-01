@@ -60,6 +60,36 @@
       </div>
     </div>
 
+    <!-- Subscription Info (for admins) -->
+    <% if (user && user.role === 'admin' && user.is_organization_admin) { %>
+    <div class="profile-card" id="subscription-card">
+      <h3>Subscription</h3>
+      <div class="subscription-loading" id="subscription-loading">
+        <div class="skeleton-item" style="height: 60px;"></div>
+      </div>
+      <div class="subscription-content hidden" id="subscription-content">
+        <div class="subscription-plan">
+          <div class="plan-header">
+            <span class="plan-name" id="plan-name">-</span>
+            <span class="plan-status active" id="plan-status">Active</span>
+          </div>
+          <div class="plan-price" id="plan-price">$0/month</div>
+        </div>
+        <div class="seats-info">
+          <div class="seats-bar">
+            <div class="seats-fill" id="seats-fill" style="width: 0%"></div>
+          </div>
+          <div class="seats-text">
+            <span id="seats-used">0</span> / <span id="seats-total">0</span> users
+          </div>
+        </div>
+        <div class="subscription-actions">
+          <a href="/admin/subscription" class="btn btn-secondary btn-sm">Manage Subscription</a>
+        </div>
+      </div>
+    </div>
+    <% } %>
+
     <!-- Edit Profile Form -->
     <div class="profile-card">
       <h3>Edit Profile</h3>
@@ -123,7 +153,48 @@
 // Load fresh user data
 document.addEventListener('DOMContentLoaded', () => {
   loadProfile();
+  <% if (user && user.role === 'admin' && user.is_organization_admin) { %>
+  loadSubscription();
+  <% } %>
 });
+
+<% if (user && user.role === 'admin' && user.is_organization_admin) { %>
+// Load subscription data
+async function loadSubscription() {
+  try {
+    const response = await fetch('/api/subscriptions/current', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    if (!response.ok) return;
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      const subscription = data.data.subscription;
+      const seats = data.data.seats;
+      
+      // Update UI
+      document.getElementById('plan-name').textContent = subscription.plan.name;
+      document.getElementById('plan-price').textContent = `$${subscription.totalMonthlyCost}/month`;
+      document.getElementById('plan-status').textContent = subscription.status;
+      document.getElementById('plan-status').className = `plan-status ${subscription.status}`;
+      
+      document.getElementById('seats-used').textContent = seats.activeUsers;
+      document.getElementById('seats-total').textContent = seats.totalAllowedUsers;
+      
+      const percentage = seats.totalAllowedUsers > 0 ? (seats.activeUsers / seats.totalAllowedUsers) * 100 : 0;
+      document.getElementById('seats-fill').style.width = `${Math.min(percentage, 100)}%`;
+      
+      // Show content
+      document.getElementById('subscription-loading').classList.add('hidden');
+      document.getElementById('subscription-content').classList.remove('hidden');
+    }
+  } catch (error) {
+    console.error('Error loading subscription:', error);
+  }
+}
+<% } %>
 
 async function loadProfile() {
   try {
@@ -475,6 +546,108 @@ function formatPhoneNumber(input) {
 .phone-input-group input:focus {
   outline: none;
   box-shadow: none;
+}
+
+/* Subscription Section */
+.subscription-loading {
+  padding: 16px 0;
+}
+
+.subscription-plan {
+  margin-bottom: 16px;
+}
+
+.plan-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.plan-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.plan-status {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.plan-status.active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.plan-status.trial {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.plan-status.cancelled,
+.plan-status.suspended {
+  background: #fecaca;
+  color: #991b1b;
+}
+
+.plan-price {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.seats-info {
+  margin-bottom: 16px;
+}
+
+.seats-bar {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.seats-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.seats-text {
+  font-size: 14px;
+  color: #64748b;
+}
+
+.subscription-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-sm {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.skeleton-item {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 8px;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.hidden {
+  display: none !important;
 }
 </style>
 
