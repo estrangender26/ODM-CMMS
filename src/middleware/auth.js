@@ -28,7 +28,14 @@ const authenticate = async (req, res, next) => {
     const decoded = jwt.verify(token, authConfig.jwt.secret);
     
     // Get user from database with organization info
-    const user = await User.findById(decoded.userId);
+    const sql = `
+      SELECT u.*, o.organization_name
+      FROM users u
+      LEFT JOIN organizations o ON u.organization_id = o.id
+      WHERE u.id = ?
+    `;
+    const [user] = await User.query(sql, [decoded.userId]);
+    
     if (!user || !user.is_active) {
       console.log('[AUTH] User not found or inactive');
       return res.status(401).json({ 
@@ -40,7 +47,7 @@ const authenticate = async (req, res, next) => {
     // Attach user and organization context to request
     req.user = user;
     req.organization_id = user.organization_id;
-    console.log('[AUTH] user ok, org_id:', user.organization_id, 'calling next()');
+    console.log('[AUTH] user ok, org_id:', user.organization_id, 'org_name:', user.organization_name, 'calling next()');
     next();
   } catch (error) {
     console.log('[AUTH] Error:', error.name);
@@ -106,7 +113,15 @@ const optionalAuth = async (req, res, next) => {
 
     if (token) {
       const decoded = jwt.verify(token, authConfig.jwt.secret);
-      const user = await User.findById(decoded.userId);
+      // Get user with organization info
+      const sql = `
+        SELECT u.*, o.organization_name
+        FROM users u
+        LEFT JOIN organizations o ON u.organization_id = o.id
+        WHERE u.id = ?
+      `;
+      const [user] = await User.query(sql, [decoded.userId]);
+      
       if (user && user.is_active) {
         // Ensure organization context is available
         req.user = user;
