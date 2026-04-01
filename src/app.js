@@ -54,6 +54,9 @@ app.use((req, res, next) => {
 app.use('/api', routes);
 console.log('[APP] Routes mounted at /api');
 
+// Mobile UI routes (separate from API)
+app.use('/mobile', require('./routes/mobile.routes'));
+
 // Web routes - apply optional auth to set req.user
 app.use(optionalAuth);
 
