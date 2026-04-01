@@ -112,7 +112,10 @@ const optionalAuth = async (req, res, next) => {
                   req.headers.authorization?.replace('Bearer ', '');
 
     if (token) {
+      console.log('[optionalAuth] Token found, verifying...');
       const decoded = jwt.verify(token, authConfig.jwt.secret);
+      console.log('[optionalAuth] Token decoded, userId:', decoded.userId);
+      
       // Get user with organization info
       const sql = `
         SELECT u.*, o.organization_name
@@ -122,14 +125,19 @@ const optionalAuth = async (req, res, next) => {
       `;
       const [user] = await User.query(sql, [decoded.userId]);
       
+      console.log('[optionalAuth] User fetched:', user ? `ID ${user.id}, org: ${user.organization_name}` : 'null');
+      
       if (user && user.is_active) {
         // Ensure organization context is available
         req.user = user;
         req.organization_id = user.organization_id;
       }
+    } else {
+      console.log('[optionalAuth] No token found');
     }
     next();
-  } catch {
+  } catch (error) {
+    console.log('[optionalAuth] Error:', error.message);
     // Continue without user
     next();
   }
