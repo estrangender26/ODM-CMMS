@@ -377,6 +377,7 @@ function setSignupMode(mode) {
   const btnJoin = document.getElementById('btn-join-org');
   const btnCreate = document.getElementById('btn-create-org');
   const orgNameGroup = document.getElementById('org-name-group');
+  const orgSelectorGroup = document.getElementById('org-selector-group');
   const roleGroup = document.getElementById('role-group');
   const adminBadgeGroup = document.getElementById('admin-badge-group');
   const subtitle = document.getElementById('signup-subtitle');
@@ -392,6 +393,7 @@ function setSignupMode(mode) {
     btnCreate.style.color = 'var(--text-secondary)';
     
     orgNameGroup.classList.add('hidden');
+    orgSelectorGroup.classList.remove('hidden');
     roleGroup.classList.remove('hidden');
     adminBadgeGroup.classList.add('hidden');
     
@@ -411,6 +413,7 @@ function setSignupMode(mode) {
     btnJoin.style.color = 'var(--text-secondary)';
     
     orgNameGroup.classList.remove('hidden');
+    orgSelectorGroup.classList.add('hidden');
     roleGroup.classList.add('hidden');
     adminBadgeGroup.classList.remove('hidden');
     
