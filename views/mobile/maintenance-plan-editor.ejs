@@ -25,12 +25,12 @@
             <label class="form-label" style="display: block; font-size: 14px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px;">
                 Inspection Template <span style="color: var(--danger);">*</span>
             </label>
-            <select id="templateId" class="form-input" 
+            <select id="templateId" class="form-input" onchange="onTemplateChange()"
                 style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; box-sizing: border-box; background: white;">
                 <option value="">Select Template</option>
                 <% templates.forEach(function(t) { %>
-                <option value="<%= t.id %>" <%= plan.task_template_id == t.id ? 'selected' : '' %>>
-                    <%= t.name %>
+                <option value="<%= t.id %>" data-equipment-type="<%= t.equipment_type %>" <%= plan.task_template_id == t.id ? 'selected' : '' %>>
+                    <%= t.name %> (<%= t.equipment_type %>)
                 </option>
                 <% }); %>
             </select>
@@ -38,24 +38,91 @@
                 💡 Templates define WHAT to inspect
             </div>
         </div>
+    </div>
+    
+    <!-- Equipment Selection Card -->
+    <div class="card" style="margin-bottom: 16px; padding: 20px;">
+        <div style="font-size: 14px; font-weight: 600; color: var(--gray-700); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px;">Equipment Selection</div>
         
-        <!-- Equipment Selection (Optional) -->
-        <div class="form-group" style="margin-bottom: 0;">
-            <label class="form-label" style="display: block; font-size: 14px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px;">
-                Specific Equipment <span style="font-size: 12px; color: var(--gray-500); font-weight: 400;">(Optional)</span>
-            </label>
-            <select id="equipmentId" class="form-input" 
-                style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; box-sizing: border-box; background: white;">
-                <option value="">All equipment of this type</option>
-                <% equipment.forEach(function(e) { %>
-                <option value="<%= e.id %>" <%= plan.equipment_id == e.id ? 'selected' : '' %>>
-                    <%= e.name %> (<%= e.code %>)
-                </option>
-                <% }); %>
-            </select>
-            <div style="font-size: 12px; color: var(--gray-500); margin-top: 6px; padding-left: 4px;">
-                Leave empty to apply to all equipment of this type
+        <!-- Equipment Mode Toggle -->
+        <div style="display: flex; gap: 8px; margin-bottom: 16px; background: var(--gray-100); padding: 4px; border-radius: 8px;">
+            <button type="button" id="modeAll" class="btn btn-full" onclick="setEquipmentMode('all')" 
+                style="flex: 1; padding: 10px; font-size: 14px; font-weight: 500; border-radius: 6px; <%= !plan.equipment_id ? 'background: var(--primary); color: white;' : 'background: transparent; color: var(--gray-700);' %>">
+                All Equipment
+            </button>
+            <button type="button" id="modeSpecific" class="btn btn-full" onclick="setEquipmentMode('specific')" 
+                style="flex: 1; padding: 10px; font-size: 14px; font-weight: 500; border-radius: 6px; <%= plan.equipment_id ? 'background: var(--primary); color: white;' : 'background: transparent; color: var(--gray-700);' %>">
+                Specific Equipment
+            </button>
+        </div>
+        
+        <!-- Equipment Selection (shown when mode is specific) -->
+        <div id="equipmentSelection" style="display: <%= plan.equipment_id ? 'block' : 'none' %>;">
+            <!-- Search -->
+            <div class="form-group" style="margin-bottom: 12px;">
+                <input type="text" id="equipmentSearch" placeholder="🔍 Search equipment by name or code..." 
+                    style="width: 100%; padding: 12px; font-size: 14px; border: 2px solid var(--gray-300); border-radius: 8px; box-sizing: border-box;"
+                    onkeyup="filterEquipment()">
             </div>
+            
+            <!-- Selected Equipment Display -->
+            <div id="selectedEquipmentDisplay" style="margin-bottom: 12px; padding: 12px; background: #e3f2fd; border-radius: 8px; display: <%= plan.equipment_id ? 'block' : 'none' %>;">
+                <div style="font-size: 12px; color: var(--gray-600); margin-bottom: 4px;">Selected:</div>
+                <div id="selectedEquipmentName" style="font-weight: 600; color: var(--primary);">
+                    <% if (plan.equipment_id) { %>
+                        <% const selected = equipment.find(e => e.id == plan.equipment_id); %>
+                        <%= selected ? selected.name + ' (' + selected.code + ')' : '' %>
+                    <% } %>
+                </div>
+            </div>
+            
+            <!-- Equipment List -->
+            <div style="max-height: 250px; overflow-y: auto; border: 1px solid var(--gray-300); border-radius: 8px;">
+                <% 
+                // Group equipment by type
+                const equipmentByType = {};
+                equipment.forEach(function(e) {
+                    if (!equipmentByType[e.type]) equipmentByType[e.type] = [];
+                    equipmentByType[e.type].push(e);
+                });
+                %>
+                
+                <% Object.keys(equipmentByType).sort().forEach(function(type) { %>
+                <div class="equipment-group" data-type="<%= type %>">
+                    <div style="padding: 10px 12px; background: var(--gray-100); font-size: 12px; font-weight: 600; color: var(--gray-700); text-transform: uppercase; letter-spacing: 0.5px; position: sticky; top: 0;">
+                        <%= type %>
+                    </div>
+                    <% equipmentByType[type].forEach(function(e) { %>
+                    <div class="equipment-item" data-name="<%= e.name.toLowerCase() %>" data-code="<%= e.code.toLowerCase() %>" data-type="<%= e.type.toLowerCase() %>"
+                        onclick="selectEquipment('<%= e.id %>', '<%= e.name.replace(/'/g, "\\'") %>', '<%= e.code %>')"
+                        style="padding: 12px; border-bottom: 1px solid var(--gray-200); cursor: pointer; <%= plan.equipment_id == e.id ? 'background: #e3f2fd;' : 'background: white;' %> hover: background: var(--gray-100); transition: background 0.2s;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-weight: 500; color: var(--gray-900);"><%= e.name %></div>
+                                <div style="font-size: 12px; color: var(--gray-600); margin-top: 2px;">
+                                    Code: <%= e.code %> • <%= e.type %>
+                                </div>
+                            </div>
+                            <div class="equipment-radio" data-id="<%= e.id %>" style="width: 20px; height: 20px; border-radius: 50%; border: 2px solid <%= plan.equipment_id == e.id ? 'var(--primary)' : 'var(--gray-400)' %>; background: <%= plan.equipment_id == e.id ? 'var(--primary)' : 'white' %>; display: flex; align-items: center; justify-content: center;">
+                                <% if (plan.equipment_id == e.id) { %>
+                                <span style="color: white; font-size: 12px;">✓</span>
+                                <% } %>
+                            </div>
+                        </div>
+                    </div>
+                    <% }); %>
+                </div>
+                <% }); %>
+            </div>
+            
+            <input type="hidden" id="equipmentId" value="<%= plan.equipment_id || '' %>">
+        </div>
+        
+        <!-- All Equipment Message -->
+        <div id="allEquipmentMessage" style="display: <%= !plan.equipment_id ? 'block' : 'none' %>; padding: 16px; background: #f5f5f5; border-radius: 8px; text-align: center;">
+            <div style="font-size: 24px; margin-bottom: 8px;">🏭</div>
+            <div style="font-size: 14px; color: var(--gray-700); font-weight: 500;">Plan will apply to ALL equipment</div>
+            <div style="font-size: 12px; color: var(--gray-600); margin-top: 4px;">of the selected template's equipment type</div>
         </div>
     </div>
     
@@ -152,6 +219,110 @@
 </div>
 
 <script>
+// Equipment selection mode
+function setEquipmentMode(mode) {
+    const allBtn = document.getElementById('modeAll');
+    const specificBtn = document.getElementById('modeSpecific');
+    const equipmentSelection = document.getElementById('equipmentSelection');
+    const allEquipmentMessage = document.getElementById('allEquipmentMessage');
+    const equipmentIdInput = document.getElementById('equipmentId');
+    
+    if (mode === 'all') {
+        allBtn.style.background = 'var(--primary)';
+        allBtn.style.color = 'white';
+        specificBtn.style.background = 'transparent';
+        specificBtn.style.color = 'var(--gray-700)';
+        equipmentSelection.style.display = 'none';
+        allEquipmentMessage.style.display = 'block';
+        equipmentIdInput.value = '';
+    } else {
+        specificBtn.style.background = 'var(--primary)';
+        specificBtn.style.color = 'white';
+        allBtn.style.background = 'transparent';
+        allBtn.style.color = 'var(--gray-700)';
+        equipmentSelection.style.display = 'block';
+        allEquipmentMessage.style.display = 'none';
+    }
+}
+
+// Select specific equipment
+function selectEquipment(id, name, code) {
+    document.getElementById('equipmentId').value = id;
+    
+    // Update selected display
+    document.getElementById('selectedEquipmentDisplay').style.display = 'block';
+    document.getElementById('selectedEquipmentName').textContent = name + ' (' + code + ')';
+    
+    // Update all radio buttons
+    document.querySelectorAll('.equipment-radio').forEach(radio => {
+        radio.style.borderColor = 'var(--gray-400)';
+        radio.style.background = 'white';
+        radio.innerHTML = '';
+    });
+    
+    // Update selected radio
+    const selectedRadio = document.querySelector('.equipment-radio[data-id="' + id + '"]');
+    if (selectedRadio) {
+        selectedRadio.style.borderColor = 'var(--primary)';
+        selectedRadio.style.background = 'var(--primary)';
+        selectedRadio.innerHTML = '<span style="color: white; font-size: 12px;">✓</span>';
+    }
+    
+    // Update row backgrounds
+    document.querySelectorAll('.equipment-item').forEach(item => {
+        item.style.background = 'white';
+    });
+    const selectedItem = document.querySelector('.equipment-item[onclick*="' + id + '"');
+    if (selectedItem) {
+        selectedItem.style.background = '#e3f2fd';
+    }
+}
+
+// Filter equipment by search
+function filterEquipment() {
+    const search = document.getElementById('equipmentSearch').value.toLowerCase();
+    
+    document.querySelectorAll('.equipment-item').forEach(item => {
+        const name = item.dataset.name;
+        const code = item.dataset.code;
+        const type = item.dataset.type;
+        
+        if (name.includes(search) || code.includes(search) || type.includes(search)) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+    
+    // Hide empty groups
+    document.querySelectorAll('.equipment-group').forEach(group => {
+        const visibleItems = group.querySelectorAll('.equipment-item[style*="block"]').length;
+        const totalItems = group.querySelectorAll('.equipment-item').length;
+        if (search && visibleItems === 0) {
+            group.style.display = 'none';
+        } else {
+            group.style.display = 'block';
+        }
+    });
+}
+
+// On template change, filter equipment by type
+function onTemplateChange() {
+    const templateSelect = document.getElementById('templateId');
+    const selectedOption = templateSelect.options[templateSelect.selectedIndex];
+    const equipmentType = selectedOption.dataset.equipmentType;
+    
+    // Filter equipment list
+    document.querySelectorAll('.equipment-group').forEach(group => {
+        const groupType = group.dataset.type;
+        if (!equipmentType || groupType === equipmentType) {
+            group.style.opacity = '1';
+        } else {
+            group.style.opacity = '0.5';
+        }
+    });
+}
+
 function onFrequencyChange() {
     const type = document.getElementById('frequencyType').value;
     document.getElementById('dayOfWeekGroup').style.display = type === 'weekly' ? 'block' : 'none';
@@ -205,4 +376,9 @@ async function savePlan() {
         alert('Error saving plan');
     }
 }
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', function() {
+    onTemplateChange();
+});
 </script>
