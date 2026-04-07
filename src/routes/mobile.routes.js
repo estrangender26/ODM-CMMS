@@ -663,7 +663,6 @@ router.get('/admin/templates', requireAuth, requireAdminUI, async (req, res) => 
       SELECT 
         tt.id,
         tt.template_name as name,
-        tt.version,
         tt.is_active as isActive,
         et.type_name as equipmentType,
         COUNT(tts.id) as itemCount
@@ -671,7 +670,7 @@ router.get('/admin/templates', requireAuth, requireAdminUI, async (req, res) => 
       JOIN equipment_types et ON tt.equipment_type_id = et.id
       LEFT JOIN task_template_steps tts ON tt.id = tts.task_template_id
       WHERE tt.organization_id IS NULL OR tt.organization_id = ?
-      GROUP BY tt.id, tt.template_name, tt.version, tt.is_active, et.type_name
+      GROUP BY tt.id, tt.template_name, tt.is_active, et.type_name
       ORDER BY tt.template_name
     `, [organizationId]);
     
@@ -684,7 +683,6 @@ router.get('/admin/templates', requireAuth, requireAdminUI, async (req, res) => 
         id: t.id,
         name: t.name,
         equipmentType: t.equipmentType,
-        version: t.version || 1,
         isActive: t.isActive === 1 || t.isActive === true,
         itemCount: t.itemCount || 0
       }))
@@ -797,7 +795,6 @@ router.get('/templates', requireAuth, async (req, res) => {
       SELECT 
         tt.id,
         tt.template_name as name,
-        tt.version,
         tt.is_active as isActive,
         et.type_name as equipmentTypeName,
         et.type_code as equipmentTypeCode,
@@ -807,7 +804,7 @@ router.get('/templates', requireAuth, async (req, res) => {
       JOIN equipment_types et ON tt.equipment_type_id = et.id
       LEFT JOIN task_template_steps tts ON tt.id = tts.task_template_id
       WHERE tt.organization_id IS NULL OR tt.organization_id = ?
-      GROUP BY tt.id, tt.template_name, tt.version, tt.is_active, et.type_name, et.type_code, et.id
+      GROUP BY tt.id, tt.template_name, tt.is_active, et.type_name, et.type_code, et.id
       ORDER BY tt.template_name
     `, [organizationId]);
     
@@ -828,7 +825,6 @@ router.get('/templates', requireAuth, async (req, res) => {
         equipmentTypeCode: t.equipmentTypeCode?.toLowerCase() || '',
         equipmentTypeId: t.equipmentTypeId,
         itemCount: t.itemCount || 0,
-        version: t.version || 1,
         isActive: t.isActive === 1 || t.isActive === true
       }))
     };
@@ -935,7 +931,6 @@ router.get('/templates/:id/edit', requireAuth, async (req, res) => {
         id: template.id,
         name: template.template_name,
         equipmentTypeId: template.equipment_type_id,
-        version: template.version || 1,
         isActive: template.is_active === 1 || template.is_active === true
       },
       items: items.map(item => ({
