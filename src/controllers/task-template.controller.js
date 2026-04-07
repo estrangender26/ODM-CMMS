@@ -7,6 +7,53 @@
 const { TaskTemplate, EquipmentType } = require('../models');
 
 /**
+ * Get all task templates (with optional filters)
+ */
+const getAll = async (req, res, next) => {
+  try {
+    const organizationId = req.user.organization_id;
+    const { scheduled, is_active } = req.query;
+    
+    let sql = `
+      SELECT 
+        tt.*,
+        et.type_name,
+        et.type_code
+      FROM task_templates tt
+      JOIN equipment_types et ON tt.equipment_type_id = et.id
+      WHERE (
+        tt.organization_id IS NULL 
+        OR tt.organization_id = ?
+      )
+    `;
+    
+    const params = [organizationId];
+    
+    // Filter for scheduled templates only
+    if (scheduled === 'true') {
+      sql += ' AND tt.frequency_type IS NOT NULL';
+    }
+    
+    // Filter by active status
+    if (is_active !== undefined) {
+      sql += ' AND tt.is_active = ?';
+      params.push(is_active === 'true');
+    }
+    
+    sql += ' ORDER BY tt.template_name';
+    
+    const templates = await TaskTemplate.query(sql, params);
+    
+    res.json({
+      success: true,
+      data: templates
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Get task templates for an equipment type
  */
 const getByEquipmentType = async (req, res, next) => {
@@ -327,6 +374,7 @@ const remove = async (req, res, next) => {
 };
 
 module.exports = {
+  getAll,
   getByEquipmentType,
   getForAsset,
   getById,

@@ -12,6 +12,13 @@ const taskTemplateController = require('../controllers/task-template.controller'
 router.use(authenticate);
 
 /**
+ * @route   GET /api/task-templates
+ * @desc    Get all task templates
+ * @access  Private
+ */
+router.get('/', taskTemplateController.getAll);
+
+/**
  * @route   GET /api/task-templates/stats
  * @desc    Get task template statistics
  * @access  Private (Admin/Supervisor)

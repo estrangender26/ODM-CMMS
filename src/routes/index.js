@@ -32,6 +32,7 @@ router.use('/subunits', require('./subunit.routes'));
 
 // Task Templates (ISO 14224 aligned)
 router.use('/task-templates', require('./task-template.routes'));
+router.use('/templates', require('./task-template.routes'));
 
 // ODM Scheduler (Auto WO Generation)
 router.use('/scheduler', require('./scheduler.routes'));

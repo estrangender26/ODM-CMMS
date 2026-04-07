@@ -16,7 +16,12 @@
 
 <!-- Admin Actions -->
 <div class="card" id="adminActions">
-    <div class="card-title">Scheduler Controls</div>
+    <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>Scheduler Controls</span>
+        <a href="/mobile/templates" class="btn btn-outline" style="font-size: 13px; padding: 6px 12px;">
+            + New Schedule
+        </a>
+    </div>
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
         <button class="btn btn-primary btn-full" onclick="previewSchedule()">
             <span style="margin-right: 6px;">👁️</span> Preview
@@ -26,6 +31,17 @@
         </button>
     </div>
     <div id="schedulerResult" style="margin-top: 12px; font-size: 13px; display: none;"></div>
+</div>
+
+<!-- Active Template Schedules -->
+<div class="card" id="schedulesList" style="display: none;">
+    <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>Active Schedules</span>
+        <span id="scheduleCount" style="font-size: 13px; color: var(--gray-600);">0</span>
+    </div>
+    <div id="schedulesContainer" style="margin-top: 12px;">
+        <!-- Schedules loaded dynamically -->
+    </div>
 </div>
 
 <!-- Date Navigation -->
@@ -298,5 +314,67 @@ async function loadSchedulerStats() {
     }
 }
 
+// Load active template schedules
+async function loadTemplateSchedules() {
+    try {
+        const response = await fetch('/api/templates?scheduled=true', {
+            credentials: 'same-origin'
+        });
+        const data = await response.json();
+        
+        if (data.success && data.data && data.data.length > 0) {
+            const container = document.getElementById('schedulesContainer');
+            const listCard = document.getElementById('schedulesList');
+            
+            document.getElementById('scheduleCount').textContent = data.data.length;
+            
+            container.innerHTML = data.data.map(t => `
+                <div class="schedule-item" style="padding: 12px; background: var(--gray-100); border-radius: 8px; margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <div style="font-weight: 600; font-size: 14px;">${t.template_name}</div>
+                            <div style="font-size: 12px; color: var(--gray-600); margin-top: 2px;">
+                                ${t.type_name} • ${t.frequency_type}, ${t.frequency_interval === 1 ? 'every' : 'every ' + t.frequency_interval} ${t.frequency_type === 'daily' ? 'day' : t.frequency_type === 'weekly' ? 'week' : 'month'}
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <a href="/mobile/templates/${t.id}/edit" class="btn btn-outline" style="padding: 4px 8px; font-size: 12px;">Edit</a>
+                            <button class="btn btn-danger" style="padding: 4px 8px; font-size: 12px;" onclick="deleteSchedule(${t.id}, '${t.template_name}')">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            listCard.style.display = 'block';
+        }
+    } catch (err) {
+        console.log('Could not load template schedules:', err);
+    }
+}
+
+// Delete/disable a schedule
+async function deleteSchedule(id, name) {
+    if (!confirm(`Delete schedule "${name}"?\n\nThis will stop creating work orders from this template.`)) return;
+    
+    try {
+        const response = await fetch(`/api/templates/${id}`, {
+            method: 'DELETE',
+            credentials: 'same-origin'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Schedule deleted');
+            loadTemplateSchedules();
+            previewSchedule();
+        } else {
+            alert('Error: ' + (data.message || 'Could not delete'));
+        }
+    } catch (err) {
+        alert('Error deleting schedule');
+    }
+}
+
 loadSchedulerStats();
+loadTemplateSchedules();
 </script>
