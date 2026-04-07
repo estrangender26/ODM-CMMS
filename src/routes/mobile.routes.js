@@ -696,6 +696,79 @@ router.get('/maintenance-plans/new', requireAuth, requireAdminUI, async (req, re
   }
 });
 
+// Edit Maintenance Plan
+router.get('/maintenance-plans/:id/edit', requireAuth, requireAdminUI, async (req, res) => {
+  try {
+    const { TaskTemplate, EquipmentType } = require('../models');
+    const { getDb } = require('../config/database');
+    const db = getDb();
+    const planId = req.params.id;
+    const organizationId = req.user.organization_id;
+    
+    // Get plan details
+    const [plan] = await db.query(`
+      SELECT mp.*, tt.template_name
+      FROM maintenance_plans mp
+      JOIN task_templates tt ON mp.task_template_id = tt.id
+      WHERE mp.id = ? AND mp.organization_id = ?
+    `, [planId, organizationId]);
+    
+    if (!plan) {
+      return res.status(404).render('error', { 
+        message: 'Maintenance plan not found',
+        error: {}
+      });
+    }
+    
+    // Get all templates
+    const templates = await TaskTemplate.query(`
+      SELECT tt.id, tt.template_name as name, et.type_name as equipment_type
+      FROM task_templates tt
+      JOIN equipment_types et ON tt.equipment_type_id = et.id
+      WHERE tt.organization_id IS NULL OR tt.organization_id = ?
+      ORDER BY tt.template_name
+    `, [organizationId]);
+    
+    // Get equipment
+    const equipment = await TaskTemplate.query(`
+      SELECT e.id, e.name, e.code, et.type_name as type
+      FROM equipment e
+      JOIN equipment_types et ON e.equipment_type_id = et.id
+      WHERE e.organization_id = ? AND e.status IN ('operational', 'active')
+      ORDER BY e.name
+    `, [organizationId]);
+    
+    const data = {
+      title: 'Edit Maintenance Plan',
+      showBack: true,
+      showNav: false,
+      activeNav: '',
+      plan: {
+        id: plan.id,
+        plan_name: plan.plan_name,
+        task_template_id: plan.task_template_id,
+        equipment_id: plan.equipment_id,
+        frequency_type: plan.frequency_type,
+        frequency_interval: plan.frequency_interval,
+        day_of_week: plan.day_of_week,
+        day_of_month: plan.day_of_month,
+        start_date: plan.start_date ? new Date(plan.start_date).toISOString().split('T')[0] : '',
+        priority: plan.priority,
+        is_active: plan.is_active === 1 || plan.is_active === true
+      },
+      templates,
+      equipment
+    };
+    renderMobile(res, 'maintenance-plan-editor', data);
+  } catch (error) {
+    console.error('[MOBILE] Error loading plan for edit:', error);
+    res.status(500).render('error', { 
+      message: 'Error loading plan: ' + error.message,
+      error: process.env.NODE_ENV === 'development' ? error : {}
+    });
+  }
+});
+
 /**
  * Admin Routes
  */
