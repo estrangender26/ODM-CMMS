@@ -20,22 +20,61 @@
                 style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; box-sizing: border-box;">
         </div>
         
-        <!-- Template Selection -->
+        <!-- Template Selection - Cascading Dropdowns -->
         <div class="form-group" style="margin-bottom: 12px;">
             <label class="form-label" style="display: block; font-size: 14px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px;">
                 Inspection Template <span style="color: var(--danger);">*</span>
             </label>
-            <select id="templateId" class="form-input" onchange="onTemplateChange()"
-                style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; box-sizing: border-box; background: white;">
-                <option value="">Select Template</option>
+            
+            <!-- Level 1: Category -->
+            <div style="margin-bottom: 12px;">
+                <label style="font-size: 12px; color: var(--gray-500); margin-bottom: 4px; display: block;">1. Equipment Category</label>
+                <select id="categorySelect" class="form-input" onchange="onCategoryChange()"
+                    style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; box-sizing: border-box; background: white;">
+                    <option value="">Select Category</option>
+                    <% 
+                    // Group templates by category
+                    const templatesByCategory = {};
+                    templates.forEach(function(t) {
+                        if (!templatesByCategory[t.category]) templatesByCategory[t.category] = [];
+                        templatesByCategory[t.category].push(t);
+                    });
+                    Object.keys(templatesByCategory).sort().forEach(function(category) {
+                    %>
+                    <option value="<%= category %>"><%= category %></option>
+                    <% }); %>
+                </select>
+            </div>
+            
+            <!-- Level 2: Class -->
+            <div style="margin-bottom: 12px;">
+                <label style="font-size: 12px; color: var(--gray-500); margin-bottom: 4px; display: block;">2. Equipment Class</label>
+                <select id="classSelect" class="form-input" onchange="onClassChange()" disabled
+                    style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; box-sizing: border-box; background: white; opacity: 0.6;">
+                    <option value="">Select Class</option>
+                </select>
+            </div>
+            
+            <!-- Level 3: Template -->
+            <div style="margin-bottom: 8px;">
+                <label style="font-size: 12px; color: var(--gray-500); margin-bottom: 4px; display: block;">3. Template</label>
+                <select id="templateId" class="form-input" onchange="onTemplateChange()" disabled
+                    style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; box-sizing: border-box; background: white; opacity: 0.6;">
+                    <option value="">Select Template</option>
+                </select>
+            </div>
+            
+            <!-- Hidden select with all templates for JS access -->
+            <select id="allTemplates" style="display: none;">
                 <% templates.forEach(function(t) { %>
-                <option value="<%= t.id %>" data-equipment-type="<%= t.equipment_type %>" <%= plan.task_template_id == t.id ? 'selected' : '' %>>
+                <option value="<%= t.id %>" data-category="<%= t.category %>" data-class="<%= t.class %>" data-type="<%= t.equipment_type %>">
                     <%= t.name %> (<%= t.equipment_type %>)
                 </option>
                 <% }); %>
             </select>
-            <div style="font-size: 12px; color: var(--gray-500); margin-top: 6px; padding-left: 4px;">
-                💡 Templates define WHAT to inspect
+            
+            <div style="font-size: 12px; color: var(--gray-500); margin-top: 8px; padding-left: 4px;">
+                💡 Templates define WHAT to inspect (inspection steps)
             </div>
         </div>
     </div>
@@ -43,6 +82,13 @@
     <!-- Equipment Selection Card -->
     <div class="card" style="margin-bottom: 16px; padding: 20px;">
         <div style="font-size: 14px; font-weight: 600; color: var(--gray-700); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px;">Equipment Selection</div>
+        
+        <!-- Selected Template Info -->
+        <div id="selectedTemplateInfo" style="display: none; margin-bottom: 16px; padding: 12px; background: #e3f2fd; border-radius: 8px;">
+            <div style="font-size: 12px; color: var(--gray-600); margin-bottom: 4px;">Selected Template:</div>
+            <div id="selectedTemplateName" style="font-weight: 600; color: var(--primary);"></div>
+            <div id="selectedTemplateType" style="font-size: 12px; color: var(--gray-600); margin-top: 2px;"></div>
+        </div>
         
         <!-- Equipment Mode Toggle -->
         <div style="display: flex; gap: 8px; margin-bottom: 16px; background: var(--gray-100); padding: 4px; border-radius: 8px;">
@@ -219,6 +265,107 @@
 </div>
 
 <script>
+// Template data structure from server
+const templateData = {};
+
+// Initialize template data
+(function initTemplateData() {
+    const allTemplates = document.getElementById('allTemplates').options;
+    for (let opt of allTemplates) {
+        const category = opt.dataset.category;
+        const className = opt.dataset.class;
+        const id = opt.value;
+        const name = opt.text;
+        
+        if (!templateData[category]) templateData[category] = {};
+        if (!templateData[category][className]) templateData[category][className] = [];
+        templateData[category][className].push({ id, name });
+    }
+})();
+
+// Level 1: Category changed
+function onCategoryChange() {
+    const category = document.getElementById('categorySelect').value;
+    const classSelect = document.getElementById('classSelect');
+    const templateSelect = document.getElementById('templateId');
+    
+    // Reset downstream selects
+    classSelect.innerHTML = '<option value="">Select Class</option>';
+    templateSelect.innerHTML = '<option value="">Select Template</option>';
+    
+    if (!category) {
+        classSelect.disabled = true;
+        classSelect.style.opacity = '0.6';
+        templateSelect.disabled = true;
+        templateSelect.style.opacity = '0.6';
+        return;
+    }
+    
+    // Populate classes
+    const classes = Object.keys(templateData[category]).sort();
+    classes.forEach(className => {
+        const opt = document.createElement('option');
+        opt.value = className;
+        opt.textContent = className;
+        classSelect.appendChild(opt);
+    });
+    
+    classSelect.disabled = false;
+    classSelect.style.opacity = '1';
+    
+    templateSelect.disabled = true;
+    templateSelect.style.opacity = '0.6';
+    
+    // Hide template info
+    document.getElementById('selectedTemplateInfo').style.display = 'none';
+}
+
+// Level 2: Class changed
+function onClassChange() {
+    const category = document.getElementById('categorySelect').value;
+    const className = document.getElementById('classSelect').value;
+    const templateSelect = document.getElementById('templateId');
+    
+    // Reset template select
+    templateSelect.innerHTML = '<option value="">Select Template</option>';
+    
+    if (!className || !category) {
+        templateSelect.disabled = true;
+        templateSelect.style.opacity = '0.6';
+        return;
+    }
+    
+    // Populate templates
+    const templates = templateData[category][className];
+    templates.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = t.name;
+        templateSelect.appendChild(opt);
+    });
+    
+    templateSelect.disabled = false;
+    templateSelect.style.opacity = '1';
+}
+
+// Level 3: Template changed
+function onTemplateChange() {
+    const templateId = document.getElementById('templateId').value;
+    const templateSelect = document.getElementById('templateId');
+    const selectedOption = templateSelect.options[templateSelect.selectedIndex];
+    
+    if (templateId && selectedOption) {
+        // Show selected template info
+        document.getElementById('selectedTemplateInfo').style.display = 'block';
+        document.getElementById('selectedTemplateName').textContent = selectedOption.text;
+        document.getElementById('selectedTemplateType').textContent = selectedOption.dataset.type;
+        
+        // Filter equipment by type
+        const equipmentType = selectedOption.dataset.type;
+        filterEquipmentByType(equipmentType);
+    }
+}
+
 // Equipment selection mode
 function setEquipmentMode(mode) {
     const allBtn = document.getElementById('modeAll');
@@ -243,6 +390,19 @@ function setEquipmentMode(mode) {
         equipmentSelection.style.display = 'block';
         allEquipmentMessage.style.display = 'none';
     }
+}
+
+// Filter equipment by template type
+function filterEquipmentByType(equipmentType) {
+    document.querySelectorAll('.equipment-group').forEach(group => {
+        const groupType = group.dataset.type;
+        if (!equipmentType || groupType === equipmentType) {
+            group.style.display = 'block';
+            group.style.opacity = '1';
+        } else {
+            group.style.opacity = '0.3';
+        }
+    });
 }
 
 // Select specific equipment
@@ -297,28 +457,10 @@ function filterEquipment() {
     // Hide empty groups
     document.querySelectorAll('.equipment-group').forEach(group => {
         const visibleItems = group.querySelectorAll('.equipment-item[style*="block"]').length;
-        const totalItems = group.querySelectorAll('.equipment-item').length;
         if (search && visibleItems === 0) {
             group.style.display = 'none';
         } else {
             group.style.display = 'block';
-        }
-    });
-}
-
-// On template change, filter equipment by type
-function onTemplateChange() {
-    const templateSelect = document.getElementById('templateId');
-    const selectedOption = templateSelect.options[templateSelect.selectedIndex];
-    const equipmentType = selectedOption.dataset.equipmentType;
-    
-    // Filter equipment list
-    document.querySelectorAll('.equipment-group').forEach(group => {
-        const groupType = group.dataset.type;
-        if (!equipmentType || groupType === equipmentType) {
-            group.style.opacity = '1';
-        } else {
-            group.style.opacity = '0.5';
         }
     });
 }
@@ -376,9 +518,4 @@ async function savePlan() {
         alert('Error saving plan');
     }
 }
-
-// Initialize on load
-document.addEventListener('DOMContentLoaded', function() {
-    onTemplateChange();
-});
 </script>

@@ -647,13 +647,20 @@ router.get('/maintenance-plans/new', requireAuth, requireAdminUI, async (req, re
     const { TaskTemplate, EquipmentType } = require('../models');
     const organizationId = req.user.organization_id;
     
-    // Get all templates
+    // Get all templates with category and class
     const templates = await TaskTemplate.query(`
-      SELECT tt.id, tt.template_name as name, et.type_name as equipment_type
+      SELECT 
+        tt.id, 
+        tt.template_name as name, 
+        et.type_name as equipment_type,
+        ec.class_name as class,
+        c.category_name as category
       FROM task_templates tt
       JOIN equipment_types et ON tt.equipment_type_id = et.id
+      JOIN equipment_classes ec ON et.class_id = ec.id
+      JOIN equipment_categories c ON ec.category_id = c.id
       WHERE tt.organization_id IS NULL OR tt.organization_id = ?
-      ORDER BY tt.template_name
+      ORDER BY c.category_name, ec.class_name, tt.template_name
     `, [organizationId]);
     
     // Get equipment (optional - for specific equipment plans)
@@ -720,13 +727,20 @@ router.get('/maintenance-plans/:id/edit', requireAuth, requireAdminUI, async (re
       });
     }
     
-    // Get all templates
+    // Get all templates with category and class
     const templates = await TaskTemplate.query(`
-      SELECT tt.id, tt.template_name as name, et.type_name as equipment_type
+      SELECT 
+        tt.id, 
+        tt.template_name as name, 
+        et.type_name as equipment_type,
+        ec.class_name as class,
+        c.category_name as category
       FROM task_templates tt
       JOIN equipment_types et ON tt.equipment_type_id = et.id
+      JOIN equipment_classes ec ON et.class_id = ec.id
+      JOIN equipment_categories c ON ec.category_id = c.id
       WHERE tt.organization_id IS NULL OR tt.organization_id = ?
-      ORDER BY tt.template_name
+      ORDER BY c.category_name, ec.class_name, tt.template_name
     `, [organizationId]);
     
     // Get equipment
