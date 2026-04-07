@@ -803,7 +803,10 @@ router.get('/templates', requireAuth, async (req, res) => {
     renderMobile(res, 'template-list', data);
   } catch (error) {
     console.error('[MOBILE] Error loading templates:', error);
-    res.status(500).send('Error loading templates');
+    res.status(500).render('error', { 
+      message: 'Error loading templates: ' + error.message,
+      error: process.env.NODE_ENV === 'development' ? error : {}
+    });
   }
 });
 
