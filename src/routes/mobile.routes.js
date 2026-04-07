@@ -758,6 +758,8 @@ router.get('/templates', requireAuth, async (req, res) => {
     const { TaskTemplate } = require('../models');
     const organizationId = req.user.organization_id;
     
+    console.log('[MOBILE] Loading templates for org:', organizationId);
+    
     // Get templates from database
     const templates = await TaskTemplate.query(`
       SELECT 
@@ -777,6 +779,11 @@ router.get('/templates', requireAuth, async (req, res) => {
       ORDER BY tt.template_name
     `, [organizationId]);
     
+    console.log('[MOBILE] Found templates:', templates.length);
+    if (templates.length > 0) {
+      console.log('[MOBILE] First template:', templates[0]);
+    }
+    
     const data = {
       title: 'Templates',
       showBack: false,
@@ -786,11 +793,11 @@ router.get('/templates', requireAuth, async (req, res) => {
         id: t.id,
         name: t.name,
         equipmentTypeName: t.equipmentTypeName,
-        equipmentTypeCode: t.equipmentTypeCode.toLowerCase(),
+        equipmentTypeCode: t.equipmentTypeCode?.toLowerCase() || '',
         equipmentTypeId: t.equipmentTypeId,
-        itemCount: t.itemCount,
-        version: t.version,
-        isActive: t.isActive === 1
+        itemCount: t.itemCount || 0,
+        version: t.version || 1,
+        isActive: t.isActive === 1 || t.isActive === true
       }))
     };
     renderMobile(res, 'template-list', data);
@@ -801,39 +808,44 @@ router.get('/templates', requireAuth, async (req, res) => {
 });
 
 // New Template
-router.get('/templates/new', requireAuth, (req, res) => {
-  const data = {
-    title: 'New Template',
-    showBack: true,
-    showNav: false,
-    activeNav: '',
-    template: {
-      id: null,
-      name: '',
-      equipmentTypeId: '',
-      version: 1,
-      isActive: true
-    },
-    items: [],
-    equipmentTypes: [
-      { id: 'ETYPE-001', name: 'Centrifugal Pump' },
-      { id: 'ETYPE-002', name: 'TEFC Motor' },
-      { id: 'ETYPE-003', name: 'Reciprocating Compressor' },
-      { id: 'ETYPE-004', name: 'Shell & Tube Heat Exchanger' },
-      { id: 'ETYPE-005', name: 'Pressure Gauge' }
-    ],
-    subunits: [
-      { id: 'SU-001', name: 'Coupling Assembly' },
-      { id: 'SU-002', name: 'Bearing Assembly' },
-      { id: 'SU-003', name: 'Sealing System' }
-    ],
-    maintainableItems: [
-      { id: 'MI-001', name: 'Coupling Element' },
-      { id: 'MI-002', name: 'Bearing DE' },
-      { id: 'MI-003', name: 'Mechanical Seal' }
-    ]
-  };
-  renderMobile(res, 'template-editor', data);
+router.get('/templates/new', requireAuth, async (req, res) => {
+  try {
+    const { EquipmentType } = require('../models');
+    
+    // Get all equipment types from database
+    const equipmentTypes = await EquipmentType.query(`
+      SELECT et.id, et.type_name as name, et.type_code as code, ec.class_name
+      FROM equipment_types et
+      JOIN equipment_classes ec ON et.class_id = ec.id
+      ORDER BY ec.class_name, et.type_name
+    `);
+    
+    const data = {
+      title: 'New Template',
+      showBack: true,
+      showNav: false,
+      activeNav: '',
+      template: {
+        id: null,
+        name: '',
+        equipmentTypeId: '',
+        version: 1,
+        isActive: true
+      },
+      items: [],
+      equipmentTypes: equipmentTypes.map(et => ({
+        id: et.id,
+        name: et.name,
+        class: et.class_name
+      })),
+      subunits: [],
+      maintainableItems: []
+    };
+    renderMobile(res, 'template-editor', data);
+  } catch (error) {
+    console.error('[MOBILE] Error loading equipment types:', error);
+    res.status(500).send('Error loading equipment types');
+  }
 });
 
 // Edit Template
