@@ -4,163 +4,250 @@
 <% activeNav = '' %>
 
 <!-- Mobile View -->
-<div class="mobile-only" style="padding: 16px; max-width: 600px; margin: 0 auto;">
+<div class="mobile-only">
     <!-- Header -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <div>
-            <h1 style="font-size: 24px; font-weight: 700; margin: 0 0 4px 0;">Task Templates</h1>
-            <p style="font-size: 14px; color: var(--gray-600); margin: 0;"><%= totalTemplates %> templates organized by category</p>
+    <div style="padding: 16px 16px 0; max-width: 600px; margin: 0 auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div>
+                <h1 style="font-size: 24px; font-weight: 700; margin: 0 0 4px 0;">Task Templates</h1>
+                <p style="font-size: 14px; color: var(--gray-600); margin: 0;"><%= totalTemplates %> templates</p>
+            </div>
+        </div>
+        
+        <!-- Create Button -->
+        <a href="/mobile/templates/new" class="btn btn-primary btn-full" style="margin-bottom: 16px; padding: 14px; font-size: 16px; font-weight: 600;">
+            + Create Template
+        </a>
+    </div>
+    
+    <!-- Category Filter Scroll -->
+    <div style="padding: 0 16px 16px; max-width: 600px; margin: 0 auto;">
+        <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; -webkit-overflow-scrolling: touch;">
+            <button class="category-chip active" data-category="all" onclick="filterByCategory('all')" 
+                style="padding: 10px 16px; border-radius: 20px; border: none; background: var(--primary); color: white; font-size: 14px; font-weight: 500; white-space: nowrap; cursor: pointer;">
+                All
+            </button>
+            <% Object.keys(templatesByCategory).sort().forEach(function(category) { %>
+            <button class="category-chip" data-category="<%= category.replace(/[^a-zA-Z0-9]/g, '-') %>" onclick="filterByCategory('<%= category.replace(/'/g, "\\'").replace(/[^a-zA-Z0-9\s]/g, '') %>')" 
+                style="padding: 10px 16px; border-radius: 20px; border: 1px solid var(--gray-300); background: white; color: var(--gray-700); font-size: 14px; font-weight: 500; white-space: nowrap; cursor: pointer;">
+                <%= category %>
+            </button>
+            <% }); %>
         </div>
     </div>
     
-    <!-- Create Button -->
-    <a href="/mobile/templates/new" class="btn btn-primary btn-full" style="margin-bottom: 20px; padding: 14px; font-size: 16px; font-weight: 600;">
-        + Create Template
-    </a>
-    
-    <!-- Info Card -->
-    <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border-radius: 12px; padding: 16px 20px; margin-bottom: 20px;">
-        <div style="font-size: 13px; color: #2e7d32;">
-            <strong>💡 Tip:</strong> Templates define WHAT to inspect. Use Maintenance Plans to schedule them.
-        </div>
-    </div>
-    
-    <!-- Templates by Category -->
-    <div style="display: flex; flex-direction: column; gap: 20px;">
+    <!-- Templates List -->
+    <div style="padding: 0 16px; max-width: 600px; margin: 0 auto; padding-bottom: 40px;">
         <% Object.keys(templatesByCategory).sort().forEach(function(category) { %>
-        <div class="category-section" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+        <div class="category-section" data-category="<%= category.replace(/[^a-zA-Z0-9]/g, '-') %>" style="margin-bottom: 20px;">
             <!-- Category Header -->
-            <div style="background: var(--primary); color: white; padding: 14px 16px; font-weight: 600; font-size: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleCategory('<%= category.replace(/'/g, "\\'") %>')">
+            <div style="background: var(--primary); color: white; padding: 12px 16px; font-weight: 600; font-size: 15px; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center;">
                 <span><%= category %></span>
                 <span style="font-size: 13px; opacity: 0.9;"><%= Object.values(templatesByCategory[category]).flat().length %> templates</span>
             </div>
             
             <!-- Classes -->
-            <div id="category-<%= category.replace(/[^a-zA-Z0-9]/g, '-') %>" style="display: block;">
-                <% Object.keys(templatesByCategory[category]).sort().forEach(function(className) { %>
-                <div class="class-section" style="border-bottom: 1px solid var(--gray-200);">
+            <div style="background: white; border-radius: 0 0 8px 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+                <% Object.keys(templatesByCategory[category]).sort().forEach(function(className, classIndex) { %>
+                <div class="class-section" style="<%= classIndex > 0 ? 'border-top: 1px solid var(--gray-200);' : '' %>">
                     <!-- Class Header -->
-                    <div style="background: var(--gray-100); padding: 10px 16px; font-weight: 500; font-size: 14px; color: var(--gray-700); display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleClass('<%= (category + '-' + className).replace(/'/g, "\\'").replace(/[^a-zA-Z0-9-]/g, '-') %>')">
+                    <div style="background: #f8f9fa; padding: 10px 16px; font-weight: 600; font-size: 13px; color: var(--gray-700); text-transform: uppercase; letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center;">
                         <span><%= className %></span>
-                        <span style="font-size: 12px; color: var(--gray-500);"><%= templatesByCategory[category][className].length %> templates</span>
+                        <span style="font-size: 12px; color: var(--gray-500);"><%= templatesByCategory[category][className].length %></span>
                     </div>
                     
                     <!-- Templates -->
-                    <div id="class-<%= (category + '-' + className).replace(/[^a-zA-Z0-9-]/g, '-') %>" style="display: block;">
-                        <% templatesByCategory[category][className].forEach(function(template) { %>
-                        <div style="padding: 14px 16px; border-bottom: 1px solid var(--gray-100); display: flex; justify-content: space-between; align-items: center; hover: background: var(--gray-50);">
-                            <div style="flex: 1;">
-                                <div style="font-weight: 500; font-size: 14px; color: var(--gray-900);"><%= template.name %></div>
-                                <div style="font-size: 12px; color: var(--gray-600); margin-top: 2px;">
-                                    <%= template.equipmentType %> • <%= template.itemCount %> items
-                                </div>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span class="status-badge <%= template.isActive ? 'status-released' : 'status-archived' %>" style="font-size: 11px; padding: 3px 8px;">
-                                    <%= template.isActive ? 'Active' : 'Inactive' %>
-                                </span>
-                                <a href="/mobile/templates/<%= template.id %>/edit" class="btn btn-sm btn-outline" style="padding: 6px 12px; font-size: 12px;">Edit</a>
+                    <% templatesByCategory[category][className].forEach(function(template, index) { %>
+                    <div style="padding: 14px 16px; <%= index < templatesByCategory[category][className].length - 1 ? 'border-bottom: 1px solid var(--gray-100);' : '' %> display: flex; justify-content: space-between; align-items: center;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 500; font-size: 14px; color: var(--gray-900);"><%= template.name %></div>
+                            <div style="font-size: 12px; color: var(--gray-600); margin-top: 2px;">
+                                <%= template.equipmentType %> • <%= template.itemCount %> items
                             </div>
                         </div>
-                        <% }); %>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="status-badge <%= template.isActive ? 'status-released' : 'status-archived' %>" style="font-size: 11px; padding: 3px 8px;">
+                                <%= template.isActive ? 'Active' : 'Inactive' %>
+                            </span>
+                            <a href="/mobile/templates/<%= template.id %>/edit" class="btn btn-sm btn-outline" style="padding: 6px 12px; font-size: 12px;">Edit</a>
+                        </div>
                     </div>
+                    <% }); %>
                 </div>
                 <% }); %>
             </div>
         </div>
         <% }); %>
+        
+        <% if (totalTemplates === 0) { %>
+        <div style="text-align: center; padding: 60px 20px; background: var(--gray-100); border-radius: 12px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
+            <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">No templates yet</div>
+            <div style="font-size: 14px; color: var(--gray-600); margin-bottom: 20px;">
+                Create your first inspection template
+            </div>
+            <a href="/mobile/templates/new" class="btn btn-primary">Create Template</a>
+        </div>
+        <% } %>
     </div>
 </div>
 
 <!-- Desktop Templates View -->
-<div class="desktop-only" style="padding: 24px; max-width: 1200px; margin: 0 auto;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <div>
-            <h1 style="font-size: 28px; font-weight: 700; margin: 0 0 4px 0;">Task Templates</h1>
-            <p style="font-size: 14px; color: var(--gray-600); margin: 0;"><%= totalTemplates %> templates organized by ISO 14224 equipment hierarchy</p>
-        </div>
-        <a href="/mobile/templates/new" class="btn btn-primary" style="padding: 12px 24px; font-size: 14px; font-weight: 600;">
-            + Create Template
-        </a>
-    </div>
-    
-    <!-- Templates by Category -->
-    <div style="display: flex; flex-direction: column; gap: 24px;">
-        <% Object.keys(templatesByCategory).sort().forEach(function(category) { %>
-        <div class="category-section" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-            <!-- Category Header -->
-            <div style="background: var(--primary); color: white; padding: 16px 20px; font-weight: 600; font-size: 16px; display: flex; justify-content: space-between; align-items: center;">
-                <span><%= category %></span>
-                <span style="font-size: 14px; opacity: 0.9;"><%= Object.values(templatesByCategory[category]).flat().length %> templates</span>
-            </div>
-            
-            <!-- Classes -->
-            <div>
-                <% Object.keys(templatesByCategory[category]).sort().forEach(function(className, classIndex) { %>
-                <div class="class-section" style="<%= classIndex > 0 ? 'border-top: 1px solid var(--gray-200);' : '' %>">
-                    <!-- Class Header -->
-                    <div style="background: #f8f9fa; padding: 12px 20px; font-weight: 600; font-size: 14px; color: var(--gray-700); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--gray-200);">
-                        <span><%= className %></span>
-                        <span style="font-size: 13px; color: var(--gray-500);"><%= templatesByCategory[category][className].length %> templates</span>
-                    </div>
-                    
-                    <!-- Templates Table -->
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr style="background: white;">
-                                <th style="padding: 12px 20px; text-align: left; font-size: 12px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--gray-200);">Template Name</th>
-                                <th style="padding: 12px 20px; text-align: left; font-size: 12px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--gray-200);">Equipment Type</th>
-                                <th style="padding: 12px 20px; text-align: center; font-size: 12px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--gray-200);">Items</th>
-                                <th style="padding: 12px 20px; text-align: center; font-size: 12px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--gray-200);">Status</th>
-                                <th style="padding: 12px 20px; text-align: center; font-size: 12px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--gray-200);">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% templatesByCategory[category][className].forEach(function(template) { %>
-                            <tr style="border-bottom: 1px solid var(--gray-100);">
-                                <td style="padding: 14px 20px;">
-                                    <div style="font-weight: 500; color: var(--gray-900);"><%= template.name %></div>
-                                </td>
-                                <td style="padding: 14px 20px; color: var(--gray-600);"><%= template.equipmentType %></td>
-                                <td style="padding: 14px 20px; text-align: center;"><%= template.itemCount %></td>
-                                <td style="padding: 14px 20px; text-align: center;">
-                                    <span class="status-badge <%= template.isActive ? 'status-released' : 'status-archived' %>">
-                                        <%= template.isActive ? 'Active' : 'Inactive' %>
-                                    </span>
-                                </td>
-                                <td style="padding: 14px 20px; text-align: center;">
-                                    <div style="display: flex; gap: 8px; justify-content: center;">
-                                        <a href="/mobile/templates/<%= template.id %>/edit" class="btn btn-sm btn-outline">Edit</a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <% }); %>
-                        </tbody>
-                    </table>
+<div class="desktop-only" style="padding: 24px; max-width: 1400px; margin: 0 auto;">
+    <div style="display: flex; gap: 24px;">
+        <!-- Sidebar Navigation -->
+        <div style="width: 240px; flex-shrink: 0;">
+            <div style="position: sticky; top: 24px;">
+                <div style="margin-bottom: 24px;">
+                    <h1 style="font-size: 24px; font-weight: 700; margin: 0 0 4px 0;">Task Templates</h1>
+                    <p style="font-size: 14px; color: var(--gray-600); margin: 0;"><%= totalTemplates %> templates</p>
                 </div>
-                <% }); %>
+                
+                <a href="/mobile/templates/new" class="btn btn-primary btn-full" style="margin-bottom: 20px; padding: 12px; font-size: 14px; font-weight: 600;">
+                    + Create Template
+                </a>
+                
+                <!-- Category Navigation -->
+                <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+                    <div style="padding: 12px 16px; background: var(--gray-100); font-size: 12px; font-weight: 600; color: var(--gray-600); text-transform: uppercase; letter-spacing: 0.5px;">
+                        Categories
+                    </div>
+                    <div style="padding: 8px 0;">
+                        <a href="#" onclick="filterByCategoryDesktop('all'); return false;" class="category-nav-item active" data-category="all" 
+                            style="display: block; padding: 10px 16px; font-size: 14px; color: var(--gray-900); text-decoration: none; background: #e3f2fd; border-left: 3px solid var(--primary);">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>All Categories</span>
+                                <span style="font-size: 12px; color: var(--gray-500);"><%= totalTemplates %></span>
+                            </div>
+                        </a>
+                        <% Object.keys(templatesByCategory).sort().forEach(function(category) { %>
+                        <a href="#" onclick="filterByCategoryDesktop('<%= category.replace(/'/g, "\\'").replace(/[^a-zA-Z0-9\s]/g, '') %>'); return false;" class="category-nav-item" data-category="<%= category.replace(/[^a-zA-Z0-9]/g, '-') %>"
+                            style="display: block; padding: 10px 16px; font-size: 14px; color: var(--gray-700); text-decoration: none; border-left: 3px solid transparent; hover: background: var(--gray-50);">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span><%= category %></span>
+                                <span style="font-size: 12px; color: var(--gray-500);"><%= Object.values(templatesByCategory[category]).flat().length %></span>
+                            </div>
+                        </a>
+                        <% }); %>
+                    </div>
+                </div>
             </div>
         </div>
-        <% }); %>
+        
+        <!-- Main Content -->
+        <div style="flex: 1;">
+            <% Object.keys(templatesByCategory).sort().forEach(function(category) { %>
+            <div class="category-section-desktop" data-category="<%= category.replace(/[^a-zA-Z0-9]/g, '-') %>" style="margin-bottom: 32px;">
+                <!-- Category Header -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2 style="font-size: 20px; font-weight: 600; margin: 0;"><%= category %></h2>
+                    <span style="font-size: 14px; color: var(--gray-500);"><%= Object.values(templatesByCategory[category]).flat().length %> templates</span>
+                </div>
+                
+                <!-- Classes -->
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+                    <% Object.keys(templatesByCategory[category]).sort().forEach(function(className) { %>
+                    <div class="class-section" style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+                        <!-- Class Header -->
+                        <div style="background: #f8f9fa; padding: 12px 16px; font-weight: 600; font-size: 14px; color: var(--gray-700); border-bottom: 1px solid var(--gray-200);">
+                            <%= className %>
+                            <span style="font-size: 13px; color: var(--gray-500); font-weight: 400; margin-left: 8px;">(<%= templatesByCategory[category][className].length %>)</span>
+                        </div>
+                        
+                        <!-- Templates Table -->
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: white;">
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--gray-200);">Template</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--gray-200);">Equipment Type</th>
+                                    <th style="padding: 12px 16px; text-align: center; font-size: 12px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--gray-200);">Items</th>
+                                    <th style="padding: 12px 16px; text-align: center; font-size: 12px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--gray-200);">Status</th>
+                                    <th style="padding: 12px 16px; text-align: center; font-size: 12px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--gray-200);">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% templatesByCategory[category][className].forEach(function(template) { %>
+                                <tr style="border-bottom: 1px solid var(--gray-100);">
+                                    <td style="padding: 14px 16px;">
+                                        <div style="font-weight: 500; color: var(--gray-900);"><%= template.name %></div>
+                                    </td>
+                                    <td style="padding: 14px 16px; color: var(--gray-600);"><%= template.equipmentType %></td>
+                                    <td style="padding: 14px 16px; text-align: center;"><%= template.itemCount %></td>
+                                    <td style="padding: 14px 16px; text-align: center;">
+                                        <span class="status-badge <%= template.isActive ? 'status-released' : 'status-archived' %>">
+                                            <%= template.isActive ? 'Active' : 'Inactive' %>
+                                        </span>
+                                    </td>
+                                    <td style="padding: 14px 16px; text-align: center;">
+                                        <a href="/mobile/templates/<%= template.id %>/edit" class="btn btn-sm btn-outline">Edit</a>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                    <% }); %>
+                </div>
+            </div>
+            <% }); %>
+        </div>
     </div>
 </div>
 
 <script>
-function toggleCategory(category) {
-    // For mobile: toggle visibility
-    const id = 'category-' + category.replace(/[^a-zA-Z0-9]/g, '-');
-    const el = document.getElementById(id);
-    if (el) {
-        el.style.display = el.style.display === 'none' ? 'block' : 'none';
-    }
+// Mobile category filter
+function filterByCategory(category) {
+    const chips = document.querySelectorAll('.category-chip');
+    const sections = document.querySelectorAll('.category-section');
+    
+    // Update chip styles
+    chips.forEach(chip => {
+        if (chip.dataset.category === category || (category === 'all' && chip.dataset.category === 'all')) {
+            chip.style.background = 'var(--primary)';
+            chip.style.color = 'white';
+            chip.style.borderColor = 'var(--primary)';
+        } else {
+            chip.style.background = 'white';
+            chip.style.color = 'var(--gray-700)';
+            chip.style.borderColor = 'var(--gray-300)';
+        }
+    });
+    
+    // Show/hide sections
+    sections.forEach(section => {
+        if (category === 'all' || section.dataset.category === category.replace(/[^a-zA-Z0-9]/g, '-')) {
+            section.style.display = 'block';
+        } else {
+            section.style.display = 'none';
+        }
+    });
 }
 
-function toggleClass(classId) {
-    // For mobile: toggle visibility
-    const id = 'class-' + classId.replace(/[^a-zA-Z0-9-]/g, '-');
-    const el = document.getElementById(id);
-    if (el) {
-        el.style.display = el.style.display === 'none' ? 'block' : 'none';
-    }
+// Desktop category filter
+function filterByCategoryDesktop(category) {
+    const navItems = document.querySelectorAll('.category-nav-item');
+    const sections = document.querySelectorAll('.category-section-desktop');
+    
+    // Update nav styles
+    navItems.forEach(item => {
+        if (item.dataset.category === category || (category === 'all' && item.dataset.category === 'all')) {
+            item.style.background = '#e3f2fd';
+            item.style.borderLeftColor = 'var(--primary)';
+            item.style.color = 'var(--gray-900)';
+        } else {
+            item.style.background = 'transparent';
+            item.style.borderLeftColor = 'transparent';
+            item.style.color = 'var(--gray-700)';
+        }
+    });
+    
+    // Show/hide sections
+    sections.forEach(section => {
+        if (category === 'all' || section.dataset.category === category.replace(/[^a-zA-Z0-9]/g, '-')) {
+            section.style.display = 'block';
+        } else {
+            section.style.display = 'none';
+        }
+    });
 }
 </script>
