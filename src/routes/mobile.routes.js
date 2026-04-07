@@ -753,46 +753,51 @@ router.get('/qr-labels/batch',
 );
 
 // Template List
-router.get('/templates', requireAuth, (req, res) => {
-  const data = {
-    title: 'Templates',
-    showBack: false,
-    showNav: true,
-    activeNav: 'templates',
-    templates: [
-      {
-        id: 'TMP-001',
-        name: 'Daily Pump Inspection',
-        equipmentTypeName: 'Centrifugal Pump',
-        equipmentTypeCode: 'CENTRIFUGAL_PUMP',
-        equipmentTypeId: 'ETYPE-001',
-        itemCount: 12,
-        version: 2,
-        isActive: true
-      },
-      {
-        id: 'TMP-002',
-        name: 'Weekly Motor Check',
-        equipmentTypeName: 'TEFC Motor',
-        equipmentTypeCode: 'TEFC_MOTOR',
-        equipmentTypeId: 'ETYPE-002',
-        itemCount: 8,
-        version: 1,
-        isActive: true
-      },
-      {
-        id: 'TMP-003',
-        name: 'Monthly Compressor Maintenance',
-        equipmentTypeName: 'Reciprocating Compressor',
-        equipmentTypeCode: 'RECIP_COMPRESSOR',
-        equipmentTypeId: 'ETYPE-003',
-        itemCount: 15,
-        version: 3,
-        isActive: false
-      }
-    ]
-  };
-  renderMobile(res, 'template-list', data);
+router.get('/templates', requireAuth, async (req, res) => {
+  try {
+    const { TaskTemplate } = require('../models');
+    const organizationId = req.user.organization_id;
+    
+    // Get templates from database
+    const templates = await TaskTemplate.query(`
+      SELECT 
+        tt.id,
+        tt.template_name as name,
+        tt.version,
+        tt.is_active as isActive,
+        et.type_name as equipmentTypeName,
+        et.type_code as equipmentTypeCode,
+        et.id as equipmentTypeId,
+        COUNT(tts.id) as itemCount
+      FROM task_templates tt
+      JOIN equipment_types et ON tt.equipment_type_id = et.id
+      LEFT JOIN task_template_steps tts ON tt.id = tts.task_template_id
+      WHERE tt.organization_id IS NULL OR tt.organization_id = ?
+      GROUP BY tt.id, tt.template_name, tt.version, tt.is_active, et.type_name, et.type_code, et.id
+      ORDER BY tt.template_name
+    `, [organizationId]);
+    
+    const data = {
+      title: 'Templates',
+      showBack: false,
+      showNav: true,
+      activeNav: 'templates',
+      templates: templates.map(t => ({
+        id: t.id,
+        name: t.name,
+        equipmentTypeName: t.equipmentTypeName,
+        equipmentTypeCode: t.equipmentTypeCode.toLowerCase(),
+        equipmentTypeId: t.equipmentTypeId,
+        itemCount: t.itemCount,
+        version: t.version,
+        isActive: t.isActive === 1
+      }))
+    };
+    renderMobile(res, 'template-list', data);
+  } catch (error) {
+    console.error('[MOBILE] Error loading templates:', error);
+    res.status(500).send('Error loading templates');
+  }
 });
 
 // New Template
