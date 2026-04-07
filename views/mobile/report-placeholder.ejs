@@ -1,0 +1,37 @@
+<% title = reportTitle %>
+<% showBack = true %>
+<% showNav = false %>
+<% activeNav = '' %>
+
+<div style="text-align: center; padding: 48px 24px;">
+  <div style="font-size: 64px; margin-bottom: 24px;">🚧</div>
+  <h2 style="font-size: 22px; font-weight: 600; color: var(--gray-800); margin: 0 0 12px 0;">
+    Coming Soon
+  </h2>
+  <p style="color: var(--gray-600); font-size: 15px; line-height: 1.6; max-width: 320px; margin: 0 auto 32px auto;">
+    The <strong><%= reportTitle %></strong> report is currently under development. Check back soon for this feature!
+  </p>
+  
+  <div style="display: flex; flex-direction: column; gap: 12px; max-width: 280px; margin: 0 auto;">
+    <button onclick="history.back()" class="btn btn-primary" style="padding: 14px 24px; font-size: 15px;">
+      ← Go Back
+    </button>
+    <a href="/mobile/reports" class="btn btn-outline" style="padding: 14px 24px; font-size: 15px;">
+      📊 All Reports
+    </a>
+  </div>
+  
+  <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--gray-200);">
+    <p style="font-size: 13px; color: var(--gray-500); margin: 0;">
+      Available now:
+    </p>
+    <div style="margin-top: 12px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;">
+      <a href="/mobile/reports/work-order-summary" class="btn btn-sm btn-outline" style="font-size: 12px;">
+        Work Order Summary
+      </a>
+      <a href="/mobile/reports/equipment-report" class="btn btn-sm btn-outline" style="font-size: 12px;">
+        Equipment Report
+      </a>
+    </div>
+  </div>
+</div>

@@ -34,8 +34,9 @@ const PERMISSIONS = {
   // Inspections
   INSPECTIONS: {
     VIEW: { admin: 'all', supervisor: 'all', operator: 'all' },
-    SUBMIT: { admin: 'all', supervisor: 'all', operator: 'all' },
-    SUBMIT_READINGS: { admin: 'all', supervisor: 'all', operator: 'own' },
+    // Admins CANNOT perform inspections - they can only manage work orders
+    SUBMIT: { admin: 'none', supervisor: 'all', operator: 'all' },
+    SUBMIT_READINGS: { admin: 'none', supervisor: 'all', operator: 'own' },
     MANAGE_POINTS: { admin: 'all', supervisor: 'all', operator: 'none' },
     EDIT_READINGS: { admin: 'all', supervisor: 'all', operator: 'none' }
   },
@@ -89,6 +90,13 @@ const PERMISSIONS = {
   REPORTS: {
     VIEW: { admin: 'all', supervisor: 'all', operator: 'all' },
     EXPORT: { admin: 'all', supervisor: 'all', operator: 'none' }
+  },
+
+  // Subscriptions (Payment/Plan management)
+  SUBSCRIPTION: {
+    VIEW: { admin: 'all', supervisor: 'none', operator: 'none' },
+    UPDATE: { admin: 'all', supervisor: 'none', operator: 'none' },
+    CANCEL: { admin: 'all', supervisor: 'none', operator: 'none' }
   }
 };
 

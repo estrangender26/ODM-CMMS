@@ -7,7 +7,8 @@ const { WorkOrder, Equipment, Schedule, User } = require('../models');
 const { getDb } = require('../config/database');
 
 /**
- * Get work order summary report (organization-aware)
+ * Get work order summary report (organization-aware, role-based filtering)
+ * Admin sees all, Supervisor/Operator sees only their facility's data
  */
 const getWorkOrderSummary = async (req, res, next) => {
   try {
@@ -16,10 +17,21 @@ const getWorkOrderSummary = async (req, res, next) => {
     console.log('[REPORTS] Query params:', req.query);
     
     const organizationId = req.user.organization_id;
+    const userRole = req.user?.role;
+    const userFacilityId = req.user?.facility_id;
+    
     if (!organizationId) {
       return res.status(400).json({
         success: false,
         message: 'User must belong to an organization'
+      });
+    }
+    
+    // Enforce facility-based access for supervisors and operators
+    if ((userRole === 'supervisor' || userRole === 'operator') && !userFacilityId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You must be assigned to a facility to view reports'
       });
     }
     
@@ -39,7 +51,12 @@ const getWorkOrderSummary = async (req, res, next) => {
       conditions.push('wo.created_at <= ?');
       params.push(end_date + ' 23:59:59');
     }
-    if (facility_id && facility_id !== 'undefined' && facility_id !== '') {
+    
+    // Facility filtering: Admin can filter by any facility, Supervisor/Operator only sees their facility
+    if (userRole === 'supervisor' || userRole === 'operator') {
+      conditions.push('e.facility_id = ?');
+      params.push(userFacilityId);
+    } else if (facility_id && facility_id !== 'undefined' && facility_id !== '') {
       conditions.push('e.facility_id = ?');
       params.push(parseInt(facility_id));
     }
@@ -119,7 +136,8 @@ const getWorkOrderSummary = async (req, res, next) => {
 };
 
 /**
- * Get equipment maintenance report (organization-aware)
+ * Get equipment maintenance report (organization-aware, role-based filtering)
+ * Admin sees all, Supervisor/Operator sees only their facility's equipment
  */
 const getEquipmentReport = async (req, res, next) => {
   try {
@@ -128,10 +146,21 @@ const getEquipmentReport = async (req, res, next) => {
     console.log('[REPORTS] Query params:', req.query);
     
     const organizationId = req.user.organization_id;
+    const userRole = req.user?.role;
+    const userFacilityId = req.user?.facility_id;
+    
     if (!organizationId) {
       return res.status(400).json({
         success: false,
         message: 'User must belong to an organization'
+      });
+    }
+    
+    // Enforce facility-based access for supervisors and operators
+    if ((userRole === 'supervisor' || userRole === 'operator') && !userFacilityId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You must be assigned to a facility to view reports'
       });
     }
     
@@ -141,10 +170,15 @@ const getEquipmentReport = async (req, res, next) => {
     let conditions = ['e.organization_id = ?'];
     const params = [organizationId];
     
-    if (facility_id) {
+    // Facility filtering: Admin can filter by any facility, Supervisor/Operator only sees their facility
+    if (userRole === 'supervisor' || userRole === 'operator') {
+      conditions.push('e.facility_id = ?');
+      params.push(userFacilityId);
+    } else if (facility_id) {
       conditions.push('e.facility_id = ?');
       params.push(facility_id);
     }
+    
     if (category) {
       conditions.push('e.category = ?');
       params.push(category);
@@ -199,7 +233,8 @@ const getEquipmentReport = async (req, res, next) => {
 };
 
 /**
- * Get technician performance report (organization-aware)
+ * Get technician performance report (organization-aware, role-based filtering)
+ * Admin sees all, Supervisor/Operator sees only their facility's technicians
  */
 const getTechnicianReport = async (req, res, next) => {
   try {
@@ -207,10 +242,21 @@ const getTechnicianReport = async (req, res, next) => {
     console.log('[REPORTS] User:', req.user?.username, 'Role:', req.user?.role, 'Facility:', req.user?.facility_id);
     
     const organizationId = req.user.organization_id;
+    const userRole = req.user?.role;
+    const userFacilityId = req.user?.facility_id;
+    
     if (!organizationId) {
       return res.status(400).json({
         success: false,
         message: 'User must belong to an organization'
+      });
+    }
+    
+    // Enforce facility-based access for supervisors and operators
+    if ((userRole === 'supervisor' || userRole === 'operator') && !userFacilityId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You must be assigned to a facility to view reports'
       });
     }
     
@@ -229,9 +275,13 @@ const getTechnicianReport = async (req, res, next) => {
       params.push(end_date + ' 23:59:59');
     }
     
-    // Facility filter
+    // Facility filter: Admin can filter by any, Supervisor/Operator only sees their facility
     let facilityJoin = '';
-    if (facility_id && facility_id !== 'undefined' && facility_id !== '') {
+    if (userRole === 'supervisor' || userRole === 'operator') {
+      facilityJoin = 'JOIN equipment e ON wo.equipment_id = e.id';
+      conditions.push('e.facility_id = ?');
+      params.push(userFacilityId);
+    } else if (facility_id && facility_id !== 'undefined' && facility_id !== '') {
       facilityJoin = 'JOIN equipment e ON wo.equipment_id = e.id';
       conditions.push('e.facility_id = ?');
       params.push(parseInt(facility_id));
@@ -275,7 +325,8 @@ const getTechnicianReport = async (req, res, next) => {
 };
 
 /**
- * Get schedule compliance report (organization-aware)
+ * Get schedule compliance report (organization-aware, role-based filtering)
+ * Admin sees all, Supervisor/Operator sees only their facility's schedules
  */
 const getScheduleCompliance = async (req, res, next) => {
   try {
@@ -284,10 +335,21 @@ const getScheduleCompliance = async (req, res, next) => {
     console.log('[REPORTS] Query params:', req.query);
     
     const organizationId = req.user.organization_id;
+    const userRole = req.user?.role;
+    const userFacilityId = req.user?.facility_id;
+    
     if (!organizationId) {
       return res.status(400).json({
         success: false,
         message: 'User must belong to an organization'
+      });
+    }
+    
+    // Enforce facility-based access for supervisors and operators
+    if ((userRole === 'supervisor' || userRole === 'operator') && !userFacilityId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You must be assigned to a facility to view reports'
       });
     }
     
@@ -297,7 +359,11 @@ const getScheduleCompliance = async (req, res, next) => {
     let conditions = ['s.organization_id = ?', 's.is_active = TRUE'];
     const params = [organizationId];
     
-    if (facility_id) {
+    // Facility filter: Admin can filter by any, Supervisor/Operator only sees their facility
+    if (userRole === 'supervisor' || userRole === 'operator') {
+      conditions.push('e.facility_id = ?');
+      params.push(userFacilityId);
+    } else if (facility_id) {
       conditions.push('e.facility_id = ?');
       params.push(facility_id);
     }
@@ -375,7 +441,8 @@ const getScheduleCompliance = async (req, res, next) => {
 };
 
 /**
- * Get work order trends (over time) (organization-aware)
+ * Get work order trends (over time) (organization-aware, role-based filtering)
+ * Admin sees all, Supervisor/Operator sees only their facility's trends
  */
 const getTrends = async (req, res, next) => {
   try {
@@ -383,10 +450,21 @@ const getTrends = async (req, res, next) => {
     console.log('[REPORTS] User:', req.user?.username, 'Role:', req.user?.role, 'Facility:', req.user?.facility_id);
     
     const organizationId = req.user.organization_id;
+    const userRole = req.user?.role;
+    const userFacilityId = req.user?.facility_id;
+    
     if (!organizationId) {
       return res.status(400).json({
         success: false,
         message: 'User must belong to an organization'
+      });
+    }
+    
+    // Enforce facility-based access for supervisors and operators
+    if ((userRole === 'supervisor' || userRole === 'operator') && !userFacilityId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You must be assigned to a facility to view reports'
       });
     }
     
@@ -410,7 +488,12 @@ const getTrends = async (req, res, next) => {
     let facilityWhere = '';
     const params = [organizationId, months];
     
-    if (facility_id && facility_id !== 'undefined' && facility_id !== '') {
+    // Facility filter: Admin can filter by any, Supervisor/Operator only sees their facility
+    if (userRole === 'supervisor' || userRole === 'operator') {
+      facilityJoin = 'JOIN equipment e ON wo.equipment_id = e.id';
+      facilityWhere = 'AND e.facility_id = ?';
+      params.push(userFacilityId);
+    } else if (facility_id && facility_id !== 'undefined' && facility_id !== '') {
       facilityJoin = 'JOIN equipment e ON wo.equipment_id = e.id';
       facilityWhere = 'AND e.facility_id = ?';
       params.push(parseInt(facility_id));
@@ -445,13 +528,16 @@ const getTrends = async (req, res, next) => {
 };
 
 /**
- * Export report as CSV (organization-aware)
+ * Export report as CSV (organization-aware, role-based filtering)
+ * Admin can export all, Supervisor/Operator can only export their facility's data
  */
 const exportReport = async (req, res, next) => {
   try {
     const { type } = req.params;
     const { start_date, end_date } = req.query;
     const organizationId = req.user.organization_id;
+    const userRole = req.user?.role;
+    const userFacilityId = req.user?.facility_id;
     
     if (!organizationId) {
       return res.status(400).json({
@@ -460,31 +546,45 @@ const exportReport = async (req, res, next) => {
       });
     }
     
+    // Enforce facility-based access for supervisors and operators
+    if ((userRole === 'supervisor' || userRole === 'operator') && !userFacilityId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You must be assigned to a facility to export reports'
+      });
+    }
+    
+    // Apply facility filter for supervisors and operators
+    let facilityId = req.query.facility_id;
+    if (userRole === 'supervisor' || userRole === 'operator') {
+      facilityId = userFacilityId;
+    }
+    
     let csv = '';
     let filename = '';
     
     switch(type) {
       case 'work-orders':
         filename = 'work-order-summary.csv';
-        const woData = await getWorkOrderSummaryData(start_date, end_date, req.query.facility_id, organizationId);
+        const woData = await getWorkOrderSummaryData(start_date, end_date, facilityId, organizationId);
         csv = convertToCSV(woData.status_breakdown, ['status', 'count']);
         break;
         
       case 'equipment':
         filename = 'equipment-report.csv';
-        const eqData = await getEquipmentData(req.query.facility_id, req.query.category, organizationId);
+        const eqData = await getEquipmentData(facilityId, req.query.category, organizationId);
         csv = convertToCSV(eqData.equipment, ['code', 'name', 'facility_name', 'total_work_orders', 'completed_work_orders', 'pending_work_orders']);
         break;
         
       case 'technicians':
         filename = 'technician-performance.csv';
-        const techData = await getTechnicianData(start_date, end_date, organizationId);
+        const techData = await getTechnicianData(start_date, end_date, facilityId, organizationId);
         csv = convertToCSV(techData, ['full_name', 'role', 'total_assigned', 'completed', 'pending', 'avg_hours_per_job']);
         break;
         
       case 'compliance':
         filename = 'schedule-compliance.csv';
-        const compData = await getComplianceData(req.query.facility_id, organizationId);
+        const compData = await getComplianceData(facilityId, organizationId);
         csv = convertToCSV(compData.overdue, ['equipment_code', 'equipment_name', 'task_title', 'next_due_date', 'days_overdue']);
         break;
         
@@ -565,7 +665,7 @@ async function getEquipmentData(facility_id, category, organizationId) {
   return { equipment };
 }
 
-async function getTechnicianData(start_date, end_date, organizationId) {
+async function getTechnicianData(start_date, end_date, facilityId, organizationId) {
   const { getDb } = require('../config/database');
   const db = getDb();
   
@@ -581,6 +681,14 @@ async function getTechnicianData(start_date, end_date, organizationId) {
     params.push(end_date);
   }
   
+  // Facility filter
+  let facilityJoin = '';
+  if (facilityId) {
+    facilityJoin = 'JOIN equipment e ON wo.equipment_id = e.id';
+    conditions.push('e.facility_id = ?');
+    params.push(facilityId);
+  }
+  
   const whereClause = conditions.join(' AND ');
   
   const query = `
@@ -591,6 +699,7 @@ async function getTechnicianData(start_date, end_date, organizationId) {
       AVG(wo.actual_hours) as avg_hours_per_job
     FROM users u
     LEFT JOIN work_orders wo ON u.id = wo.assigned_to AND wo.organization_id = ?
+    ${facilityJoin}
     WHERE ${whereClause}
     GROUP BY u.id, u.full_name, u.role
     HAVING total_assigned > 0

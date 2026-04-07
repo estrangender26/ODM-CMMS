@@ -13,31 +13,31 @@ const qrLabelController = require('../controllers/qr-label.controller');
 // API Routes
 router.get('/assets/:id/qr',
   authenticate,
-  requirePermission('ASSETS', 'VIEW'),
+  requirePermission('EQUIPMENT', 'VIEW'),
   qrLabelController.getAssetQR
 );
 
 router.get('/assets/:id/qr-label.png',
   authenticate,
-  requirePermission('ASSETS', 'VIEW'),
+  requirePermission('EQUIPMENT', 'VIEW'),
   qrLabelController.downloadLabelPNG
 );
 
 router.get('/assets/:id/qr-label.pdf',
   authenticate,
-  requirePermission('ASSETS', 'VIEW'),
+  requirePermission('EQUIPMENT', 'VIEW'),
   qrLabelController.downloadLabelPDF
 );
 
 router.post('/assets/qr-labels/batch',
   authenticate,
-  requirePermission('ASSETS', 'VIEW'),
+  requirePermission('EQUIPMENT', 'VIEW'),
   qrLabelController.downloadBatchPDF
 );
 
 router.post('/assets/:id/qr/regenerate',
   authenticate,
-  requirePermission('ASSETS', 'UPDATE'),
+  requirePermission('EQUIPMENT', 'UPDATE'),
   qrLabelController.regenerateQR
 );
 

@@ -152,14 +152,23 @@ const canAddWorkOrderNote = async (req, res, next) => {
 
 /**
  * Middleware to check if user can submit inspection readings
+ * Admins CANNOT perform inspections - they can only manage work orders
  */
 const canSubmitInspection = async (req, res, next) => {
   const role = req.user?.role;
   const userId = req.user?.id;
   const workOrderId = req.params.workOrderId;
   
-  // Admin and supervisor can submit for any work order
-  if (role === 'admin' || role === 'supervisor') {
+  // Admin cannot perform inspections - they can only view/manage work orders
+  if (role === 'admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Admin users cannot perform inspections. Please re-assign this work order to a technician or supervisor.'
+    });
+  }
+  
+  // Supervisor can submit for any work order
+  if (role === 'supervisor') {
     return next();
   }
   
@@ -589,6 +598,116 @@ const filterReportsByFacility = async (req, res, next) => {
   return next();
 };
 
+/**
+ * Middleware to enforce facility-based filtering for equipment
+ * Admin sees all, Supervisor sees only their facility's equipment
+ */
+const filterEquipmentByFacility = async (req, res, next) => {
+  const role = req.user?.role;
+  const userFacilityId = req.user?.facility_id;
+  
+  // Admin can see all equipment - no filtering needed
+  if (role === 'admin') {
+    return next();
+  }
+  
+  // Supervisor can only see equipment in their facility
+  if (role === 'supervisor') {
+    if (!userFacilityId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Supervisor must be assigned to a facility to view equipment'
+      });
+    }
+    
+    // Override any facility_id in query to restrict to supervisor's facility
+    req.query.facility_id = userFacilityId.toString();
+    return next();
+  }
+  
+  // Operator can only see equipment in their facility (if assigned)
+  if (role === 'operator') {
+    if (!userFacilityId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You must be assigned to a facility to view equipment'
+      });
+    }
+    
+    req.query.facility_id = userFacilityId.toString();
+    return next();
+  }
+  
+  return next();
+};
+
+/**
+ * Middleware to enforce facility-based filtering for facilities list
+ * Admin sees all, Supervisor/Operator sees only their facility
+ */
+const filterFacilitiesByAccess = async (req, res, next) => {
+  const role = req.user?.role;
+  const userFacilityId = req.user?.facility_id;
+  
+  // Admin can see all facilities - no filtering needed
+  if (role === 'admin') {
+    return next();
+  }
+  
+  // Supervisor and Operator can only see their assigned facility
+  if (role === 'supervisor' || role === 'operator') {
+    if (!userFacilityId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You must be assigned to a facility'
+      });
+    }
+    
+    // Add filter to only show their facility
+    req.query._facilityFilter = userFacilityId;
+    return next();
+  }
+  
+  return next();
+};
+
+/**
+ * Middleware to filter work orders by role
+ * Admin sees all in org, Supervisor sees facility's work orders, Operator sees only their assigned
+ */
+const filterWorkOrdersByRole = async (req, res, next) => {
+  const role = req.user?.role;
+  const userId = req.user?.id;
+  const userFacilityId = req.user?.facility_id;
+  
+  // Admin can see all work orders - no additional filtering
+  if (role === 'admin') {
+    return next();
+  }
+  
+  // Supervisor can only see work orders in their facility
+  if (role === 'supervisor') {
+    if (!userFacilityId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Supervisor must be assigned to a facility to view work orders'
+      });
+    }
+    
+    // Get equipment IDs in supervisor's facility and filter work orders
+    req.query._supervisorFacilityId = userFacilityId;
+    return next();
+  }
+  
+  // Operator can only see their own assigned work orders
+  if (role === 'operator') {
+    req.query.assigned_to = userId.toString();
+    return next();
+  }
+  
+  return next();
+};
+
 module.exports = {
   requirePermission,
   canUpdateWorkOrderStatus,
@@ -601,5 +720,8 @@ module.exports = {
   canCreateUser,
   canManageUser,
   filterReportsByFacility,
+  filterEquipmentByFacility,
+  filterFacilitiesByAccess,
+  filterWorkOrdersByRole,
   getUserPermissions
 };

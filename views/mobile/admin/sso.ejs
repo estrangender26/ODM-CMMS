@@ -1,0 +1,483 @@
+<% title = 'SSO Configuration' %>
+
+<!-- Header -->
+<div style="margin-bottom: 20px;">
+  <a href="/mobile/admin" style="display: flex; align-items: center; gap: 8px; color: var(--primary); text-decoration: none; margin-bottom: 12px;">
+    <span style="font-size: 20px;">←</span> Back to Admin
+  </a>
+  <h1 style="font-size: 24px; font-weight: 600; margin: 0;">SSO Configuration</h1>
+  <p style="color: var(--gray-600); margin: 8px 0 0 0; font-size: 14px;">Configure Single Sign-On with your identity provider</p>
+</div>
+
+<!-- Status Card -->
+<div id="statusCard" class="card" style="margin-bottom: 20px; background: #f5f5f5;">
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <div style="font-size: 13px; color: var(--gray-600); margin-bottom: 4px;">SSO Status</div>
+      <div id="statusText" style="font-size: 20px; font-weight: 600; color: var(--gray-700);">Loading...</div>
+    </div>
+    <div style="font-size: 48px; opacity: 0.3;">🔐</div>
+  </div>
+  <div id="statusToggle" style="margin-top: 16px; display: none;">
+    <button class="btn btn-primary btn-full" onclick="toggleSSO()">Enable SSO</button>
+  </div>
+</div>
+
+<!-- Configuration Form -->
+<div id="configForm" class="card" style="margin-bottom: 20px; display: none;">
+  <div class="card-title">Provider Settings</div>
+  
+  <form onsubmit="saveConfig(event)">
+    <div style="margin-bottom: 16px;">
+      <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Provider Type</label>
+      <select id="providerType" required onchange="onProviderTypeChange()"
+              style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px; background: white;">
+        <option value="saml">SAML 2.0</option>
+        <option value="oidc">OpenID Connect (OIDC)</option>
+        <option value="azure_ad">Azure AD</option>
+        <option value="google_workspace">Google Workspace</option>
+        <option value="okta">Okta</option>
+      </select>
+    </div>
+    
+    <div style="margin-bottom: 16px;">
+      <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Provider Name</label>
+      <input type="text" id="providerName" required placeholder="e.g., Company Azure AD"
+             style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+    </div>
+    
+    <!-- SAML Settings -->
+    <div id="samlSettings">
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">IdP SSO URL</label>
+        <input type="url" id="samlIdpSsoUrl" placeholder="https://idp.example.com/saml/sso"
+               style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+      </div>
+      
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">IdP Certificate (X.509)</label>
+        <textarea id="samlIdpCertificate" rows="4" placeholder="-----BEGIN CERTIFICATE-----&#10;MIIDXTCCAkWgAwIBAgIJAKoK/heBjcOu...&#10;-----END CERTIFICATE-----"
+                  style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px; resize: vertical; font-family: monospace;"></textarea>
+      </div>
+      
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Entity ID (Optional)</label>
+        <input type="text" id="samlEntityId" placeholder="https://your-domain.com/sp"
+               style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+      </div>
+    </div>
+    
+    <!-- OIDC Settings -->
+    <div id="oidcSettings" style="display: none;">
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Client ID</label>
+        <input type="text" id="oidcClientId" placeholder="your-client-id"
+               style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+      </div>
+      
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Client Secret</label>
+        <input type="password" id="oidcClientSecret" placeholder="your-client-secret"
+               style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+      </div>
+      
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Authorization Endpoint</label>
+        <input type="url" id="oidcAuthEndpoint" placeholder="https://idp.example.com/oauth2/authorize"
+               style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+      </div>
+      
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Token Endpoint</label>
+        <input type="url" id="oidcTokenEndpoint" placeholder="https://idp.example.com/oauth2/token"
+               style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+      </div>
+    </div>
+    
+    <!-- Attribute Mapping -->
+    <div class="card-title" style="margin-top: 24px;">Attribute Mapping</div>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+      <div>
+        <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Email Attribute</label>
+        <input type="text" id="emailAttribute" value="email"
+               style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+      </div>
+      <div>
+        <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Role Attribute (Optional)</label>
+        <input type="text" id="roleAttribute" placeholder="role"
+               style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+      </div>
+    </div>
+    
+    <!-- Provisioning -->
+    <div class="card-title" style="margin-top: 24px;">User Provisioning</div>
+    
+    <div style="margin-bottom: 16px;">
+      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+        <input type="checkbox" id="autoProvision" style="width: 20px; height: 20px;">
+        <span style="font-size: 14px; color: var(--gray-700);">Auto-provision new users</span>
+      </label>
+    </div>
+    
+    <div style="margin-bottom: 16px;">
+      <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Default Role for New Users</label>
+      <select id="defaultRole"
+              style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px; background: white;">
+        <option value="operator">Operator</option>
+        <option value="supervisor">Supervisor</option>
+      </select>
+    </div>
+    
+    <div style="margin-bottom: 16px;">
+      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+        <input type="checkbox" id="enforceSsoOnly" style="width: 20px; height: 20px;">
+        <span style="font-size: 14px; color: var(--gray-700);">Enforce SSO only (disable password login)</span>
+      </label>
+    </div>
+    
+    <div style="display: flex; gap: 12px; margin-top: 24px;">
+      <button type="button" class="btn btn-outline" onclick="testConfig()" style="flex: 1;">Test Connection</button>
+      <button type="submit" class="btn btn-primary" style="flex: 1;">Save Configuration</button>
+    </div>
+  </form>
+</div>
+
+<!-- SP Metadata -->
+<div id="metadataCard" class="card" style="margin-bottom: 20px; display: none;">
+  <div class="card-title">Service Provider Metadata</div>
+  <p style="font-size: 14px; color: var(--gray-600); margin-bottom: 12px;">
+    Provide this information to your Identity Provider:
+  </p>
+  
+  <div style="margin-bottom: 12px;">
+    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px; color: var(--gray-700);">SP Entity ID</label>
+    <div style="display: flex; gap: 8px;">
+      <input type="text" id="spEntityId" readonly
+             style="flex: 1; padding: 10px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 14px; background: var(--gray-50);">
+      <button type="button" class="btn btn-outline" onclick="copyToClipboard('spEntityId')" style="padding: 10px 16px;">Copy</button>
+    </div>
+  </div>
+  
+  <div style="margin-bottom: 12px;">
+    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px; color: var(--gray-700);">ACS (Assertion Consumer Service) URL</label>
+    <div style="display: flex; gap: 8px;">
+      <input type="text" id="spAcsUrl" readonly
+             style="flex: 1; padding: 10px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 14px; background: var(--gray-50);">
+      <button type="button" class="btn btn-outline" onclick="copyToClipboard('spAcsUrl')" style="padding: 10px 16px;">Copy</button>
+    </div>
+  </div>
+  
+  <div>
+    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px; color: var(--gray-700);">Metadata URL</label>
+    <div style="display: flex; gap: 8px;">
+      <input type="text" id="metadataUrl" readonly
+             style="flex: 1; padding: 10px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 14px; background: var(--gray-50);">
+      <button type="button" class="btn btn-outline" onclick="copyToClipboard('metadataUrl')" style="padding: 10px 16px;">Copy</button>
+    </div>
+  </div>
+</div>
+
+<!-- Stats -->
+<div id="statsCard" class="card" style="margin-bottom: 20px; display: none;">
+  <div class="card-title">SSO Statistics</div>
+  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; text-align: center;">
+    <div>
+      <div id="statTotalUsers" style="font-size: 28px; font-weight: 700; color: var(--primary);">-</div>
+      <div style="font-size: 12px; color: var(--gray-600);">SSO Users</div>
+    </div>
+    <div>
+      <div id="statActiveUsers" style="font-size: 28px; font-weight: 700; color: var(--success);">-</div>
+      <div style="font-size: 12px; color: var(--gray-600);">Active (30d)</div>
+    </div>
+    <div>
+      <div id="statSessions" style="font-size: 28px; font-weight: 700; color: var(--warning);">-</div>
+      <div style="font-size: 12px; color: var(--gray-600);">Active Sessions</div>
+    </div>
+  </div>
+</div>
+
+<!-- Danger Zone -->
+<div id="dangerZone" class="card" style="border: 1px solid var(--danger); background: #fff5f5; display: none;">
+  <div class="card-title" style="color: var(--danger);">Danger Zone</div>
+  
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <div style="font-weight: 500;">Delete SSO Configuration</div>
+        <div style="font-size: 13px; color: var(--gray-600);">This will disable SSO for all users</div>
+      </div>
+      <button class="btn btn-outline" style="color: var(--danger); border-color: var(--danger);" onclick="deleteConfig()">
+        Delete
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentConfig = null;
+let organizationId = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadConfig();
+});
+
+async function loadConfig() {
+  try {
+    const response = await fetch('/api/sso/config', { credentials: 'same-origin' });
+    const data = await response.json();
+    
+    if (data.success && data.data.configuration) {
+      currentConfig = data.data.configuration;
+      organizationId = currentConfig.organization_id;
+      
+      updateUI(true);
+      populateForm();
+      loadStats();
+    } else {
+      // No config yet
+      document.getElementById('statusText').textContent = 'Not Configured';
+      document.getElementById('statusCard').style.background = '#fff3e0';
+      document.getElementById('statusText').style.color = '#ef6c00';
+      document.getElementById('statusToggle').style.display = 'block';
+      document.getElementById('configForm').style.display = 'block';
+      
+      // Set default SP URLs
+      const baseUrl = window.location.origin;
+      document.getElementById('spEntityId').value = `${baseUrl}/api/sso/metadata/${organizationId || 'YOUR_ORG_ID'}`;
+      document.getElementById('spAcsUrl').value = `${baseUrl}/api/sso/callback`;
+      document.getElementById('metadataUrl').value = `${baseUrl}/api/sso/metadata/${organizationId || 'YOUR_ORG_ID'}`;
+    }
+  } catch (err) {
+    console.error('Failed to load SSO config:', err);
+    document.getElementById('statusText').textContent = 'Error Loading';
+  }
+}
+
+function updateUI(isConfigured) {
+  if (isConfigured && currentConfig) {
+    const isEnabled = currentConfig.is_enabled;
+    
+    document.getElementById('statusText').textContent = isEnabled ? 'Enabled' : 'Disabled';
+    document.getElementById('statusCard').style.background = isEnabled ? '#e8f5e9' : '#fff3e0';
+    document.getElementById('statusText').style.color = isEnabled ? '#2e7d32' : '#ef6c00';
+    
+    document.getElementById('statusToggle').style.display = 'block';
+    document.getElementById('statusToggle').innerHTML = `
+      <button class="btn btn-${isEnabled ? 'outline' : 'primary'} btn-full" onclick="toggleSSO()">
+        ${isEnabled ? 'Disable SSO' : 'Enable SSO'}
+      </button>
+    `;
+    
+    document.getElementById('configForm').style.display = 'block';
+    document.getElementById('metadataCard').style.display = 'block';
+    document.getElementById('statsCard').style.display = 'block';
+    document.getElementById('dangerZone').style.display = 'block';
+  }
+}
+
+function populateForm() {
+  if (!currentConfig) return;
+  
+  document.getElementById('providerType').value = currentConfig.provider_type;
+  document.getElementById('providerName').value = currentConfig.provider_name;
+  document.getElementById('emailAttribute').value = currentConfig.attribute_mapping?.email || 'email';
+  document.getElementById('roleAttribute').value = currentConfig.attribute_mapping?.role || '';
+  document.getElementById('autoProvision').checked = currentConfig.provisioning?.auto_provision_users || false;
+  document.getElementById('defaultRole').value = currentConfig.provisioning?.default_role || 'operator';
+  document.getElementById('enforceSsoOnly').checked = currentConfig.session?.enforce_sso_only || false;
+  
+  // SAML
+  if (currentConfig.saml) {
+    document.getElementById('samlIdpSsoUrl').value = currentConfig.saml.idp_sso_url || '';
+    document.getElementById('samlIdpCertificate').value = currentConfig.saml.idp_certificate || '';
+    document.getElementById('samlEntityId').value = currentConfig.saml.entity_id || '';
+  }
+  
+  // OIDC
+  if (currentConfig.oidc) {
+    document.getElementById('oidcClientId').value = currentConfig.oidc.client_id || '';
+    document.getElementById('oidcClientSecret').value = ''; // Don't show secret
+    document.getElementById('oidcAuthEndpoint').value = currentConfig.oidc.authorization_endpoint || '';
+    document.getElementById('oidcTokenEndpoint').value = currentConfig.oidc.token_endpoint || '';
+  }
+  
+  // SP URLs
+  const baseUrl = window.location.origin;
+  document.getElementById('spEntityId').value = currentConfig.saml?.sp_entity_id || `${baseUrl}/api/sso/metadata/${organizationId}`;
+  document.getElementById('spAcsUrl').value = currentConfig.saml?.sp_acs_url || `${baseUrl}/api/sso/callback`;
+  document.getElementById('metadataUrl').value = `${baseUrl}/api/sso/metadata/${organizationId}`;
+  
+  onProviderTypeChange();
+}
+
+async function loadStats() {
+  try {
+    const response = await fetch('/api/sso/stats', { credentials: 'same-origin' });
+    const data = await response.json();
+    
+    if (data.success) {
+      document.getElementById('statTotalUsers').textContent = data.data.total_sso_users || '0';
+      document.getElementById('statActiveUsers').textContent = data.data.active_users_30d || '0';
+      document.getElementById('statSessions').textContent = data.data.active_sessions || '0';
+    }
+  } catch (err) {
+    console.error('Failed to load stats:', err);
+  }
+}
+
+function onProviderTypeChange() {
+  const type = document.getElementById('providerType').value;
+  const isSaml = type === 'saml' || type === 'azure_ad';
+  const isOidc = type === 'oidc' || type === 'google_workspace' || type === 'okta';
+  
+  document.getElementById('samlSettings').style.display = isSaml ? 'block' : 'none';
+  document.getElementById('oidcSettings').style.display = isOidc ? 'block' : 'none';
+}
+
+async function saveConfig(event) {
+  event.preventDefault();
+  
+  const type = document.getElementById('providerType').value;
+  const isSaml = type === 'saml' || type === 'azure_ad';
+  
+  const configData = {
+    provider_type: type,
+    provider_name: document.getElementById('providerName').value,
+    attribute_mapping: {
+      email: document.getElementById('emailAttribute').value,
+      role: document.getElementById('roleAttribute').value
+    },
+    provisioning: {
+      auto_provision_users: document.getElementById('autoProvision').checked,
+      default_role: document.getElementById('defaultRole').value
+    },
+    session: {
+      enforce_sso_only: document.getElementById('enforceSsoOnly').checked
+    }
+  };
+  
+  if (isSaml) {
+    configData.saml = {
+      idp_sso_url: document.getElementById('samlIdpSsoUrl').value,
+      idp_certificate: document.getElementById('samlIdpCertificate').value,
+      entity_id: document.getElementById('samlEntityId').value
+    };
+  } else {
+    configData.oidc = {
+      client_id: document.getElementById('oidcClientId').value,
+      client_secret: document.getElementById('oidcClientSecret').value,
+      authorization_endpoint: document.getElementById('oidcAuthEndpoint').value,
+      token_endpoint: document.getElementById('oidcTokenEndpoint').value
+    };
+  }
+  
+  try {
+    const response = await fetch('/api/sso/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(configData)
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      alert('Configuration saved successfully!');
+      loadConfig();
+    } else {
+      alert(data.message || 'Failed to save configuration');
+    }
+  } catch (err) {
+    console.error('Failed to save config:', err);
+    alert('Failed to save configuration');
+  }
+}
+
+async function toggleSSO() {
+  const newState = !currentConfig?.is_enabled;
+  
+  if (newState && !confirm('Enable SSO? All users will need to log in through your identity provider.')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/sso/config/toggle', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ enabled: newState })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      alert(`SSO ${newState ? 'enabled' : 'disabled'} successfully!`);
+      loadConfig();
+    } else {
+      alert(data.message || 'Failed to toggle SSO');
+    }
+  } catch (err) {
+    console.error('Failed to toggle SSO:', err);
+    alert('Failed to toggle SSO');
+  }
+}
+
+async function testConfig() {
+  try {
+    const btn = event.target;
+    btn.textContent = 'Testing...';
+    btn.disabled = true;
+    
+    const response = await fetch('/api/sso/config/test', {
+      method: 'POST',
+      credentials: 'same-origin'
+    });
+    
+    const data = await response.json();
+    
+    alert(data.message);
+  } catch (err) {
+    console.error('Failed to test config:', err);
+    alert('Failed to test connection');
+  } finally {
+    const btn = event.target;
+    btn.textContent = 'Test Connection';
+    btn.disabled = false;
+  }
+}
+
+async function deleteConfig() {
+  if (!confirm('Are you sure you want to delete the SSO configuration? This will disable SSO for all users.')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/sso/config', {
+      method: 'DELETE',
+      credentials: 'same-origin'
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      alert('SSO configuration deleted successfully!');
+      window.location.reload();
+    } else {
+      alert(data.message || 'Failed to delete configuration');
+    }
+  } catch (err) {
+    console.error('Failed to delete config:', err);
+    alert('Failed to delete configuration');
+  }
+}
+
+function copyToClipboard(elementId) {
+  const element = document.getElementById(elementId);
+  element.select();
+  element.setSelectionRange(0, 99999);
+  navigator.clipboard.writeText(element.value).then(() => {
+    alert('Copied to clipboard!');
+  });
+}
+</script>

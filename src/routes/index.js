@@ -12,6 +12,7 @@ router.use('/auth', require('./auth.routes'));
 router.use('/users', require('./user.routes'));
 router.use('/organizations', require('./organization.routes'));
 router.use('/subscriptions', require('./subscription.routes'));
+router.use('/payments', require('./payment.routes'));
 router.use('/invitations', require('./invitation.routes'));
 router.use('/facilities', require('./facility.routes'));
 router.use('/equipment', require('./equipment.routes'));
@@ -48,6 +49,19 @@ router.use(require('./qr-label.routes'));
 
 // ODM Findings with SAP Catalog Support
 router.use('/findings', require('./finding.routes'));
+
+// Subscription-based Premium Features
+// Custom Fields (Professional+)
+router.use('/custom-fields', require('./custom-field.routes'));
+
+// SSO (Enterprise)
+router.use('/sso', require('./sso.routes'));
+
+// Audit Logs (Enterprise)
+router.use('/audit-logs', require('./audit-log.routes'));
+
+// API Keys (Professional+)
+router.use('/api-keys', require('./api-key.routes'));
 
 // SAP S/4HANA PM Catalogs (A, B, C, 5)
 router.use('/sap-catalogs', require('./sap-catalog.routes'));

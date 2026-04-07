@@ -1,84 +1,122 @@
-<!-- Mobile View -->
-<div class="mobile-only">
-  <% equipment.forEach(function(eq) { %>
-    <div class="card" style="margin-bottom: 12px;">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div style="font-weight: 600;"><%= eq.name %></div>
-        <span class="status-badge status-<%= eq.status %>"><%= eq.status %></span>
-      </div>
-      <div style="font-size: 13px; color: var(--gray-600); margin-top: 6px;">
-        <%= eq.type %> • <%= eq.facility %>
-      </div>
-      <div style="margin-top: 10px;">
-        <button class="btn btn-secondary btn-sm" onclick="location.href='/mobile/asset?code=<%= eq.id %>'">
-          Open Asset
-        </button>
-      </div>
-    </div>
-  <% }) %>
-</div>
+<% title = 'Equipment' %>
+<% showBack = false %>
+<% showNav = true %>
+<% activeNav = 'equipment' %>
 
-<!-- Desktop View - Sortable Table -->
-<div class="desktop-only">
-  <div class="filter-bar-desktop" style="margin-bottom: 20px;">
-    <div class="filter-group">
-      <label>Search:</label>
-      <input type="text" class="filter-input" id="searchEquipment" placeholder="Search equipment..." onkeyup="searchEquipment()">
+<!-- Check if equipment array is empty -->
+<% if (!equipment || equipment.length === 0) { %>
+  <!-- Empty State -->
+  <div class="empty-state" style="text-align: center; padding: 48px 24px;">
+    <div style="font-size: 72px; margin-bottom: 24px;">🔧</div>
+    <h2 style="font-size: 20px; font-weight: 600; color: var(--gray-800); margin: 0 0 12px 0;">
+      No Equipment Yet
+    </h2>
+    <p style="color: var(--gray-600); font-size: 15px; line-height: 1.6; max-width: 320px; margin: 0 auto 24px auto;">
+      Get started by adding your first piece of equipment. You'll be able to track maintenance, generate QR codes, and more.
+    </p>
+    <div style="display: flex; flex-direction: column; gap: 12px; max-width: 280px; margin: 0 auto;">
+      <a href="/mobile/admin/assets" class="btn btn-primary" style="padding: 14px 24px; font-size: 15px;">
+        <span style="margin-right: 8px;">➕</span> Add First Equipment
+      </a>
+      <button onclick="history.back()" class="btn btn-outline" style="padding: 14px 24px; font-size: 15px;">
+        ← Go Back
+      </button>
     </div>
-    <div class="filter-group">
-      <label>Status:</label>
-      <select class="filter-input" onchange="filterEquipmentStatus(this.value)">
-        <option value="all">All</option>
-        <option value="operational">Operational</option>
-        <option value="maintenance">Maintenance</option>
-        <option value="out_of_order">Out of Order</option>
-      </select>
+    <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--gray-200);">
+      <p style="font-size: 13px; color: var(--gray-500); margin: 0 0 8px 0;">
+        Need help getting started?
+      </p>
+      <a href="/mobile/home" style="font-size: 13px; color: var(--primary);">
+        Return to Dashboard
+      </a>
     </div>
-    <div style="flex: 1;"></div>
-    <button class="btn btn-primary" onclick="location.href='/mobile/admin/assets'">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
-        <line x1="12" y1="5" x2="12" y2="19"/>
-        <line x1="5" y1="12" x2="19" y2="12"/>
-      </svg>
-      Add Equipment
-    </button>
+  </div>
+<% } else { %>
+  <!-- Mobile View -->
+  <div class="mobile-only">
+    <% equipment.forEach(function(eq) { %>
+      <div class="card" style="margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-weight: 600;"><%= eq.name %></div>
+          <span class="status-badge status-<%= eq.status %>"><%= eq.status %></span>
+        </div>
+        <div style="font-size: 13px; color: var(--gray-600); margin-top: 6px;">
+          <%= eq.type %> • <%= eq.facility %>
+        </div>
+        <div style="margin-top: 10px; display: flex; gap: 8px;">
+          <button class="btn btn-secondary btn-sm" onclick="location.href='/mobile/asset?code=<%= eq.id %>'">
+            View
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="location.href='/mobile/assets/<%= eq.id %>/qr-label'">
+            QR
+          </button>
+        </div>
+      </div>
+    <% }) %>
   </div>
 
-  <div style="background: var(--white); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
-    <table class="desktop-table" id="equipmentTable">
-      <thead>
-        <tr>
-          <th class="sortable" onclick="sortEquipment('name')">Equipment Name</th>
-          <th class="sortable" onclick="sortEquipment('type')">Type</th>
-          <th class="sortable" onclick="sortEquipment('facility')">Facility</th>
-          <th class="sortable" onclick="sortEquipment('status')">Status</th>
-          <th style="width: 150px;">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% equipment.forEach(function(eq) { %>
-        <tr class="equipment-row" data-status="<%= eq.status %>" data-name="<%= eq.name.toLowerCase() %>" data-type="<%= eq.type.toLowerCase() %>">
-          <td>
-            <div style="font-weight: 600;"><%= eq.name %></div>
-            <div style="font-size: 13px; color: var(--gray-600);"><%= eq.id %></div>
-          </td>
-          <td><%= eq.type %></td>
-          <td><%= eq.facility %></td>
-          <td>
-            <span class="status-badge status-<%= eq.status %>"><%= eq.status %></span>
-          </td>
-          <td>
-            <div class="table-actions">
-              <button class="btn btn-table btn-outline" onclick="location.href='/mobile/asset?code=<%= eq.id %>'">View</button>
-              <button class="btn btn-table btn-primary" onclick="location.href='/mobile/assets/<%= eq.id %>/qr-label'">QR</button>
-            </div>
-          </td>
-        </tr>
-        <% }) %>
-      </tbody>
-    </table>
+  <!-- Desktop View - Sortable Table -->
+  <div class="desktop-only">
+    <div class="filter-bar-desktop" style="margin-bottom: 20px;">
+      <div class="filter-group">
+        <label>Search:</label>
+        <input type="text" class="filter-input" id="searchEquipment" placeholder="Search equipment..." onkeyup="searchEquipment()">
+      </div>
+      <div class="filter-group">
+        <label>Status:</label>
+        <select class="filter-input" onchange="filterEquipmentStatus(this.value)">
+          <option value="all">All</option>
+          <option value="operational">Operational</option>
+          <option value="maintenance">Maintenance</option>
+          <option value="out_of_order">Out of Order</option>
+        </select>
+      </div>
+      <div style="flex: 1;"></div>
+      <button class="btn btn-primary" onclick="location.href='/mobile/admin/assets'">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Add Equipment
+      </button>
+    </div>
+
+    <div style="background: var(--white); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+      <table class="desktop-table" id="equipmentTable">
+        <thead>
+          <tr>
+            <th class="sortable" onclick="sortEquipment('name')">Equipment Name</th>
+            <th class="sortable" onclick="sortEquipment('type')">Type</th>
+            <th class="sortable" onclick="sortEquipment('facility')">Facility</th>
+            <th class="sortable" onclick="sortEquipment('status')">Status</th>
+            <th style="width: 150px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% equipment.forEach(function(eq) { %>
+          <tr class="equipment-row" data-status="<%= eq.status %>" data-name="<%= eq.name.toLowerCase() %>" data-type="<%= eq.type.toLowerCase() %>">
+            <td>
+              <div style="font-weight: 600;"><%= eq.name %></div>
+              <div style="font-size: 13px; color: var(--gray-600);"><%= eq.id %></div>
+            </td>
+            <td><%= eq.type %></td>
+            <td><%= eq.facility %></td>
+            <td>
+              <span class="status-badge status-<%= eq.status %>"><%= eq.status %></span>
+            </td>
+            <td>
+              <div class="table-actions">
+                <button class="btn btn-table btn-outline" onclick="location.href='/mobile/asset?code=<%= eq.id %>'">View</button>
+                <button class="btn btn-table btn-primary" onclick="location.href='/mobile/assets/<%= eq.id %>/qr-label'">QR</button>
+              </div>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
   </div>
-</div>
+<% } %>
 
 <script>
 let sortDirection = {};

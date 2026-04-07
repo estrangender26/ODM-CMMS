@@ -13,18 +13,31 @@ const inspectionResultController = require('../controllers/inspection-result.con
 router.use(authenticate);
 
 /**
+ * Middleware to prevent admin users from performing inspections
+ */
+const preventAdminInspection = (req, res, next) => {
+  if (req.user?.role === 'admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Admin users cannot perform inspections. Please re-assign this task to a technician or supervisor.'
+    });
+  }
+  next();
+};
+
+/**
  * @route   POST /api/inspection-results
  * @desc    Create inspection result
- * @access  Private (Operator and above)
+ * @access  Private (Operator and above) - Admins cannot perform inspections
  */
-router.post('/', requirePermission('INSPECTIONS', 'SUBMIT'), inspectionResultController.create);
+router.post('/', requirePermission('INSPECTIONS', 'SUBMIT'), preventAdminInspection, inspectionResultController.create);
 
 /**
  * @route   POST /api/inspection-results/bulk
  * @desc    Create bulk inspection results
- * @access  Private (Operator and above)
+ * @access  Private (Operator and above) - Admins cannot perform inspections
  */
-router.post('/bulk', requirePermission('INSPECTIONS', 'SUBMIT'), inspectionResultController.createBulk);
+router.post('/bulk', requirePermission('INSPECTIONS', 'SUBMIT'), preventAdminInspection, inspectionResultController.createBulk);
 
 /**
  * @route   GET /api/inspection-results/stats

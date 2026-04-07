@@ -4,7 +4,12 @@
             <path d="M19 12H5M12 19l-7-7 7-7"/>
         </svg>
     </button>
-    <h1 class="header-title"><%= title %></h1>
+    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
+        <h1 class="header-title" style="margin-bottom: 2px;"><%= title %></h1>
+        <div id="orgBadge" style="font-size: 11px; color: rgba(255,255,255,0.8); display: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            🏢 <span id="orgNameBadge"></span>
+        </div>
+    </div>
     <div style="display: flex; gap: 8px;">
         <a href="/mobile/profile" class="btn-profile" style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); color: white; text-decoration: none;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

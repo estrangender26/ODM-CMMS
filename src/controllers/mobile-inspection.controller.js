@@ -462,7 +462,7 @@ const getFacilitiesList = async (req, res, next) => {
   try {
     const organizationId = req.user.organization_id;
     
-    const facilities = await Facility.findByOrganization(organizationId);
+    const facilities = await Facility.getByOrganization(organizationId);
     
     res.json({
       success: true,

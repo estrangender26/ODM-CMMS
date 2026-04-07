@@ -15,7 +15,7 @@
     --text: #212121;
     --white: #ffffff;
     --tap-target: 48px;
-    --header-height: 56px;
+    --header-height: 64px;
     --nav-height: 56px;
     --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }

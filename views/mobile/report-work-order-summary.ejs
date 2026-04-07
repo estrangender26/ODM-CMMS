@@ -1,0 +1,198 @@
+<% title = 'Work Order Summary' %>
+<% showBack = true %>
+<% showNav = false %>
+<% activeNav = '' %>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom: 16px;">
+  <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 140px;">
+      <label style="font-size: 12px; color: var(--gray-600);">From</label>
+      <input type="date" id="startDate" class="form-control" style="width: 100%; margin-top: 4px;">
+    </div>
+    <div style="flex: 1; min-width: 140px;">
+      <label style="font-size: 12px; color: var(--gray-600);">To</label>
+      <input type="date" id="endDate" class="form-control" style="width: 100%; margin-top: 4px;">
+    </div>
+    <div style="display: flex; align-items: flex-end;">
+      <button class="btn btn-primary" onclick="loadReport()" style="height: 40px;">
+        🔄 Refresh
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading State -->
+<div id="loadingState" style="text-align: center; padding: 40px; color: var(--gray-600);">
+  <div style="font-size: 32px; margin-bottom: 12px;">📊</div>
+  <div>Loading report...</div>
+</div>
+
+<!-- Report Content -->
+<div id="reportContent" style="display: none;">
+  <!-- Summary Cards -->
+  <div class="dashboard-stats" style="margin-bottom: 16px;">
+    <div class="stat-card">
+      <div class="stat-value" id="totalWO">-</div>
+      <div class="stat-label">Total Work Orders</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="completedWO" style="color: var(--success);">-</div>
+      <div class="stat-label">Completed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="completionRate" style="color: var(--primary);">-%</div>
+      <div class="stat-label">Completion Rate</div>
+    </div>
+  </div>
+
+  <!-- Status Breakdown -->
+  <div class="card" style="margin-bottom: 16px;">
+    <div class="card-title">By Status</div>
+    <div id="statusBreakdown" style="margin-top: 12px;">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <!-- Priority Breakdown -->
+  <div class="card" style="margin-bottom: 16px;">
+    <div class="card-title">By Priority</div>
+    <div id="priorityBreakdown" style="margin-top: 12px;">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <!-- Type Breakdown -->
+  <div class="card" style="margin-bottom: 16px;">
+    <div class="card-title">By Type</div>
+    <div id="typeBreakdown" style="margin-top: 12px;">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- Error State -->
+<div id="errorState" style="display: none; text-align: center; padding: 40px; color: var(--danger);">
+  <div style="font-size: 32px; margin-bottom: 12px;">⚠️</div>
+  <div>Failed to load report</div>
+  <button class="btn btn-outline" onclick="loadReport()" style="margin-top: 16px;">Try Again</button>
+</div>
+
+<script>
+// Set default date range (last 30 days)
+document.addEventListener('DOMContentLoaded', () => {
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - 30);
+  
+  document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+  document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+  
+  loadReport();
+});
+
+async function loadReport() {
+  const loadingEl = document.getElementById('loadingState');
+  const contentEl = document.getElementById('reportContent');
+  const errorEl = document.getElementById('errorState');
+  
+  loadingEl.style.display = 'block';
+  contentEl.style.display = 'none';
+  errorEl.style.display = 'none';
+  
+  try {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    
+    const response = await fetch(`/api/reports/work-orders/summary?${params}`, {
+      credentials: 'same-origin'
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      renderReport(data.data);
+      loadingEl.style.display = 'none';
+      contentEl.style.display = 'block';
+    } else {
+      throw new Error(data.message);
+    }
+  } catch (err) {
+    console.error('Failed to load report:', err);
+    loadingEl.style.display = 'none';
+    errorEl.style.display = 'block';
+  }
+}
+
+function renderReport(data) {
+  // Summary metrics
+  const metrics = data.metrics || {};
+  const total = metrics.total || 0;
+  const completed = metrics.completed || 0;
+  const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+  
+  document.getElementById('totalWO').textContent = total;
+  document.getElementById('completedWO').textContent = completed;
+  document.getElementById('completionRate').textContent = rate + '%';
+  
+  // Status breakdown
+  renderBreakdown('statusBreakdown', data.status_breakdown, {
+    'open': { color: '#9e9e9e', label: 'Open' },
+    'assigned': { color: '#2196f3', label: 'Assigned' },
+    'in_progress': { color: '#ff9800', label: 'In Progress' },
+    'completed': { color: '#4caf50', label: 'Completed' },
+    'closed': { color: '#4caf50', label: 'Closed' },
+    'cancelled': { color: '#f44336', label: 'Cancelled' }
+  });
+  
+  // Priority breakdown
+  renderBreakdown('priorityBreakdown', data.priority_breakdown, {
+    'low': { color: '#9e9e9e', label: 'Low' },
+    'medium': { color: '#ff9800', label: 'Medium' },
+    'high': { color: '#f44336', label: 'High' },
+    'urgent': { color: '#9c27b0', label: 'Urgent' }
+  });
+  
+  // Type breakdown
+  renderBreakdown('typeBreakdown', data.type_breakdown, {
+    'preventive': { color: '#4caf50', label: 'Preventive' },
+    'corrective': { color: '#ff9800', label: 'Corrective' },
+    'predictive': { color: '#2196f3', label: 'Predictive' },
+    'emergency': { color: '#f44336', label: 'Emergency' }
+  });
+}
+
+function renderBreakdown(elementId, data, config) {
+  const container = document.getElementById(elementId);
+  if (!data || data.length === 0) {
+    container.innerHTML = '<div style="color: var(--gray-500); text-align: center; padding: 20px;">No data available</div>';
+    return;
+  }
+  
+  const total = data.reduce((sum, item) => sum + item.count, 0);
+  
+  let html = '';
+  data.forEach(item => {
+    const pct = total > 0 ? Math.round((item.count / total) * 100) : 0;
+    const cfg = config[item.status || item.priority || item.wo_type] || { color: '#9e9e9e', label: item.status || item.priority || item.wo_type };
+    
+    html += `
+      <div style="margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 14px;">
+          <span>${cfg.label}</span>
+          <span style="font-weight: 500;">${item.count} (${pct}%)</span>
+        </div>
+        <div style="height: 8px; background: var(--gray-200); border-radius: 4px; overflow: hidden;">
+          <div style="height: 100%; width: ${pct}%; background: ${cfg.color}; border-radius: 4px;"></div>
+        </div>
+      </div>
+    `;
+  });
+  
+  container.innerHTML = html;
+}
+</script>

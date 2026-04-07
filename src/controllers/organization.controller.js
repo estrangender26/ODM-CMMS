@@ -5,6 +5,7 @@
 
 const { Organization, User } = require('../models');
 const { hashPassword } = require('../utils/helpers');
+const subscriptionService = require('../services/subscription.service');
 
 /**
  * Get all organizations (system admin only)
@@ -343,8 +344,21 @@ const getUsageStats = async (req, res, next) => {
       });
     }
 
-    // Calculate percentages
-    const limits = await Organization.findById(id);
+    // Get limits from subscription service (not from organization table)
+    const billingInfo = await subscriptionService.getBillingInfo(id);
+    const planCode = billingInfo?.plan?.code || 'free';
+    
+    // For unlimited plans (Enterprise), use null. For others, use plan limits
+    const planHasUnlimited = planCode === 'enterprise' || planCode === 'utility';
+    
+    // Use plan limits. For unlimited plans, these will be null
+    const limits = {
+      max_users: planHasUnlimited ? null : (billingInfo?.plan?.max_users ?? 5),
+      max_facilities: planHasUnlimited ? null : (billingInfo?.plan?.max_facilities ?? 1),
+      max_equipment: planHasUnlimited ? null : (billingInfo?.plan?.max_equipment ?? 10)
+    };
+    
+    // Calculate percentages (0% for unlimited plans)
     const usagePercentages = {
       users: limits.max_users > 0 ? Math.round((stats.user_count / limits.max_users) * 100) : 0,
       facilities: limits.max_facilities > 0 ? Math.round((stats.facility_count / limits.max_facilities) * 100) : 0,

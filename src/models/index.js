@@ -26,5 +26,10 @@ module.exports = {
   // SAP S/4HANA PM Catalogs (A, B, C, 5)
   ...require('./sap-catalog.model'),
   // Inspection Results
-  InspectionResult: require('./inspection-result.model')
+  InspectionResult: require('./inspection-result.model'),
+  // Subscription-based features
+  CustomField: require('./custom-field.model'),
+  SSOConfig: require('./sso-config.model'),
+  AuditLog: require('./audit-log.model'),
+  ApiKey: require('./api-key.model')
 };

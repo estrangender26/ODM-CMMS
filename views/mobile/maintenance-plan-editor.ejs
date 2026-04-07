@@ -235,17 +235,8 @@
     <div class="card" style="margin-bottom: 20px; padding: 20px;">
         <div style="font-size: 14px; font-weight: 600; color: var(--gray-700); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px;">Settings</div>
         
-        <!-- Priority -->
-        <div class="form-group" style="margin-bottom: 16px;">
-            <label class="form-label" style="display: block; font-size: 14px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px;">Priority</label>
-            <select id="priority" class="form-input" 
-                style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; box-sizing: border-box; background: white;">
-                <option value="low" <%= plan.priority === 'low' ? 'selected' : '' %>>Low</option>
-                <option value="medium" <%= plan.priority === 'medium' ? 'selected' : '' %>>Medium</option>
-                <option value="high" <%= plan.priority === 'high' ? 'selected' : '' %>>High</option>
-                <option value="urgent" <%= plan.priority === 'urgent' ? 'selected' : '' %>>Urgent</option>
-            </select>
-        </div>
+        <!-- Priority (hidden - kept in DB for future use) -->
+        <input type="hidden" id="priority" value="<%= plan.priority || 'medium' %>">
         
         <!-- Active Status -->
         <div class="form-group" style="margin-bottom: 0;">

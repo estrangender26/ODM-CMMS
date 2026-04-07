@@ -1,0 +1,371 @@
+<% title = 'Audit Logs' %>
+
+<!-- Header -->
+<div style="margin-bottom: 20px;">
+  <a href="/mobile/admin" style="display: flex; align-items: center; gap: 8px; color: var(--primary); text-decoration: none; margin-bottom: 12px;">
+    <span style="font-size: 20px;">←</span> Back to Admin
+  </a>
+  <h1 style="font-size: 24px; font-weight: 600; margin: 0;">Audit Logs</h1>
+  <p style="color: var(--gray-600); margin: 8px 0 0 0; font-size: 14px;">Track all activities in your organization</p>
+</div>
+
+<!-- Stats Cards -->
+<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px;">
+  <div class="card" style="text-align: center; padding: 16px;">
+    <div style="font-size: 24px; font-weight: 700; color: var(--primary);" id="statTotal">-</div>
+    <div style="font-size: 12px; color: var(--gray-600); margin-top: 4px;">Total Events</div>
+  </div>
+  <div class="card" style="text-align: center; padding: 16px;">
+    <div style="font-size: 24px; font-weight: 700; color: var(--success);" id="statLogins">-</div>
+    <div style="font-size: 12px; color: var(--gray-600); margin-top: 4px;">Logins</div>
+  </div>
+  <div class="card" style="text-align: center; padding: 16px;">
+    <div style="font-size: 24px; font-weight: 700; color: var(--warning);" id="statChanges">-</div>
+    <div style="font-size: 12px; color: var(--gray-600); margin-top: 4px;">Changes</div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom: 16px;">
+  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+    <select id="filterAction" onchange="loadLogs()" style="padding: 10px 14px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 14px; background: white;">
+      <option value="">All Actions</option>
+      <option value="create">Create</option>
+      <option value="update">Update</option>
+      <option value="delete">Delete</option>
+      <option value="login">Login</option>
+      <option value="login_failed">Failed Login</option>
+      <option value="logout">Logout</option>
+      <option value="data_export">Data Export</option>
+    </select>
+    
+    <select id="filterEntity" onchange="loadLogs()" style="padding: 10px 14px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 14px; background: white;">
+      <option value="">All Entities</option>
+      <option value="user">Users</option>
+      <option value="work_order">Work Orders</option>
+      <option value="equipment">Equipment</option>
+      <option value="schedule">Schedules</option>
+    </select>
+    
+    <input type="date" id="filterDate" onchange="loadLogs()" placeholder="Date"
+           style="padding: 10px 14px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 14px;">
+  </div>
+</div>
+
+<!-- Export Button -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+  <div style="font-size: 14px; color: var(--gray-600);">
+    Showing <span id="showingCount">0</span> of <span id="totalCount">0</span> logs
+  </div>
+  <button class="btn btn-outline" onclick="exportLogs()" style="font-size: 14px;">
+    📥 Export CSV
+  </button>
+</div>
+
+<!-- Logs List -->
+<div id="logsList">
+  <div class="loading-state" style="text-align: center; padding: 40px; color: var(--gray-600);">
+    Loading audit logs...
+  </div>
+</div>
+
+<!-- Load More -->
+<div id="loadMoreContainer" style="text-align: center; padding: 20px; display: none;">
+  <button class="btn btn-outline" onclick="loadMore()">Load More</button>
+</div>
+
+<!-- Log Detail Modal -->
+<div id="logModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: flex-end;">
+  <div style="background: white; border-radius: 20px 20px 0 0; padding: 24px; max-height: 90vh; overflow-y: auto; width: 100%;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h3 style="margin: 0; font-size: 20px;">Log Details</h3>
+      <button onclick="closeModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">×</button>
+    </div>
+    
+    <div id="logDetailContent">
+      <!-- Dynamic content -->
+    </div>
+  </div>
+</div>
+
+<style>
+.log-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid var(--gray-200);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.log-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.action-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.action-create { background: #e8f5e9; color: #2e7d32; }
+.action-update { background: #e3f2fd; color: #1565c0; }
+.action-delete { background: #ffebee; color: #c62828; }
+.action-login { background: #f3e5f5; color: #7b1fa2; }
+.action-login_failed { background: #fff3e0; color: #ef6c00; }
+.action-logout { background: #f5f5f5; color: #616161; }
+.action-data_export { background: #e0f2f1; color: #00695c; }
+.json-view {
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 12px;
+  font-family: monospace;
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+</style>
+
+<script>
+let logs = [];
+let offset = 0;
+const limit = 50;
+let hasMore = true;
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadStats();
+  loadLogs();
+});
+
+async function loadStats() {
+  try {
+    const response = await fetch('/api/audit-logs/stats?days=30', { credentials: 'same-origin' });
+    const data = await response.json();
+    
+    if (data.success) {
+      document.getElementById('statTotal').textContent = data.data.total_events?.toLocaleString() || '0';
+      
+      const loginAction = data.data.action_breakdown?.find(a => a.action === 'login');
+      document.getElementById('statLogins').textContent = loginAction?.count?.toLocaleString() || '0';
+      
+      const changes = data.data.action_breakdown?.filter(a => ['create', 'update', 'delete'].includes(a.action))
+        .reduce((sum, a) => sum + a.count, 0);
+      document.getElementById('statChanges').textContent = changes?.toLocaleString() || '0';
+    }
+  } catch (err) {
+    console.error('Failed to load stats:', err);
+  }
+}
+
+async function loadLogs(append = false) {
+  if (!append) {
+    offset = 0;
+    hasMore = true;
+    logs = [];
+  }
+  
+  if (!hasMore) return;
+  
+  const action = document.getElementById('filterAction').value;
+  const entityType = document.getElementById('filterEntity').value;
+  const date = document.getElementById('filterDate').value;
+  
+  let url = `/api/audit-logs?limit=${limit}&offset=${offset}`;
+  if (action) url += `&action=${action}`;
+  if (entityType) url += `&entity_type=${entityType}`;
+  if (date) url += `&start_date=${date}&end_date=${date}`;
+  
+  try {
+    const response = await fetch(url, { credentials: 'same-origin' });
+    const data = await response.json();
+    
+    if (data.success) {
+      const newLogs = data.data.logs || [];
+      
+      if (append) {
+        logs = logs.concat(newLogs);
+      } else {
+        logs = newLogs;
+      }
+      
+      offset += newLogs.length;
+      hasMore = newLogs.length === limit;
+      
+      document.getElementById('showingCount').textContent = logs.length;
+      document.getElementById('totalCount').textContent = data.data.total || logs.length;
+      
+      renderLogs();
+      
+      document.getElementById('loadMoreContainer').style.display = hasMore ? 'block' : 'none';
+    }
+  } catch (err) {
+    console.error('Failed to load logs:', err);
+    if (!append) {
+      document.getElementById('logsList').innerHTML = `
+        <div style="text-align: center; padding: 40px; color: var(--danger);">
+          Failed to load audit logs
+        </div>
+      `;
+    }
+  }
+}
+
+function renderLogs() {
+  if (logs.length === 0) {
+    document.getElementById('logsList').innerHTML = `
+      <div style="text-align: center; padding: 60px 40px; color: var(--gray-600);">
+        <div style="font-size: 64px; margin-bottom: 16px;">🔍</div>
+        <div style="font-weight: 500; margin-bottom: 8px;">No logs found</div>
+        <div style="font-size: 14px;">Try adjusting your filters</div>
+      </div>
+    `;
+    return;
+  }
+  
+  document.getElementById('logsList').innerHTML = logs.map(log => `
+    <div class="log-card" onclick="showLogDetail(${log.id})">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="action-badge action-${log.action}">${log.action}</span>
+          <span style="font-size: 13px; color: var(--gray-600);">${formatEntityType(log.entity_type)}</span>
+        </div>
+        <span style="font-size: 12px; color: var(--gray-500);">${formatDate(log.created_at)}</span>
+      </div>
+      
+      <div style="margin-bottom: 4px;">
+        ${log.entity_name ? `<span style="font-weight: 500;">${escapeHtml(log.entity_name)}</span>` : ''}
+        ${log.user_name ? `<span style="color: var(--gray-600); font-size: 13px;">by ${escapeHtml(log.user_name)}</span>` : ''}
+      </div>
+      
+      ${log.ip_address ? `<div style="font-size: 12px; color: var(--gray-500);">IP: ${log.ip_address}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function showLogDetail(id) {
+  const log = logs.find(l => l.id === id);
+  if (!log) return;
+  
+  let changesHtml = '';
+  if (log.changed_fields && log.changed_fields.length > 0) {
+    changesHtml = `
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 13px; font-weight: 500; color: var(--gray-700); margin-bottom: 8px;">Changed Fields</label>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          ${log.changed_fields.map(f => `<span style="background: var(--gray-100); padding: 4px 10px; border-radius: 12px; font-size: 12px;">${f}</span>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+  
+  let oldValuesHtml = '';
+  if (log.old_values) {
+    oldValuesHtml = `
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 13px; font-weight: 500; color: var(--gray-700); margin-bottom: 8px;">Old Values</label>
+        <div class="json-view">${JSON.stringify(log.old_values, null, 2)}</div>
+      </div>
+    `;
+  }
+  
+  let newValuesHtml = '';
+  if (log.new_values) {
+    newValuesHtml = `
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 13px; font-weight: 500; color: var(--gray-700); margin-bottom: 8px;">New Values</label>
+        <div class="json-view">${JSON.stringify(log.new_values, null, 2)}</div>
+      </div>
+    `;
+  }
+  
+  document.getElementById('logDetailContent').innerHTML = `
+    <div style="margin-bottom: 16px;">
+      <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+        <span class="action-badge action-${log.action}">${log.action}</span>
+        <span style="font-size: 14px; color: var(--gray-600);">${formatEntityType(log.entity_type)} ${log.entity_id ? `#${log.entity_id}` : ''}</span>
+      </div>
+      
+      <div style="background: var(--gray-50); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px;">
+          <div>
+            <div style="color: var(--gray-600); margin-bottom: 4px;">Timestamp</div>
+            <div style="font-weight: 500;">${formatDateTime(log.created_at)}</div>
+          </div>
+          <div>
+            <div style="color: var(--gray-600); margin-bottom: 4px;">User</div>
+            <div style="font-weight: 500;">${log.user_name || 'System'} ${log.user_role ? `(${log.user_role})` : ''}</div>
+          </div>
+          <div>
+            <div style="color: var(--gray-600); margin-bottom: 4px;">IP Address</div>
+            <div style="font-weight: 500;">${log.ip_address || 'N/A'}</div>
+          </div>
+          <div>
+            <div style="color: var(--gray-600); margin-bottom: 4px;">Endpoint</div>
+            <div style="font-weight: 500; word-break: break-all;">${log.http_method || ''} ${log.api_endpoint || 'N/A'}</div>
+          </div>
+        </div>
+      </div>
+      
+      ${changesHtml}
+      ${oldValuesHtml}
+      ${newValuesHtml}
+    </div>
+  `;
+  
+  document.getElementById('logModal').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('logModal').style.display = 'none';
+}
+
+function loadMore() {
+  loadLogs(true);
+}
+
+async function exportLogs() {
+  try {
+    const action = document.getElementById('filterAction').value;
+    const entityType = document.getElementById('filterEntity').value;
+    
+    let url = '/api/audit-logs/export/all?format=csv';
+    if (action) url += `&action=${action}`;
+    if (entityType) url += `&entity_type=${entityType}`;
+    
+    window.open(url, '_blank');
+  } catch (err) {
+    console.error('Failed to export logs:', err);
+    alert('Failed to export logs');
+  }
+}
+
+function formatEntityType(type) {
+  if (!type) return '';
+  return type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function formatDate(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDateTime(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', { 
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+</script>

@@ -41,13 +41,20 @@ class SubscriptionController {
         });
       }
 
-      const billing = await subscriptionService.getBillingInfo(organizationId);
-      const seats = await subscriptionService.getSeatUsage(organizationId);
+      let billing = await subscriptionService.getBillingInfo(organizationId);
+      let seats = await subscriptionService.getSeatUsage(organizationId);
+      
+      // If no subscription exists, create default free subscription
+      if (!billing) {
+        await subscriptionService.createDefaultSubscription(organizationId);
+        billing = await subscriptionService.getBillingInfo(organizationId);
+        seats = await subscriptionService.getSeatUsage(organizationId);
+      }
       
       if (!billing) {
-        return res.status(404).json({
+        return res.status(500).json({
           success: false,
-          message: 'Subscription not found for this organization'
+          message: 'Failed to create subscription'
         });
       }
 
@@ -78,13 +85,35 @@ class SubscriptionController {
         });
       }
 
-      const usage = await subscriptionService.getSeatUsage(organizationId);
+      let usage = await subscriptionService.getSeatUsage(organizationId);
       
+      // If no subscription, return default free plan seat usage
       if (!usage) {
-        return res.status(404).json({
-          success: false,
-          message: 'Subscription not found'
-        });
+        const { getDb } = require('../config/database');
+        const db = getDb();
+        
+        // Count active users
+        const [result] = await db.query(
+          `SELECT COUNT(*) as count FROM users WHERE organization_id = ? AND status IN ('active', 'invited')`,
+          [organizationId]
+        );
+        const used = result[0]?.count || 0;
+        const total = 5; // Free plan default
+        
+        usage = {
+          includedUsers: 3,
+          extraUsers: 0,
+          totalAllowedUsers: 5,
+          total: total,
+          maxUsers: 5,
+          activeUsers: used,
+          used: used,
+          availableSeats: Math.max(0, total - used),
+          available: Math.max(0, total - used),
+          overHardLimit: false,
+          isFull: used >= total,
+          plan: { code: 'free', name: 'Free' }
+        };
       }
 
       res.json({
@@ -103,7 +132,7 @@ class SubscriptionController {
   async changePlan(req, res, next) {
     try {
       const organizationId = req.user?.organization_id;
-      const { planId, billingCycle } = req.body;
+      const { planId, plan_code, billingCycle } = req.body;
       
       if (!organizationId) {
         return res.status(400).json({
@@ -112,14 +141,14 @@ class SubscriptionController {
         });
       }
 
-      if (!planId) {
+      if (!planId && !plan_code) {
         return res.status(400).json({
           success: false,
-          message: 'Plan ID is required'
+          message: 'Plan ID or plan code is required'
         });
       }
 
-      const billing = await subscriptionService.changePlan(organizationId, planId, {
+      const billing = await subscriptionService.changePlan(organizationId, planId || plan_code, {
         billingCycle: billingCycle || 'monthly'
       });
 

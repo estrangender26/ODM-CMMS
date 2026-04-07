@@ -75,7 +75,7 @@
 .usage-item {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 .usage-header {
   display: flex;
@@ -85,21 +85,24 @@
 .usage-label {
   font-weight: 500;
   color: var(--gray-800);
+  font-size: 14px;
 }
 .usage-value {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--gray-600);
+  font-weight: 500;
 }
 .usage-bar {
-  height: 8px;
+  height: 6px;
   background: var(--gray-200);
-  border-radius: 4px;
+  border-radius: 3px;
   overflow: hidden;
 }
 .usage-fill {
   height: 100%;
-  border-radius: 4px;
+  border-radius: 3px;
   transition: width 0.3s ease;
+  min-width: 2px; /* Ensure very small percentages are visible */
 }
 .usage-fill.safe { background: var(--success); }
 .usage-fill.warning { background: var(--warning); }
@@ -163,13 +166,31 @@ async function loadUsageStats() {
   try {
     if (!currentOrg) return;
     
-    const response = await fetch(`/api/organizations/${currentOrg.id}/stats`);
+    const response = await fetch(`/api/organizations/${currentOrg.id}/stats`, { credentials: 'same-origin' });
     const data = await response.json();
     
     if (data.success) {
-      const stats = data.data.stats;
-      const limits = stats.limits;
-      const percentages = stats.usage_percentages;
+      const stats = data.data.stats || {};
+      const limits = stats.limits || {};
+      
+      // Use actual counts
+      const userCount = stats.user_count || 0;
+      const facilityCount = stats.facility_count || 0;
+      const equipmentCount = stats.equipment_count || 0;
+      const workOrderCount = stats.work_order_count || 0;
+      
+      // Use limits from subscription plan ONLY
+      // API returns null for unlimited plans (Enterprise), undefined if not set
+      const maxUsers = limits.max_users === undefined ? 5 : limits.max_users;
+      const maxFacilities = limits.max_facilities === undefined ? 1 : limits.max_facilities;
+      const maxEquipment = limits.max_equipment === undefined ? 10 : limits.max_equipment;
+      const maxWorkOrders = limits.max_work_orders_per_month ?? null;
+      
+      // Calculate percentages directly from counts and limits (ignore API percentages)
+      const userPct = maxUsers > 0 ? (userCount / maxUsers) * 100 : 0;
+      const facilityPct = maxFacilities > 0 ? (facilityCount / maxFacilities) * 100 : 0;
+      const equipmentPct = maxEquipment > 0 ? (equipmentCount / maxEquipment) * 100 : 0;
+      const workOrderPct = maxWorkOrders > 0 ? (workOrderCount / maxWorkOrders) * 100 : 0;
       
       const getBarClass = (pct) => {
         if (pct < 70) return 'safe';
@@ -177,49 +198,68 @@ async function loadUsageStats() {
         return 'danger';
       };
       
+      const formatLimit = (limit) => limit === null || limit === undefined ? '∞' : limit;
+      
+      // Build Work Orders HTML - show progress bar only if there's a monthly limit
+      const workOrdersHtml = maxWorkOrders > 0 ? `
+        <div class="usage-bar">
+          <div class="usage-fill ${getBarClass(workOrderPct)}" style="width: ${Math.min(workOrderPct, 100)}%"></div>
+        </div>
+      ` : '';
+      
       document.getElementById('usageStats').innerHTML = `
         <div class="usage-item">
           <div class="usage-header">
             <span class="usage-label">👥 Users</span>
-            <span class="usage-value">${stats.user_count} / ${limits.max_users}</span>
+            <span class="usage-value">${userCount} / ${formatLimit(maxUsers)}</span>
           </div>
           <div class="usage-bar">
-            <div class="usage-fill ${getBarClass(percentages.users)}" style="width: ${Math.min(percentages.users, 100)}%"></div>
+            <div class="usage-fill ${getBarClass(userPct)}" style="width: ${Math.min(userPct, 100)}%"></div>
           </div>
         </div>
         
         <div class="usage-item">
           <div class="usage-header">
             <span class="usage-label">🏭 Facilities</span>
-            <span class="usage-value">${stats.facility_count} / ${limits.max_facilities}</span>
+            <span class="usage-value">${facilityCount} / ${formatLimit(maxFacilities)}</span>
           </div>
           <div class="usage-bar">
-            <div class="usage-fill ${getBarClass(percentages.facilities)}" style="width: ${Math.min(percentages.facilities, 100)}%"></div>
+            <div class="usage-fill ${getBarClass(facilityPct)}" style="width: ${Math.min(facilityPct, 100)}%"></div>
           </div>
         </div>
         
         <div class="usage-item">
           <div class="usage-header">
             <span class="usage-label">⚙️ Equipment</span>
-            <span class="usage-value">${stats.equipment_count} / ${limits.max_equipment}</span>
+            <span class="usage-value">${equipmentCount} / ${formatLimit(maxEquipment)}</span>
           </div>
           <div class="usage-bar">
-            <div class="usage-fill ${getBarClass(percentages.equipment)}" style="width: ${Math.min(percentages.equipment, 100)}%"></div>
+            <div class="usage-fill ${getBarClass(equipmentPct)}" style="width: ${Math.min(equipmentPct, 100)}%"></div>
           </div>
         </div>
         
         <div class="usage-item">
           <div class="usage-header">
             <span class="usage-label">📋 Work Orders (This Month)</span>
-            <span class="usage-value">${stats.work_order_count}</span>
+            <span class="usage-value">${workOrderCount}${maxWorkOrders ? ' / ' + maxWorkOrders : ''}</span>
           </div>
+          ${workOrdersHtml}
+        </div>
+      `;
+    } else {
+      // Show default empty state
+      document.getElementById('usageStats').innerHTML = `
+        <div style="text-align: center; color: var(--gray-600); padding: 20px;">
+          No usage data available
         </div>
       `;
     }
   } catch (err) {
     console.error('Failed to load usage stats:', err);
     document.getElementById('usageStats').innerHTML = `
-      <div style="text-align: center; color: var(--danger);">Failed to load usage stats</div>
+      <div style="text-align: center; color: var(--gray-600); padding: 20px;">
+        No usage data available
+      </div>
     `;
   }
 }
@@ -230,11 +270,11 @@ async function loadSubscription() {
     const data = await response.json();
     
     if (data.success) {
-      currentSubscription = data.data.subscription;
-      const plan = data.data.plan;
+      const subscription = data.data.subscription;
+      const plan = subscription.plan;
       
       const planClass = `plan-${plan.code || 'free'}`;
-      const statusClass = `status-${currentSubscription.status}`;
+      const statusClass = `status-${subscription.status}`;
       
       document.getElementById('subscriptionInfo').innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
@@ -242,17 +282,17 @@ async function loadSubscription() {
             <div style="font-size: 13px; color: var(--gray-600); margin-bottom: 4px;">Current Plan</div>
             <div style="font-size: 20px; font-weight: 600;">${plan.name}</div>
           </div>
-          <span class="plan-badge ${planClass}">${plan.code || 'FREE'}</span>
+          <span class="plan-badge ${planClass}">${(plan.code || 'FREE').toUpperCase()}</span>
         </div>
         
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <div>
             <div style="font-size: 13px; color: var(--gray-600); margin-bottom: 4px;">Status</div>
-            <span class="status-badge ${statusClass}">${currentSubscription.status}</span>
+            <span class="status-badge ${statusClass}">${subscription.status}</span>
           </div>
           <div style="text-align: right;">
             <div style="font-size: 13px; color: var(--gray-600); margin-bottom: 4px;">Renews</div>
-            <div>${formatDate(currentSubscription.current_period_end)}</div>
+            <div>${formatDate(subscription.currentPeriodEnd)}</div>
           </div>
         </div>
         
@@ -260,15 +300,15 @@ async function loadSubscription() {
           <div style="font-size: 13px; color: var(--gray-600); margin-bottom: 8px;">Plan Includes</div>
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; text-align: center;">
             <div>
-              <div style="font-size: 20px; font-weight: 600;">${plan.max_users || currentOrg.max_users}</div>
+              <div style="font-size: 20px; font-weight: 600;">${plan.max_users || '∞'}</div>
               <div style="font-size: 12px; color: var(--gray-600);">Users</div>
             </div>
             <div>
-              <div style="font-size: 20px; font-weight: 600;">${plan.max_facilities || currentOrg.max_facilities}</div>
+              <div style="font-size: 20px; font-weight: 600;">${plan.max_facilities || '∞'}</div>
               <div style="font-size: 12px; color: var(--gray-600);">Facilities</div>
             </div>
             <div>
-              <div style="font-size: 20px; font-weight: 600;">${plan.max_equipment || currentOrg.max_equipment}</div>
+              <div style="font-size: 20px; font-weight: 600;">${plan.max_equipment || '∞'}</div>
               <div style="font-size: 12px; color: var(--gray-600);">Equipment</div>
             </div>
           </div>
@@ -278,11 +318,25 @@ async function loadSubscription() {
           Manage Subscription
         </a>
       `;
+    } else {
+      document.getElementById('subscriptionInfo').innerHTML = `
+        <div style="text-align: center; color: var(--gray-600);">
+          <div style="margin-bottom: 12px;">No active subscription</div>
+          <a href="/mobile/admin/subscription" class="btn btn-primary btn-full" style="text-align: center; display: block; text-decoration: none;">
+            View Plans
+          </a>
+        </div>
+      `;
     }
   } catch (err) {
     console.error('Failed to load subscription:', err);
     document.getElementById('subscriptionInfo').innerHTML = `
-      <div style="text-align: center; color: var(--danger);">Failed to load subscription</div>
+      <div style="text-align: center; color: var(--gray-600);">
+        <div style="margin-bottom: 12px;">No subscription data available</div>
+        <a href="/mobile/admin/subscription" class="btn btn-primary btn-full" style="text-align: center; display: block; text-decoration: none;">
+          View Plans
+        </a>
+      </div>
     `;
   }
 }

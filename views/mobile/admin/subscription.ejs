@@ -1,5 +1,8 @@
 <% title = 'Subscription Management' %>
 
+<!-- Payment Status Messages -->
+<div id="paymentStatus"></div>
+
 <!-- Current Plan Card -->
 <div class="card" style="margin-bottom: 20px; background: linear-gradient(135deg, var(--primary) 0%, #1565c0 100%); color: white;">
   <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
@@ -44,15 +47,29 @@
   </div>
 </div>
 
-<!-- Extra Seats Card -->
-<div class="card" style="margin-bottom: 20px;">
+<!-- Extra Seats Card (hidden for Free plan) -->
+<div id="extraSeatsSection" class="card" style="margin-bottom: 20px; display: none;">
   <div class="card-title">Add Extra Seats</div>
+  
+  <div style="margin-bottom: 12px; padding: 12px; background: var(--gray-50); border-radius: 8px;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 14px; color: var(--gray-600);">Price per seat</span>
+      <span id="seatPrice" style="font-size: 18px; font-weight: 600; color: var(--primary);">$0</span>
+    </div>
+    <div id="seatTotalPrice" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--gray-200); display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 14px; color: var(--gray-600);">Total</span>
+        <span id="seatTotalAmount" style="font-size: 20px; font-weight: 700; color: var(--gray-900);">$0</span>
+      </div>
+    </div>
+  </div>
   
   <div style="display: flex; gap: 12px; align-items: flex-end;">
     <div style="flex: 1;">
       <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Number of Seats</label>
       <input type="number" id="extraSeats" min="1" max="50" value="1"
-             style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+             style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;"
+             oninput="updateSeatTotal()">
     </div>
     <button class="btn btn-primary" onclick="addExtraSeats()" id="addSeatsBtn">
       Add Seats
@@ -210,32 +227,114 @@ let currentPlan = null;
 let availablePlans = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Check for payment status in URL
+  checkPaymentStatus();
+  
   await loadSubscription();
   await loadSeatUsage();
   await loadPlans();
+  await loadBillingHistory();
 });
+
+function checkPaymentStatus() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const payment = urlParams.get('payment');
+  const error = urlParams.get('error');
+  
+  const statusDiv = document.getElementById('paymentStatus');
+  
+  if (payment === 'success') {
+    statusDiv.innerHTML = `
+      <div style="padding: 16px; background: #e8f5e9; border-radius: 12px; margin-bottom: 20px; border: 1px solid #4caf50;">
+        <div style="font-weight: 600; color: #2e7d32; margin-bottom: 4px;">✅ Payment Successful!</div>
+        <div style="font-size: 14px; color: #555;">Your subscription has been updated. Thank you!</div>
+      </div>
+    `;
+    // Clear the URL parameter
+    window.history.replaceState({}, document.title, window.location.pathname);
+  } else if (payment === 'cancelled') {
+    statusDiv.innerHTML = `
+      <div style="padding: 16px; background: #fff3e0; border-radius: 12px; margin-bottom: 20px; border: 1px solid #ff9800;">
+        <div style="font-weight: 600; color: #ef6c00; margin-bottom: 4px;">⚠️ Payment Cancelled</div>
+        <div style="font-size: 14px; color: #555;">No charges were made. You can try again anytime.</div>
+      </div>
+    `;
+    window.history.replaceState({}, document.title, window.location.pathname);
+  } else if (error) {
+    statusDiv.innerHTML = `
+      <div style="padding: 16px; background: #ffebee; border-radius: 12px; margin-bottom: 20px; border: 1px solid #f44336;">
+        <div style="font-weight: 600; color: #c62828; margin-bottom: 4px;">❌ Payment Error</div>
+        <div style="font-size: 14px; color: #555;">${decodeURIComponent(error)}</div>
+      </div>
+    `;
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}
 
 async function loadSubscription() {
   try {
     const response = await fetch('/api/subscriptions/current', { credentials: 'same-origin' });
     const data = await response.json();
     
-    if (data.success) {
+    if (data.success && data.data) {
       currentSubscription = data.data.subscription;
-      currentPlan = data.data.plan;
+      currentPlan = data.data.plan || {};
       
-      document.getElementById('currentPlanName').textContent = currentPlan.name;
-      document.getElementById('currentPlanBadge').textContent = currentPlan.code || 'FREE';
-      document.getElementById('subscriptionStatus').textContent = currentSubscription.status;
-      document.getElementById('nextBilling').textContent = formatDate(currentSubscription.current_period_end);
+      document.getElementById('currentPlanName').textContent = currentPlan.name || 'Free';
+      document.getElementById('currentPlanBadge').textContent = (currentPlan.code || 'FREE').toUpperCase();
+      document.getElementById('subscriptionStatus').textContent = currentSubscription.status || 'active';
+      document.getElementById('nextBilling').textContent = formatDate(currentSubscription.currentPeriodEnd || currentSubscription.current_period_end);
       
-      // Show cancel section for paid plans
+      // Show cancel section for paid plans (but not extra seats for Enterprise)
       if (currentPlan.code !== 'free' && currentSubscription.status === 'active') {
         document.getElementById('cancelSection').style.display = 'block';
+        
+        // Only show extra seats for Starter and Professional (not Enterprise)
+        // Enterprise has unlimited users included
+        if (currentPlan.code === 'starter' || currentPlan.code === 'professional') {
+          document.getElementById('extraSeatsSection').style.display = 'block';
+          
+          // Set seat price from subscription or plan
+          const pricePerSeat = currentPlan.pricePerAdditionalUser || 
+                              currentPlan.price_per_additional_user ||
+                              currentSubscription.pricePerAdditionalUser || 
+                              currentSubscription.price_per_additional_user ||
+                              0;
+          document.getElementById('seatPrice').textContent = `$${pricePerSeat}/mo`;
+          updateSeatTotal();
+        }
       }
+    } else {
+      // No subscription - show defaults
+      document.getElementById('currentPlanName').textContent = 'Free';
+      document.getElementById('currentPlanBadge').textContent = 'FREE';
+      document.getElementById('subscriptionStatus').textContent = 'active';
+      document.getElementById('nextBilling').textContent = 'N/A';
     }
   } catch (err) {
     console.error('Failed to load subscription:', err);
+    // Show defaults on error
+    document.getElementById('currentPlanName').textContent = 'Free';
+    document.getElementById('currentPlanBadge').textContent = 'FREE';
+    document.getElementById('subscriptionStatus').textContent = 'active';
+    document.getElementById('nextBilling').textContent = 'N/A';
+  }
+}
+
+function updateSeatTotal() {
+  const count = parseInt(document.getElementById('extraSeats').value) || 0;
+  const priceText = document.getElementById('seatPrice').textContent;
+  const pricePerSeat = parseFloat(priceText.replace('$', '').replace('/mo', '')) || 0;
+  const total = count * pricePerSeat;
+  
+  const totalDiv = document.getElementById('seatTotalPrice');
+  const totalAmount = document.getElementById('seatTotalAmount');
+  
+  if (count > 1) {
+    totalDiv.style.display = 'block';
+    totalAmount.textContent = `$${total.toFixed(2)}/mo`;
+  } else {
+    totalDiv.style.display = 'none';
   }
 }
 
@@ -244,16 +343,20 @@ async function loadSeatUsage() {
     const response = await fetch('/api/subscriptions/seats', { credentials: 'same-origin' });
     const data = await response.json();
     
-    if (data.success) {
+    if (data.success && data.data) {
       const seats = data.data;
-      const percentage = (seats.used / seats.total) * 100;
+      const used = seats.used || 0;
+      const total = seats.total || 5;
+      const available = seats.available !== undefined ? seats.available : total - used;
+      const extra = seats.extra || 0;
+      const percentage = total > 0 ? (used / total) * 100 : 0;
       const barClass = percentage < 70 ? 'safe' : percentage < 90 ? 'warning' : 'danger';
       
       document.getElementById('seatUsage').innerHTML = `
         <div class="seat-bar-container">
           <div class="seat-bar-header">
-            <span>${seats.used} of ${seats.total} seats used</span>
-            <span>${seats.available} available</span>
+            <span>${used} of ${total} seats used</span>
+            <span>${available} available</span>
           </div>
           <div class="seat-bar">
             <div class="seat-bar-fill ${barClass}" style="width: ${Math.min(percentage, 100)}%"></div>
@@ -263,31 +366,62 @@ async function loadSeatUsage() {
         <div class="seat-legend">
           <div class="seat-legend-item">
             <div class="seat-legend-dot" style="background: var(--success);"></div>
-            <span>Active: ${seats.used}</span>
+            <span>Active: ${used}</span>
           </div>
           <div class="seat-legend-item">
             <div class="seat-legend-dot" style="background: var(--gray-300);"></div>
-            <span>Available: ${seats.available}</span>
+            <span>Available: ${available}</span>
           </div>
-          ${seats.extra > 0 ? `
+          ${extra > 0 ? `
           <div class="seat-legend-item">
             <div class="seat-legend-dot" style="background: var(--primary);"></div>
-            <span>Extra: ${seats.extra}</span>
+            <span>Extra: ${extra}</span>
           </div>
           ` : ''}
         </div>
         
-        ${seats.available <= 0 ? `
+        ${available <= 0 ? `
         <div style="margin-top: 16px; padding: 12px; background: #fff3e0; border-radius: 8px; color: #ef6c00; font-size: 14px;">
           ⚠️ You've reached your seat limit. Add extra seats or upgrade your plan to add more users.
         </div>
         ` : ''}
       `;
+    } else {
+      // No seat data - show defaults for free plan
+      document.getElementById('seatUsage').innerHTML = `
+        <div class="seat-bar-container">
+          <div class="seat-bar-header">
+            <span>0 of 5 seats used</span>
+            <span>5 available</span>
+          </div>
+          <div class="seat-bar">
+            <div class="seat-bar-fill safe" style="width: 0%"></div>
+          </div>
+        </div>
+        <div class="seat-legend">
+          <div class="seat-legend-item">
+            <div class="seat-legend-dot" style="background: var(--success);"></div>
+            <span>Active: 0</span>
+          </div>
+          <div class="seat-legend-item">
+            <div class="seat-legend-dot" style="background: var(--gray-300);"></div>
+            <span>Available: 5</span>
+          </div>
+        </div>
+      `;
     }
   } catch (err) {
     console.error('Failed to load seat usage:', err);
     document.getElementById('seatUsage').innerHTML = `
-      <div style="text-align: center; color: var(--danger);">Failed to load seat usage</div>
+      <div class="seat-bar-container">
+        <div class="seat-bar-header">
+          <span>0 of 5 seats used</span>
+          <span>5 available</span>
+        </div>
+        <div class="seat-bar">
+          <div class="seat-bar-fill safe" style="width: 0%"></div>
+        </div>
+      </div>
     `;
   }
 }
@@ -309,6 +443,50 @@ async function loadPlans() {
   }
 }
 
+function formatFeature(feature) {
+  const featureLabels = {
+    'work_orders': 'Work Orders',
+    'equipment': 'Equipment Management',
+    'inspections': 'Inspections',
+    'findings': 'Findings & Defects',
+    'qr_labels': 'QR Code Labels',
+    'schedules': 'Maintenance Schedules',
+    'maintenance_plans': 'Maintenance Plans',
+    'task_templates': 'Task Templates',
+    'asset_import': 'Bulk Asset Import',
+    'basic_reports': 'Work Order Summary',
+    'standard_reports': 'Work Order & Equipment Reports',
+    'advanced_reports': 'All Reports + Trends',
+    'custom_reports': 'All Reports + CSV Export',
+    'email_notifications': 'Email Notifications',
+    'mobile_app': 'Mobile App Access',
+    'priority_support': 'Priority Support',
+    'dedicated_support': 'Dedicated Support',
+    'sla': 'SLA Guarantee',
+    'api_access': 'API Access'
+  };
+  return featureLabels[feature] || feature.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function getFeatureIcon(feature) {
+  if (feature.includes('report')) return '📊';
+  if (feature.includes('support')) return '🤝';
+  if (feature.includes('mobile')) return '📱';
+  if (feature.includes('email')) return '📧';
+  if (feature.includes('qr')) return '🏷️';
+  if (feature.includes('import')) return '📥';
+  if (feature.includes('schedule')) return '📅';
+  if (feature.includes('template')) return '📋';
+  if (feature.includes('work')) return '🔧';
+  if (feature.includes('equipment')) return '⚙️';
+  if (feature.includes('inspection')) return '🔍';
+  if (feature.includes('finding')) return '⚠️';
+  if (feature.includes('plan')) return '📆';
+  if (feature.includes('api')) return '🔌';
+  if (feature.includes('sla')) return '✅';
+  return '✓';
+}
+
 function renderPlans() {
   const container = document.getElementById('plansList');
   
@@ -316,30 +494,64 @@ function renderPlans() {
     const isCurrent = currentPlan && plan.id === currentPlan.id;
     const isRecommended = plan.code === 'professional';
     
+    // Handle missing data gracefully
+    const price = plan.price_monthly != null ? plan.price_monthly : 0;
+    const maxUsers = plan.max_users != null ? plan.max_users : 'unlimited';
+    const maxFacilities = plan.max_facilities != null ? plan.max_facilities : 'unlimited';
+    const maxEquipment = plan.max_equipment != null ? plan.max_equipment : 'unlimited';
+    const features = plan.features || [];
+    
+    // Group features
+    const coreFeatures = features.filter(f => ['work_orders', 'equipment', 'inspections', 'findings', 'qr_labels', 'mobile_app'].includes(f));
+    const advancedFeatures = features.filter(f => ['schedules', 'maintenance_plans', 'task_templates', 'asset_import'].includes(f));
+    const reportFeatures = features.filter(f => f.includes('report'));
+    const supportFeatures = features.filter(f => ['email_notifications', 'priority_support', 'dedicated_support', 'sla', 'api_access'].includes(f));
+    
     return `
       <div class="plan-card ${isCurrent ? 'current' : ''} ${isRecommended ? 'recommended' : ''}">
         ${isRecommended ? '<div class="plan-recommended-badge">Recommended</div>' : ''}
         
         <div class="plan-header">
-          <div class="plan-name">${plan.name}</div>
+          <div class="plan-name">${plan.name || 'Unknown'}</div>
           <div class="plan-price">
-            $${plan.price_monthly}
-            <span>/mo</span>
+            ${price === 0 ? 'Free' : '$' + price}
+            ${price > 0 ? '<span>/mo</span>' : ''}
+          </div>
+        </div>
+        
+        <div class="plan-limits" style="margin-bottom: 16px; padding: 12px; background: var(--gray-50); border-radius: 8px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+            <span style="color: var(--gray-600);">👥 Users</span>
+            <span style="font-weight: 500;">${maxUsers === null ? 'Unlimited' : 'Up to ' + maxUsers}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+            <span style="color: var(--gray-600);">🏭 Facilities</span>
+            <span style="font-weight: 500;">${maxFacilities === null ? 'Unlimited' : 'Up to ' + maxFacilities}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 14px;">
+            <span style="color: var(--gray-600);">⚙️ Equipment</span>
+            <span style="font-weight: 500;">${maxEquipment === null ? 'Unlimited' : 'Up to ' + maxEquipment}</span>
           </div>
         </div>
         
         <ul class="plan-features">
-          <li>Up to ${plan.max_users} users</li>
-          <li>Up to ${plan.max_facilities} facilities</li>
-          <li>Up to ${plan.max_equipment} equipment</li>
-          ${plan.features ? plan.features.map(f => `<li>${f}</li>`).join('') : ''}
+          ${coreFeatures.map(f => `<li>${getFeatureIcon(f)} ${formatFeature(f)}</li>`).join('')}
+          ${advancedFeatures.map(f => `<li>${getFeatureIcon(f)} ${formatFeature(f)}</li>`).join('')}
+          ${reportFeatures.length > 0 ? `
+            <li style="margin-top: 8px; font-weight: 600; color: var(--gray-700); font-size: 13px;">📊 REPORTS</li>
+            ${reportFeatures.map(f => `<li style="padding-left: 12px;">${getFeatureIcon(f)} ${formatFeature(f)}</li>`).join('')}
+          ` : ''}
+          ${supportFeatures.length > 0 ? `
+            <li style="margin-top: 8px; font-weight: 600; color: var(--gray-700); font-size: 13px;">🤝 SUPPORT</li>
+            ${supportFeatures.map(f => `<li style="padding-left: 12px;">${getFeatureIcon(f)} ${formatFeature(f)}</li>`).join('')}
+          ` : ''}
         </ul>
         
         ${isCurrent ? `
           <button class="btn btn-outline btn-full" disabled>Current Plan</button>
         ` : `
           <button class="btn btn-primary btn-full" onclick="upgradePlan('${plan.code}')">
-            ${currentPlan && currentPlan.price_monthly > plan.price_monthly ? 'Downgrade' : 'Upgrade'}
+            ${currentPlan && currentPlan.price_monthly > price ? 'Downgrade' : price === 0 ? 'Get Started' : 'Upgrade'}
           </button>
         `}
       </div>
@@ -348,29 +560,62 @@ function renderPlans() {
 }
 
 async function upgradePlan(planCode) {
-  if (!confirm(`Are you sure you want to change to the ${planCode} plan?`)) {
-    return;
-  }
+  // Find the plan price
+  const plan = availablePlans.find(p => p.code === planCode);
+  if (!plan) return;
   
-  try {
-    const response = await fetch('/api/subscriptions/plan', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({ plan_code: planCode })
-    });
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      alert('Plan updated successfully!');
-      location.reload();
-    } else {
-      alert(data.message || 'Failed to update plan');
+  // If it's a paid plan, use Stripe checkout
+  if (plan.price_monthly > 0) {
+    if (!confirm(`You will be redirected to Stripe to complete payment for the ${plan.name} plan ($${plan.price_monthly}/month). Continue?`)) {
+      return;
     }
-  } catch (err) {
-    console.error('Failed to upgrade plan:', err);
-    alert('Failed to update plan. Please try again.');
+    
+    try {
+      const response = await fetch('/api/payments/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ planCode: planCode })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.data.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.data.url;
+      } else {
+        alert(data.message || 'Failed to create checkout session');
+      }
+    } catch (err) {
+      console.error('Checkout error:', err);
+      alert('Failed to start checkout. Please try again.');
+    }
+  } else {
+    // Free plan - just change directly
+    if (!confirm(`Are you sure you want to change to the ${planCode} plan?`)) {
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/subscriptions/plan', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ plan_code: planCode })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('Plan updated successfully!');
+        location.reload();
+      } else {
+        alert(data.message || 'Failed to update plan');
+      }
+    } catch (err) {
+      console.error('Failed to upgrade plan:', err);
+      alert('Failed to update plan. Please try again.');
+    }
   }
 }
 
@@ -382,53 +627,84 @@ async function addExtraSeats() {
     return;
   }
   
+  if (count > 50) {
+    showError('seatsError', 'Maximum 50 seats can be added at once');
+    return;
+  }
+  
+  // Calculate total price for confirmation
+  const priceText = document.getElementById('seatPrice').textContent;
+  const pricePerSeat = parseFloat(priceText.replace('$', '').replace('/mo', '')) || 0;
+  const totalPrice = (count * pricePerSeat).toFixed(2);
+  
+  const confirmMsg = count === 1 
+    ? `Add ${count} extra seat for $${totalPrice}/month?\n\nYou will be redirected to checkout to complete payment.`
+    : `Add ${count} extra seats for $${totalPrice}/month?\n\nYou will be redirected to checkout to complete payment.`;
+  
+  if (!confirm(confirmMsg)) {
+    return;
+  }
+  
+  hideError('seatsError');
   const btn = document.getElementById('addSeatsBtn');
   btn.disabled = true;
-  btn.textContent = 'Adding...';
+  btn.textContent = 'Processing...';
   
   try {
-    const response = await fetch('/api/subscriptions/extra-users', {
-      method: 'PUT',
+    const response = await fetch('/api/payments/extra-seats', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ count })
+      body: JSON.stringify({ seatCount: count })
     });
     
     const data = await response.json();
     
-    if (data.success) {
-      showSuccess('seatsSuccess', `${count} extra seat${count > 1 ? 's' : ''} added successfully!`);
-      hideError('seatsError');
-      await loadSeatUsage();
+    if (data.success && data.data.url) {
+      // Redirect to Stripe Checkout
+      window.location.href = data.data.url;
     } else {
-      showError('seatsError', data.message);
-      hideSuccess('seatsSuccess');
+      console.error('Add seats error:', data.message);
+      showError('seatsError', data.message || 'Failed to create checkout. Please try again.');
+      btn.disabled = false;
+      btn.textContent = 'Add Seats';
     }
   } catch (err) {
     console.error('Failed to add seats:', err);
     showError('seatsError', 'Failed to add seats. Please try again.');
-    hideSuccess('seatsSuccess');
-  } finally {
     btn.disabled = false;
     btn.textContent = 'Add Seats';
   }
 }
 
 async function cancelSubscription() {
-  if (!confirm('Are you sure you want to cancel your subscription? You will be downgraded to the Free plan at the end of your billing period.')) {
+  const planName = currentPlan?.name || 'Current';
+  const endDate = currentSubscription?.currentPeriodEnd || currentSubscription?.current_period_end;
+  const endDateStr = endDate ? formatDate(endDate) : 'the end of your billing period';
+  
+  const confirmMsg = `⚠️ Cancel ${planName} Subscription?\n\n` +
+    `• Your subscription will remain active until ${endDateStr}\n` +
+    `• After that, you'll be downgraded to the Free plan\n` +
+    `• Your data will be preserved\n` +
+    `• Some features may become unavailable\n\n` +
+    `Are you sure you want to cancel?`;
+  
+  if (!confirm(confirmMsg)) {
     return;
   }
   
   try {
     const response = await fetch('/api/subscriptions/cancel', {
       method: 'POST',
-      credentials: 'same-origin'
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ reason: 'User requested cancellation' })
     });
     
     const data = await response.json();
     
     if (data.success) {
-      alert('Subscription cancelled successfully. You will be downgraded at the end of your billing period.');
+      alert(`✅ Subscription cancelled successfully.\n\nYou will continue to have access until ${endDateStr}.`);
       location.reload();
     } else {
       alert(data.message || 'Failed to cancel subscription');
@@ -460,5 +736,76 @@ function showSuccess(id, msg) {
   el.textContent = msg;
   el.style.display = 'block';
   setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+async function loadBillingHistory() {
+  const container = document.getElementById('billingHistory');
+  
+  try {
+    const response = await fetch('/api/payments/history', { credentials: 'same-origin' });
+    const data = await response.json();
+    
+    // API returns { data: { payments: [...] } }
+    const payments = data.data?.payments || [];
+    
+    if (data.success && payments.length > 0) {
+      
+      let html = '<table style="width: 100%; border-collapse: collapse;">';
+      html += '<thead><tr style="border-bottom: 1px solid var(--gray-200);">';
+      html += '<th style="text-align: left; padding: 12px 8px; font-size: 13px; color: var(--gray-600);">Date</th>';
+      html += '<th style="text-align: left; padding: 12px 8px; font-size: 13px; color: var(--gray-600);">Description</th>';
+      html += '<th style="text-align: right; padding: 12px 8px; font-size: 13px; color: var(--gray-600);">Amount</th>';
+      html += '<th style="text-align: center; padding: 12px 8px; font-size: 13px; color: var(--gray-600);">Status</th>';
+      html += '</tr></thead><tbody>';
+      
+      payments.forEach(payment => {
+        const date = new Date(payment.created_at || payment.createdAt);
+        const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const amount = parseFloat(payment.amount) === 0 ? '$0.00' : `$${parseFloat(payment.amount).toFixed(2)}`;
+        const isSubscription = payment.type === 'subscription';
+        const icon = isSubscription ? '📋' : '💳';
+        
+        let statusBadge = '';
+        if (payment.status === 'succeeded') {
+          statusBadge = isSubscription 
+            ? '<span style="background: #e3f2fd; color: #1565c0; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">Active</span>'
+            : '<span style="background: #e8f5e9; color: #2e7d32; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">Paid</span>';
+        } else if (payment.status === 'pending') {
+          statusBadge = '<span style="background: #fff3e0; color: #ef6c00; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">Pending</span>';
+        } else if (payment.status === 'failed') {
+          statusBadge = '<span style="background: #ffebee; color: #c62828; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">Failed</span>';
+        } else {
+          statusBadge = `<span style="background: var(--gray-100); color: var(--gray-600); padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">${payment.status}</span>`;
+        }
+        
+        html += `<tr style="border-bottom: 1px solid var(--gray-100);">`;
+        html += `<td style="padding: 12px 8px; font-size: 14px;">${dateStr}</td>`;
+        html += `<td style="padding: 12px 8px; font-size: 14px;"><span style="margin-right: 6px;">${icon}</span>${payment.description || 'Payment'}</td>`;
+        html += `<td style="padding: 12px 8px; font-size: 14px; text-align: right; font-weight: 500; color: ${parseFloat(payment.amount) === 0 ? 'var(--gray-500)' : 'var(--gray-900)'};">${amount}</td>`;
+        html += `<td style="padding: 12px 8px; text-align: center;">${statusBadge}</td>`;
+        html += `</tr>`;
+      });
+      
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    } else {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 20px; color: var(--gray-600);">
+          <div style="font-size: 32px; margin-bottom: 12px;">🧾</div>
+          <div>No billing history yet</div>
+          <div style="font-size: 13px; margin-top: 8px;">Payments will appear here once you make a purchase</div>
+        </div>
+      `;
+    }
+  } catch (err) {
+    console.error('Failed to load billing history:', err);
+    container.innerHTML = `
+      <div style="text-align: center; padding: 20px; color: var(--gray-600);">
+        <div style="font-size: 32px; margin-bottom: 12px;">⚠️</div>
+        <div>Failed to load billing history</div>
+        <div style="font-size: 13px; margin-top: 8px;">Please try again later</div>
+      </div>
+    `;
+  }
 }
 </script>

@@ -7,13 +7,23 @@ const { Equipment } = require('../models');
 const qrLabelService = require('../services/qr-label.service');
 
 /**
- * Get all equipment (organization-aware)
- * Includes ISO 14224 classification
+ * Get all equipment (organization-aware, role-based filtering)
+ * Admin sees all in org, Supervisor/Operator sees only their facility's equipment
  */
 const getAll = async (req, res, next) => {
   try {
     const organizationId = req.user.organization_id;
+    const userRole = req.user?.role;
+    const userFacilityId = req.user?.facility_id;
     
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User must belong to an organization'
+      });
+    }
+    
+    // Build filters from query params
     const filters = {
       facility_id: req.query.facility_id,
       status: req.query.status,
@@ -23,6 +33,19 @@ const getAll = async (req, res, next) => {
       equipment_class_id: req.query.equipment_class_id,
       equipment_type_id: req.query.equipment_type_id
     };
+    
+    // Apply role-based facility filtering
+    if (userRole === 'supervisor' || userRole === 'operator') {
+      if (!userFacilityId) {
+        return res.status(403).json({
+          success: false,
+          message: 'You must be assigned to a facility to view equipment'
+        });
+      }
+      
+      // Override facility_id to restrict to user's facility
+      filters.facility_id = userFacilityId.toString();
+    }
 
     // Use ISO classification aware method
     const equipment = await Equipment.getAllWithIsoClassification(organizationId, filters);

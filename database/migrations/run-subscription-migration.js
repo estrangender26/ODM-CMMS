@@ -121,10 +121,10 @@ async function runMigration() {
     console.log('Part 3: Seeding subscription plans...');
     
     const plans = [
-      ['free', 'Free', 'Basic maintenance management for small teams', 3, 5, 0.00, 0.00, '["work_orders", "equipment", "basic_reports"]', true, true, 1],
-      ['starter', 'Starter', 'Perfect for small maintenance teams', 5, 25, 49.00, 10.00, '["work_orders", "equipment", "schedules", "inspections", "standard_reports", "email_notifications"]', true, true, 2],
-      ['professional', 'Professional', 'Advanced features for growing organizations', 15, 100, 149.00, 8.00, '["work_orders", "equipment", "schedules", "inspections", "advanced_reports", "custom_fields", "api_access", "priority_support"]', true, true, 3],
-      ['enterprise', 'Enterprise', 'Unlimited users and premium features', 50, null, 499.00, 5.00, '["all_features", "dedicated_support", "sla", "custom_integrations", "sso", "audit_logs", "data_retention"]', true, false, 4]
+      ['free', 'Free', 'Basic maintenance for small teams getting started', 3, 5, 0.00, 0.00, '["work_orders", "equipment", "inspections", "findings", "qr_labels", "basic_reports", "mobile_app"]', true, true, 1],
+      ['starter', 'Starter', 'For small teams with scheduling needs', 5, 25, 49.00, 10.00, '["work_orders", "equipment", "inspections", "findings", "qr_labels", "schedules", "maintenance_plans", "task_templates", "standard_reports", "email_notifications", "mobile_app"]', true, true, 2],
+      ['professional', 'Professional', 'For growing organizations', 15, 100, 149.00, 8.00, '["work_orders", "equipment", "inspections", "findings", "qr_labels", "schedules", "maintenance_plans", "task_templates", "asset_import", "advanced_reports", "priority_support", "mobile_app"]', true, true, 3],
+      ['enterprise', 'Enterprise', 'For large organizations', 50, null, 499.00, 5.00, '["work_orders", "equipment", "inspections", "findings", "qr_labels", "schedules", "maintenance_plans", "task_templates", "asset_import", "custom_reports", "dedicated_support", "sla", "api_access", "mobile_app"]', true, false, 4]
     ];
     
     for (const plan of plans) {

@@ -292,8 +292,8 @@ class EquipmentModel extends BaseModel {
       SELECT e.*,
         f.name as facility_name, f.code as facility_code,
         et.type_code, et.type_name,
-        cl.class_code, cl.class_name,
-        c.category_code, c.category_name,
+        cl.id as class_id, cl.class_code, cl.class_name,
+        c.id as category_id, c.category_code, c.category_name,
         CONCAT(COALESCE(c.category_name, ''), ' > ', COALESCE(cl.class_name, ''), ' > ', COALESCE(et.type_name, '')) as iso_classification
       FROM ${this.tableName} e
       JOIN facilities f ON e.facility_id = f.id

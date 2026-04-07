@@ -298,9 +298,10 @@
                 </div>
             </div>
             
-            <button class="btn btn-primary btn-large btn-full" onclick="nextStep()">
-                Continue
-            </button>
+            <div class="wizard-actions">
+                <button class="btn btn-outline btn-large btn-half" onclick="cancelSetup()">Cancel</button>
+                <button class="btn btn-primary btn-large btn-half" onclick="nextStep()">Continue</button>
+            </div>
         </div>
         
         <!-- Step 2: Import Assets -->
@@ -517,6 +518,12 @@
         function prevStep() {
             if (currentStep > 1) {
                 showStep(currentStep - 1);
+            }
+        }
+        
+        function cancelSetup() {
+            if (confirm('Are you sure you want to cancel? Your progress will be lost.')) {
+                window.location.href = '/mobile/admin';
             }
         }
         

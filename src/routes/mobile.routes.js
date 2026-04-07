@@ -208,8 +208,15 @@ router.post('/work-orders/:id/complete', requireAuth, (req, res) => {
   res.json({ success: true, status: 'completed' });
 });
 
-// Inspection Execution
+// Inspection Execution - blocked for admins
 router.get('/inspection/:workOrderId', requireAuth, (req, res) => {
+  // Prevent admins from accessing inspection
+  if (req.user?.role === 'admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Admin users cannot perform inspections. Please re-assign this task to a technician or supervisor.'
+    });
+  }
   const workOrderId = req.params.workOrderId;
   const itemIndex = parseInt(req.query.item) || 1;
   const totalItems = 12;
@@ -264,21 +271,32 @@ router.get('/inspection/:workOrderId', requireAuth, (req, res) => {
   renderMobile(res, 'inspection', data);
 });
 
-// Save inspection response
-router.post('/inspection/:workOrderId/item/:itemId', requireAuth, (req, res) => {
+// Helper to block admin inspections
+const blockAdminInspection = (req, res, next) => {
+  if (req.user?.role === 'admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Admin users cannot perform inspections. Please re-assign this task to a technician or supervisor.'
+    });
+  }
+  next();
+};
+
+// Save inspection response - blocked for admins
+router.post('/inspection/:workOrderId/item/:itemId', requireAuth, blockAdminInspection, (req, res) => {
   // Save inspection response
   // Return next item or completion
   res.json({ success: true });
 });
 
-// Create finding
-router.post('/inspection/:workOrderId/finding', requireAuth, (req, res) => {
+// Create finding - blocked for admins
+router.post('/inspection/:workOrderId/finding', requireAuth, blockAdminInspection, (req, res) => {
   // Create finding from inspection
   res.json({ success: true, findingId: 'FND-001' });
 });
 
-// Ad-hoc Inspection (no work order - using equipment type template)
-router.get('/inspection/adhoc', requireAuth, (req, res) => {
+// Ad-hoc Inspection (no work order - using equipment type template) - blocked for admins
+router.get('/inspection/adhoc', requireAuth, blockAdminInspection, (req, res) => {
   const equipmentTypeId = req.query.equipmentTypeId || 'ETYPE-001';
   const itemIndex = parseInt(req.query.item) || 1;
   const totalItems = 8;
@@ -397,20 +415,54 @@ router.get('/asset', requireAuth, async (req, res) => {
   }
 });
 
-// Equipment List
-router.get('/equipment', requireAuth, (req, res) => {
-  const data = {
-    title: 'Equipment',
-    showBack: false,
-    showNav: true,
-    activeNav: 'equipment',
-    equipment: [
-      { id: 'EQ-001', name: 'Pump P-101', type: 'Centrifugal Pump', facility: 'North Plant', status: 'operational' },
-      { id: 'EQ-002', name: 'Motor M-205', type: 'Electric Motor', facility: 'South Plant', status: 'operational' },
-      { id: 'EQ-003', name: 'Heat Exchanger HX-301', type: 'Shell and Tube', facility: 'North Plant', status: 'maintenance' }
-    ]
-  };
-  renderMobile(res, 'equipment-list', data);
+// Equipment List - with role-based facility filtering
+router.get('/equipment', requireAuth, async (req, res) => {
+  try {
+    const { Equipment } = require('../models');
+    const organizationId = req.user.organization_id;
+    const userRole = req.user?.role;
+    const userFacilityId = req.user?.facility_id;
+    
+    // Build filters based on role
+    const filters = {};
+    
+    // Supervisor and Operator can only see equipment in their facility
+    if ((userRole === 'supervisor' || userRole === 'operator') && userFacilityId) {
+      filters.facility_id = userFacilityId.toString();
+    }
+    
+    // Get real equipment from database with filters
+    const equipment = await Equipment.getAllWithIsoClassification(organizationId, filters);
+    
+    // Format for display
+    const formattedEquipment = equipment.map(eq => ({
+      id: eq.id,
+      name: eq.equipment_name || eq.name || 'Unnamed',
+      type: eq.equipment_type || eq.type_name || 'Unknown',
+      facility: eq.facility_name || 'Unknown',
+      status: eq.status || 'active'
+    }));
+    
+    const data = {
+      title: 'Equipment',
+      showBack: false,
+      showNav: true,
+      activeNav: 'equipment',
+      equipment: formattedEquipment
+    };
+    renderMobile(res, 'equipment-list', data);
+  } catch (error) {
+    console.error('Equipment list error:', error);
+    // Fallback to empty list on error
+    const data = {
+      title: 'Equipment',
+      showBack: false,
+      showNav: true,
+      activeNav: 'equipment',
+      equipment: []
+    };
+    renderMobile(res, 'equipment-list', data);
+  }
 });
 
 // Asset History
@@ -445,6 +497,71 @@ router.get('/asset/:assetId/history', requireAuth, (req, res) => {
     ]
   };
   renderMobile(res, 'asset-history', data);
+});
+
+/**
+ * Reports Routes
+ */
+router.get('/reports', requireAuth, requirePermission('REPORTS', 'VIEW'), (req, res) => {
+  renderMobile(res, 'reports', {
+    title: 'Reports',
+    showBack: false,
+    showNav: true,
+    activeNav: 'reports'
+  });
+});
+
+// Work Order Summary Report
+router.get('/reports/work-order-summary', requireAuth, requirePermission('REPORTS', 'VIEW'), (req, res) => {
+  renderMobile(res, 'report-work-order-summary', {
+    title: 'Work Order Summary',
+    showBack: true,
+    showNav: false,
+    activeNav: ''
+  });
+});
+
+// Equipment Maintenance Report
+router.get('/reports/equipment-report', requireAuth, requirePermission('REPORTS', 'VIEW'), (req, res) => {
+  renderMobile(res, 'report-equipment', {
+    title: 'Equipment Maintenance Report',
+    showBack: true,
+    showNav: false,
+    activeNav: ''
+  });
+});
+
+// Technician Performance Report (Placeholder)
+router.get('/reports/technician-report', requireAuth, requirePermission('REPORTS', 'VIEW'), (req, res) => {
+  renderMobile(res, 'report-placeholder', {
+    title: 'Technician Performance',
+    showBack: true,
+    showNav: false,
+    activeNav: '',
+    reportTitle: 'Technician Performance'
+  });
+});
+
+// Schedule Compliance Report (Placeholder)
+router.get('/reports/schedule-compliance', requireAuth, requirePermission('REPORTS', 'VIEW'), (req, res) => {
+  renderMobile(res, 'report-placeholder', {
+    title: 'Schedule Compliance',
+    showBack: true,
+    showNav: false,
+    activeNav: '',
+    reportTitle: 'Schedule Compliance'
+  });
+});
+
+// Work Order Trends Report (Placeholder)
+router.get('/reports/trends', requireAuth, requirePermission('REPORTS', 'VIEW'), (req, res) => {
+  renderMobile(res, 'report-placeholder', {
+    title: 'Work Order Trends',
+    showBack: true,
+    showNav: false,
+    activeNav: '',
+    reportTitle: 'Work Order Trends'
+  });
 });
 
 /**
@@ -788,23 +905,41 @@ router.get('/maintenance-plans/:id/edit', requireAuth, requireAdminUI, async (re
  */
 
 // Admin Hub - accessible by admin and supervisor
-router.get('/admin', requireAuth, requireAdminUI, (req, res) => {
+router.get('/admin', requireAuth, requireAdminUI, async (req, res) => {
+  const subscriptionService = require('../services/subscription.service');
+  const billing = await subscriptionService.getBillingInfo(req.user.organization_id);
+  const planCode = billing?.plan?.code || 'free';
+  
+  const sections = [
+    { label: 'Onboarding', href: '/mobile/onboarding', icon: 'rocket' },
+    { label: 'Users', href: '/mobile/admin/users', icon: 'users' },
+    { label: 'Organization', href: '/mobile/admin/organization', icon: 'settings' },
+    { label: 'Subscription', href: '/mobile/admin/subscription', icon: 'credit' },
+    { label: 'Facilities', href: '/mobile/admin/facilities', icon: 'building' },
+    { label: 'Assets', href: '/mobile/admin/assets', icon: 'box' },
+    { label: 'Templates', href: '/mobile/admin/templates', icon: 'file' },
+    { label: 'Scheduler', href: '/mobile/calendar', icon: 'calendar' },
+    { label: 'QR Labels', href: '/mobile/qr-labels', icon: 'qr' }
+  ];
+  
+  // Add premium features based on plan
+  if (['professional', 'enterprise', 'utility'].includes(planCode)) {
+    sections.push({ label: 'Custom Fields', href: '/mobile/admin/custom-fields', icon: 'form' });
+    sections.push({ label: 'API Keys', href: '/mobile/admin/api-keys', icon: 'key' });
+  }
+  
+  if (['enterprise', 'utility'].includes(planCode)) {
+    sections.push({ label: 'SSO Config', href: '/mobile/admin/sso', icon: 'lock' });
+    sections.push({ label: 'Audit Logs', href: '/mobile/admin/audit-logs', icon: 'shield' });
+  }
+  
   const data = {
     title: 'Admin',
     showBack: false,
     showNav: true,
     activeNav: 'admin',
-    sections: [
-      { label: 'Onboarding', href: '/mobile/onboarding', icon: 'rocket' },
-      { label: 'Users', href: '/mobile/admin/users', icon: 'users' },
-      { label: 'Organization', href: '/mobile/admin/organization', icon: 'settings' },
-      { label: 'Subscription', href: '/mobile/admin/subscription', icon: 'credit' },
-      { label: 'Facilities', href: '/mobile/admin/facilities', icon: 'building' },
-      { label: 'Assets', href: '/mobile/admin/assets', icon: 'box' },
-      { label: 'Templates', href: '/mobile/admin/templates', icon: 'file' },
-      { label: 'Scheduler', href: '/mobile/calendar', icon: 'calendar' },
-      { label: 'QR Labels', href: '/mobile/qr-labels', icon: 'qr' }
-    ]
+    sections,
+    planCode
   };
   renderMobile(res, 'admin/index', data);
 });
@@ -938,6 +1073,50 @@ router.get('/admin/subscription', requireAuth, requireAdminOnly, (req, res) => {
   renderMobile(res, 'admin/subscription', data);
 });
 
+// Custom Fields - admin only, requires Professional+
+router.get('/admin/custom-fields', requireAuth, requireAdminOnly, (req, res) => {
+  const data = {
+    title: 'Custom Fields',
+    showBack: true,
+    showNav: true,
+    activeNav: 'admin'
+  };
+  renderMobile(res, 'admin/custom-fields', data);
+});
+
+// API Keys - admin only, requires Professional+
+router.get('/admin/api-keys', requireAuth, requireAdminOnly, (req, res) => {
+  const data = {
+    title: 'API Keys',
+    showBack: true,
+    showNav: true,
+    activeNav: 'admin'
+  };
+  renderMobile(res, 'admin/api-keys', data);
+});
+
+// SSO Configuration - admin only, requires Enterprise
+router.get('/admin/sso', requireAuth, requireAdminOnly, (req, res) => {
+  const data = {
+    title: 'SSO Configuration',
+    showBack: true,
+    showNav: true,
+    activeNav: 'admin'
+  };
+  renderMobile(res, 'admin/sso', data);
+});
+
+// Audit Logs - admin only, requires Enterprise
+router.get('/admin/audit-logs', requireAuth, requireAdminOnly, (req, res) => {
+  const data = {
+    title: 'Audit Logs',
+    showBack: true,
+    showNav: true,
+    activeNav: 'admin'
+  };
+  renderMobile(res, 'admin/audit-logs', data);
+});
+
 // API Endpoints for mobile app
 
 // Get work orders for current user
@@ -949,7 +1128,7 @@ router.get('/api/work-orders', requireAuth, (req, res) => {
   });
 });
 
-// Get inspection item
+// Get inspection item - viewable by all authenticated users
 router.get('/api/inspection/:workOrderId/item/:sequence', requireAuth, (req, res) => {
   res.json({
     item: {
@@ -963,8 +1142,8 @@ router.get('/api/inspection/:workOrderId/item/:sequence', requireAuth, (req, res
   });
 });
 
-// Submit inspection response
-router.post('/api/inspection/response', requireAuth, (req, res) => {
+// Submit inspection response - blocked for admins
+router.post('/api/inspection/response', requireAuth, blockAdminInspection, (req, res) => {
   const { workOrderId, itemId, response, notes, photo } = req.body;
   // Save to database
   res.json({ success: true, nextItemSequence: 2 });

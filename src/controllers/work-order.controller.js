@@ -17,18 +17,26 @@ const isSystemAdmin = async (userId) => {
 };
 
 /**
- * Get all work orders (organization-aware)
- * Admin sees all in org, Supervisor sees only their facility's work orders
+ * Get all work orders (organization-aware, role-based filtering)
+ * Admin sees all in org, Supervisor sees facility's work orders, Operator sees only their assigned
  */
 const getAll = async (req, res, next) => {
   try {
     const organizationId = req.user.organization_id;
-    const { role, facility_id } = req.user;
+    const { role, facility_id, id: userId } = req.user;
     
     if (!organizationId) {
       return res.status(400).json({
         success: false,
         message: 'User must belong to an organization'
+      });
+    }
+    
+    // Operators should use getMyWorkOrders endpoint instead
+    if (role === 'operator') {
+      return res.status(403).json({
+        success: false,
+        message: 'Operators can only view their assigned work orders via /api/work-orders/my'
       });
     }
     

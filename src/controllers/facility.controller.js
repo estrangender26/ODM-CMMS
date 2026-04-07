@@ -6,11 +6,14 @@
 const { Facility } = require('../models');
 
 /**
- * Get all facilities (organization-aware)
+ * Get all facilities (organization-aware, role-based filtering)
+ * Admin sees all, Supervisor/Operator sees only their assigned facility
  */
 const getAll = async (req, res, next) => {
   try {
     const organizationId = req.user.organization_id;
+    const userRole = req.user?.role;
+    const userFacilityId = req.user?.facility_id;
     
     if (!organizationId) {
       return res.status(400).json({
@@ -19,7 +22,17 @@ const getAll = async (req, res, next) => {
       });
     }
     
-    const facilities = await Facility.getAllWithManager(organizationId);
+    let facilities;
+    
+    // Supervisor and Operator can only see their assigned facility
+    if ((userRole === 'supervisor' || userRole === 'operator') && userFacilityId) {
+      const facility = await Facility.getWithStats(userFacilityId, organizationId);
+      facilities = facility ? [facility] : [];
+    } else {
+      // Admin sees all facilities in organization
+      facilities = await Facility.getAllWithManager(organizationId);
+    }
+    
     res.json({
       success: true,
       data: { facilities }

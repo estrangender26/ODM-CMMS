@@ -1,0 +1,210 @@
+<% title = 'Equipment Maintenance Report' %>
+<% showBack = true %>
+<% showNav = false %>
+<% activeNav = '' %>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom: 16px;">
+  <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+    <div style="flex: 1; min-width: 140px;">
+      <label style="font-size: 12px; color: var(--gray-600);">Facility</label>
+      <select id="facilityFilter" class="form-control" style="width: 100%; margin-top: 4px;">
+        <option value="">All Facilities</option>
+      </select>
+    </div>
+    <div style="flex: 1; min-width: 140px;">
+      <label style="font-size: 12px; color: var(--gray-600);">Category</label>
+      <select id="categoryFilter" class="form-control" style="width: 100%; margin-top: 4px;">
+        <option value="">All Categories</option>
+        <option value="pump">Pump</option>
+        <option value="motor">Motor</option>
+        <option value="valve">Valve</option>
+        <option value="compressor">Compressor</option>
+        <option value="conveyor">Conveyor</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div>
+      <button class="btn btn-primary" onclick="loadReport()" style="height: 40px;">
+        🔄 Refresh
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading State -->
+<div id="loadingState" style="text-align: center; padding: 40px; color: var(--gray-600);">
+  <div style="font-size: 32px; margin-bottom: 12px;">⚙️</div>
+  <div>Loading equipment report...</div>
+</div>
+
+<!-- Report Content -->
+<div id="reportContent" style="display: none;">
+  <!-- Summary Cards -->
+  <div class="dashboard-stats" style="margin-bottom: 16px;">
+    <div class="stat-card">
+      <div class="stat-value" id="totalEquipment">-</div>
+      <div class="stat-label">Total Equipment</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="totalWO" style="color: var(--primary);">-</div>
+      <div class="stat-label">Work Orders</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="overdueCount" style="color: var(--danger);">-</div>
+      <div class="stat-label">Overdue PM</div>
+    </div>
+  </div>
+
+  <!-- Equipment List -->
+  <div class="card">
+    <div class="card-title">Equipment Details</div>
+    <div id="equipmentList" style="margin-top: 12px;">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- Empty State -->
+<div id="emptyState" style="display: none; text-align: center; padding: 40px;">
+  <div style="font-size: 48px; margin-bottom: 16px;">🔧</div>
+  <div style="font-size: 18px; font-weight: 600; color: var(--gray-700); margin-bottom: 8px;">No Equipment Found</div>
+  <div style="color: var(--gray-600);">Try adjusting your filters or add equipment first.</div>
+  <a href="/mobile/equipment" class="btn btn-primary" style="margin-top: 16px;">
+    View Equipment List
+  </a>
+</div>
+
+<!-- Error State -->
+<div id="errorState" style="display: none; text-align: center; padding: 40px; color: var(--danger);">
+  <div style="font-size: 32px; margin-bottom: 12px;">⚠️</div>
+  <div>Failed to load report</div>
+  <button class="btn btn-outline" onclick="loadReport()" style="margin-top: 16px;">Try Again</button>
+</div>
+
+<script>
+// Load facilities for filter
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadFacilities();
+  loadReport();
+});
+
+async function loadFacilities() {
+  try {
+    const response = await fetch('/api/facilities', { credentials: 'same-origin' });
+    const data = await response.json();
+    
+    if (data.success && data.data) {
+      const select = document.getElementById('facilityFilter');
+      data.data.forEach(facility => {
+        const option = document.createElement('option');
+        option.value = facility.id;
+        option.textContent = facility.name;
+        select.appendChild(option);
+      });
+    }
+  } catch (err) {
+    console.error('Failed to load facilities:', err);
+  }
+}
+
+async function loadReport() {
+  const loadingEl = document.getElementById('loadingState');
+  const contentEl = document.getElementById('reportContent');
+  const emptyEl = document.getElementById('emptyState');
+  const errorEl = document.getElementById('errorState');
+  
+  loadingEl.style.display = 'block';
+  contentEl.style.display = 'none';
+  emptyEl.style.display = 'none';
+  errorEl.style.display = 'none';
+  
+  try {
+    const facilityId = document.getElementById('facilityFilter').value;
+    const category = document.getElementById('categoryFilter').value;
+    
+    const params = new URLSearchParams();
+    if (facilityId) params.append('facility_id', facilityId);
+    if (category) params.append('category', category);
+    
+    const response = await fetch(`/api/reports/equipment?${params}`, {
+      credentials: 'same-origin'
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      if (data.data && data.data.length > 0) {
+        renderReport(data.data);
+        loadingEl.style.display = 'none';
+        contentEl.style.display = 'block';
+      } else {
+        loadingEl.style.display = 'none';
+        emptyEl.style.display = 'block';
+      }
+    } else {
+      throw new Error(data.message);
+    }
+  } catch (err) {
+    console.error('Failed to load report:', err);
+    loadingEl.style.display = 'none';
+    errorEl.style.display = 'block';
+  }
+}
+
+function renderReport(data) {
+  // Calculate summary
+  const totalEquipment = data.length;
+  const totalWO = data.reduce((sum, item) => sum + (item.work_order_count || 0), 0);
+  const overdueCount = data.filter(item => item.overdue_count > 0).length;
+  
+  document.getElementById('totalEquipment').textContent = totalEquipment;
+  document.getElementById('totalWO').textContent = totalWO;
+  document.getElementById('overdueCount').textContent = overdueCount;
+  
+  // Render equipment list
+  const container = document.getElementById('equipmentList');
+  
+  let html = '';
+  data.forEach(item => {
+    const hasOverdue = item.overdue_count > 0;
+    
+    html += `
+      <div style="border: 1px solid var(--gray-200); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+          <div>
+            <div style="font-weight: 600; font-size: 14px;">${item.asset_name || 'Unknown'}</div>
+            <div style="font-size: 12px; color: var(--gray-600);">${item.asset_code || ''}</div>
+          </div>
+          <span style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: ${hasOverdue ? '#ffebee' : '#e8f5e9'}; color: ${hasOverdue ? '#c62828' : '#2e7d32'};">
+            ${hasOverdue ? '⚠️ Overdue' : '✓ Current'}
+          </span>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--gray-100);">
+          <div style="text-align: center;">
+            <div style="font-weight: 600; color: var(--primary);">${item.work_order_count || 0}</div>
+            <div style="color: var(--gray-600);">Work Orders</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-weight: 600; color: var(--success);">${item.completed_count || 0}</div>
+            <div style="color: var(--gray-600);">Completed</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-weight: 600; color: ${hasOverdue ? 'var(--danger)' : 'var(--gray-600)'};">${item.overdue_count || 0}</div>
+            <div style="color: var(--gray-600);">Overdue</div>
+          </div>
+        </div>
+        
+        ${item.last_maintenance_date ? `
+          <div style="font-size: 11px; color: var(--gray-600); margin-top: 8px;">
+            Last maintenance: ${new Date(item.last_maintenance_date).toLocaleDateString()}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  });
+  
+  container.innerHTML = html;
+}
+</script>

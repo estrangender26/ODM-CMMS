@@ -132,18 +132,25 @@
 </div>
 
 <style>
+/* Mobile-first: single column list */
 .user-card {
   background: white;
   border-radius: 12px;
-  padding: 16px;
+  padding: 14px 16px;
   border: 1px solid var(--gray-200);
   display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.user-card > div:first-child {
+  display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+  width: 100%;
 }
 .user-avatar {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: var(--primary);
   color: white;
@@ -151,7 +158,7 @@
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 18px;
+  font-size: 16px;
   flex-shrink: 0;
 }
 .user-info {
@@ -160,29 +167,33 @@
 }
 .user-name {
   font-weight: 600;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 15px;
+  color: var(--gray-800);
 }
 .user-meta {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--gray-600);
+  line-height: 1.4;
 }
 .user-role {
   display: inline-block;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 .role-admin { background: #e3f2fd; color: #1565c0; }
 .role-supervisor { background: #f3e5f5; color: #7b1fa2; }
 .role-operator { background: #e8f5e9; color: #2e7d32; }
 .user-status {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -191,14 +202,38 @@
 .user-actions {
   display: flex;
   gap: 8px;
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1px solid var(--gray-100);
+}
+.user-actions .btn {
+  padding: 6px 14px;
+  font-size: 12px;
 }
 .modal.active {
   display: flex !important;
 }
-@media (min-width: 768px) {
+
+/* Tablet and small desktop: 2 columns */
+@media (min-width: 640px) {
   .users-list {
     display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+/* Large desktop: 3 columns */
+@media (min-width: 1024px) {
+  .users-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Extra large: 4 columns */
+@media (min-width: 1400px) {
+  .users-list {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 </style>
@@ -302,18 +337,22 @@ function renderUsers() {
   emptyEl.style.display = 'none';
   listEl.innerHTML = filtered.map(user => `
     <div class="user-card" data-id="${user.id}">
-      <div class="user-avatar">${getInitials(user.full_name)}</div>
-      <div class="user-info">
-        <div class="user-name">${escapeHtml(user.full_name)}</div>
-        <div class="user-meta">${escapeHtml(user.username)} • ${escapeHtml(user.email)}</div>
-        <div class="user-meta">${user.facility_name || 'No facility'}</div>
+      <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+        <div class="user-avatar">${getInitials(user.full_name)}</div>
+        <div class="user-info">
+          <div class="user-name">${escapeHtml(user.full_name)}</div>
+          <div class="user-meta">${escapeHtml(user.username)} • ${escapeHtml(user.email)}</div>
+          <div class="user-meta">${user.facility_name || 'No facility'}</div>
+        </div>
       </div>
-      <span class="user-role role-${user.role}">${user.role}</span>
-      <div class="user-status ${user.is_active ? 'status-active' : 'status-inactive'}"></div>
+      <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+        <span class="user-role role-${user.role}">${user.role}</span>
+        <div class="user-status ${user.is_active ? 'status-active' : 'status-inactive'}" title="${user.is_active ? 'Active' : 'Inactive'}"></div>
+      </div>
       <div class="user-actions">
         <button class="btn btn-sm btn-outline" onclick="editUser(${user.id})">Edit</button>
         ${currentUserIsOrgAdmin && user.id !== currentUserId() ? `
-          <button class="btn btn-sm btn-outline" style="color: var(--danger);" onclick="deleteUser(${user.id})">Delete</button>
+          <button class="btn btn-sm btn-outline" style="color: var(--danger); border-color: var(--danger);" onclick="deleteUser(${user.id})">Delete</button>
         ` : ''}
       </div>
     </div>

@@ -3,6 +3,24 @@
 <% showNav = true %>
 <% activeNav = 'home' %>
 
+<!-- Organization Card -->
+<div id="orgCard" class="card" style="margin-bottom: 16px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark, #1565c0) 100%); color: white; display: none;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="width: 48px; height: 48px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+            🏭
+        </div>
+        <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12px; opacity: 0.8; margin-bottom: 2px;">Organization</div>
+            <div id="orgCardName" style="font-size: 18px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+        </div>
+        <a href="/mobile/admin/organization" style="color: white; opacity: 0.8; text-decoration: none;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"/>
+            </svg>
+        </a>
+    </div>
+</div>
+
 <!-- Dashboard Stats -->
 <div class="dashboard-stats">
     <div class="stat-card">
@@ -90,3 +108,24 @@
         </button>
     </div>
 </div>
+
+<script>
+// Load organization info
+(async function loadOrgInfo() {
+    try {
+        const response = await fetch('/api/organizations/my', { credentials: 'same-origin' });
+        const data = await response.json();
+        if (data.success && data.data.organization) {
+            const org = data.data.organization;
+            const card = document.getElementById('orgCard');
+            const name = document.getElementById('orgCardName');
+            if (card && name) {
+                name.textContent = org.organization_name;
+                card.style.display = 'block';
+            }
+        }
+    } catch (err) {
+        console.error('Failed to load org info:', err);
+    }
+})();
+</script>

@@ -121,15 +121,24 @@ class QRLabelController {
       const host = req.headers['x-forwarded-host'] || req.headers.host;
       const baseUrl = `${protocol}://${host}`;
       
+      console.log('[QR-BATCH] Generating for', assetIds.length, 'assets, size:', size);
+      
       const assets = [];
       
       for (const id of assetIds) {
-        // Verify asset belongs to organization and get full details
-        const asset = await Equipment.getWithIsoClassification(id, organizationId);
-        if (asset) {
-          // Ensure QR exists
-          await qrLabelService.generateForAsset(id, baseUrl);
-          assets.push(asset);
+        try {
+          // Verify asset belongs to organization and get full details
+          const asset = await Equipment.getWithIsoClassification(id, organizationId);
+          if (asset) {
+            console.log('[QR-BATCH] Processing asset:', asset.code, asset.name);
+            // Ensure QR exists (generates QR data)
+            await qrLabelService.generateForAsset(id, baseUrl);
+            assets.push(asset);
+          } else {
+            console.log('[QR-BATCH] Asset not found or not in org:', id);
+          }
+        } catch (assetErr) {
+          console.error('[QR-BATCH] Error processing asset', id, ':', assetErr.message);
         }
       }
 
@@ -140,16 +149,18 @@ class QRLabelController {
         });
       }
 
+      console.log('[QR-BATCH] Generating PDF for', assets.length, 'assets');
       const pdfBuffer = await qrLabelService.generateBatchPDF(assets, { size, baseUrl });
       
+      console.log('[QR-BATCH] PDF generated, size:', pdfBuffer.length, 'bytes');
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'attachment; filename="qr-labels-batch.pdf"');
       res.send(pdfBuffer);
     } catch (error) {
-      console.error('Batch PDF error:', error);
+      console.error('[QR-BATCH] Error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to generate batch PDF',
+        message: 'Failed to generate batch PDF: ' + error.message,
         error: error.message
       });
     }
@@ -224,20 +235,18 @@ class QRLabelController {
   async batchLabelUI(req, res) {
     try {
       const organizationId = req.user?.organization_id || req.user?.organizationId;
-      const { Equipment, Facility } = require('../models');
+      const { Equipment, Facility, EquipmentCategory, EquipmentClass, EquipmentType } = require('../models');
       
       // Get all assets for organization
       const assets = await Equipment.getAllWithIsoClassification(organizationId, {});
       
       // Get facilities for filter
-      const facilities = await Facility.findByOrganization(organizationId);
+      const facilities = await Facility.getByOrganization(organizationId);
       
-      // Get distinct equipment types from assets for filter
-      const equipmentTypes = [...new Map(
-        assets
-          .filter(a => a.equipment_type_id && a.type_name)
-          .map(a => [a.equipment_type_id, { id: a.equipment_type_id, name: a.type_name }])
-      ).values()];
+      // Get ISO hierarchy for cascading filters
+      const categories = await EquipmentCategory.findAll({}, { orderBy: 'category_name' });
+      const classes = await EquipmentClass.findAll({}, { orderBy: 'class_name' });
+      const types = await EquipmentType.findAll({}, { orderBy: 'type_name' });
       
       res.render('mobile/qr-labels-batch', {
         layout: 'mobile/layout',
@@ -247,11 +256,13 @@ class QRLabelController {
         activeNav: 'admin',
         assets: assets,
         facilities: facilities,
-        equipmentTypes: equipmentTypes
+        categories: categories,
+        classes: classes,
+        types: types
       });
     } catch (error) {
       console.error('Batch label UI error:', error);
-      res.status(500).send('Error loading batch label page');
+      res.status(500).send(`Error loading batch label page: ${error.message}`);
     }
   }
 }

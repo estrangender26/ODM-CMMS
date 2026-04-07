@@ -66,5 +66,24 @@
     <script src="/js/permissions.js?v=<%= Date.now() %>"></script>
     <script src="/js/auth-check.js?v=<%= Date.now() %>"></script>
     <script src="/js/odm-mobile.js?v=<%= Date.now() %>"></script>
+    <script>
+        // Load organization badge
+        (async function loadOrgBadge() {
+            const badge = document.getElementById('orgBadge');
+            const nameSpan = document.getElementById('orgNameBadge');
+            if (!badge || !nameSpan) return;
+            
+            try {
+                const response = await fetch('/api/organizations/my', { credentials: 'same-origin' });
+                const data = await response.json();
+                if (data.success && data.data.organization) {
+                    nameSpan.textContent = data.data.organization.organization_name;
+                    badge.style.display = 'block';
+                }
+            } catch (err) {
+                // Silent fail - badge just won't show
+            }
+        })();
+    </script>
 </body>
 </html>
