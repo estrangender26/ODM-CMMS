@@ -1,40 +1,51 @@
 <% title = plan.id ? 'Edit Plan' : 'New Maintenance Plan' %>
 
-<div style="padding: 16px;">
-    <div style="margin-bottom: 20px;">
-        <h1 style="font-size: 24px; margin: 0;"><%= plan.id ? 'Edit Plan' : 'New Maintenance Plan' %></h1>
-        <div style="font-size: 13px; color: var(--gray-600); margin-top: 4px;">
-            Define when and where to apply an inspection template
-        </div>
+<div class="container" style="padding: 16px; max-width: 600px; margin: 0 auto;">
+    <!-- Header -->
+    <div style="margin-bottom: 24px;">
+        <h1 style="font-size: 24px; font-weight: 700; margin: 0 0 8px 0; color: var(--gray-900);"><%= plan.id ? 'Edit Maintenance Plan' : 'New Maintenance Plan' %></h1>
+        <p style="font-size: 14px; color: var(--gray-600); margin: 0;">Define when and where to apply an inspection template</p>
     </div>
     
-    <div class="card">
+    <!-- Basic Info Card -->
+    <div class="card" style="margin-bottom: 16px; padding: 20px;">
+        <div style="font-size: 14px; font-weight: 600; color: var(--gray-700); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px;">Basic Information</div>
+        
         <!-- Plan Name -->
-        <div class="form-group">
-            <label class="form-label">Plan Name *</label>
-            <input type="text" id="planName" class="form-input" value="<%= plan.plan_name %>" placeholder="e.g., Daily Pump Inspection - North Plant">
+        <div class="form-group" style="margin-bottom: 16px;">
+            <label class="form-label" style="display: block; font-size: 14px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px;">
+                Plan Name <span style="color: var(--danger);">*</span>
+            </label>
+            <input type="text" id="planName" class="form-input" value="<%= plan.plan_name %>" placeholder="e.g., Daily Pump Inspection - North Plant" 
+                style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; box-sizing: border-box;">
         </div>
         
         <!-- Template Selection -->
-        <div class="form-group">
-            <label class="form-label">Inspection Template *</label>
-            <select id="templateId" class="form-input">
+        <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label" style="display: block; font-size: 14px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px;">
+                Inspection Template <span style="color: var(--danger);">*</span>
+            </label>
+            <select id="templateId" class="form-input" 
+                style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; box-sizing: border-box; background: white;">
                 <option value="">Select Template</option>
                 <% templates.forEach(function(t) { %>
                 <option value="<%= t.id %>" <%= plan.task_template_id == t.id ? 'selected' : '' %>>
-                    <%= t.name %> (<%= t.equipment_type %>)
+                    <%= t.name %>
                 </option>
                 <% }); %>
             </select>
-            <div style="font-size: 12px; color: var(--gray-600); margin-top: 4px;">
-                Templates define WHAT to inspect
+            <div style="font-size: 12px; color: var(--gray-500); margin-top: 6px; padding-left: 4px;">
+                💡 Templates define WHAT to inspect
             </div>
         </div>
         
         <!-- Equipment Selection (Optional) -->
-        <div class="form-group">
-            <label class="form-label">Specific Equipment (Optional)</label>
-            <select id="equipmentId" class="form-input">
+        <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" style="display: block; font-size: 14px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px;">
+                Specific Equipment <span style="font-size: 12px; color: var(--gray-500); font-weight: 400;">(Optional)</span>
+            </label>
+            <select id="equipmentId" class="form-input" 
+                style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; box-sizing: border-box; background: white;">
                 <option value="">All equipment of this type</option>
                 <% equipment.forEach(function(e) { %>
                 <option value="<%= e.id %>" <%= plan.equipment_id == e.id ? 'selected' : '' %>>
@@ -42,19 +53,23 @@
                 </option>
                 <% }); %>
             </select>
-            <div style="font-size: 12px; color: var(--gray-600); margin-top: 4px;">
+            <div style="font-size: 12px; color: var(--gray-500); margin-top: 6px; padding-left: 4px;">
                 Leave empty to apply to all equipment of this type
             </div>
         </div>
     </div>
     
-    <div class="card">
-        <div class="card-title">Schedule Configuration</div>
+    <!-- Schedule Card -->
+    <div class="card" style="margin-bottom: 16px; padding: 20px;">
+        <div style="font-size: 14px; font-weight: 600; color: var(--gray-700); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px;">Schedule Configuration</div>
         
         <!-- Frequency -->
-        <div class="form-group">
-            <label class="form-label">Frequency *</label>
-            <select id="frequencyType" class="form-input" onchange="onFrequencyChange()">
+        <div class="form-group" style="margin-bottom: 16px;">
+            <label class="form-label" style="display: block; font-size: 14px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px;">
+                Frequency <span style="color: var(--danger);">*</span>
+            </label>
+            <select id="frequencyType" class="form-input" onchange="onFrequencyChange()" 
+                style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; box-sizing: border-box; background: white;">
                 <option value="daily" <%= plan.frequency_type === 'daily' ? 'selected' : '' %>>Daily</option>
                 <option value="weekly" <%= plan.frequency_type === 'weekly' ? 'selected' : '' %>>Weekly</option>
                 <option value="monthly" <%= plan.frequency_type === 'monthly' ? 'selected' : '' %>>Monthly</option>
@@ -62,18 +77,20 @@
         </div>
         
         <!-- Interval -->
-        <div class="form-group">
-            <label class="form-label">Every</label>
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <input type="number" id="frequencyInterval" class="form-input" value="<%= plan.frequency_interval %>" min="1" style="width: 80px;">
-                <span id="intervalLabel">day(s)</span>
+        <div class="form-group" style="margin-bottom: 16px;">
+            <label class="form-label" style="display: block; font-size: 14px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px;">Every</label>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <input type="number" id="frequencyInterval" class="form-input" value="<%= plan.frequency_interval %>" min="1" 
+                    style="width: 80px; padding: 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; text-align: center;">
+                <span id="intervalLabel" style="font-size: 16px; color: var(--gray-700);">day(s)</span>
             </div>
         </div>
         
         <!-- Day of Week (for weekly) -->
-        <div class="form-group" id="dayOfWeekGroup" style="display: <%= plan.frequency_type === 'weekly' ? 'block' : 'none' %>;">
-            <label class="form-label">Day of Week</label>
-            <select id="dayOfWeek" class="form-input">
+        <div class="form-group" id="dayOfWeekGroup" style="display: <%= plan.frequency_type === 'weekly' ? 'block' : 'none' %>; margin-bottom: 16px;">
+            <label class="form-label" style="display: block; font-size: 14px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px;">Day of Week</label>
+            <select id="dayOfWeek" class="form-input" 
+                style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; box-sizing: border-box; background: white;">
                 <option value="1" <%= plan.day_of_week == 1 ? 'selected' : '' %>>Monday</option>
                 <option value="2" <%= plan.day_of_week == 2 ? 'selected' : '' %>>Tuesday</option>
                 <option value="3" <%= plan.day_of_week == 3 ? 'selected' : '' %>>Wednesday</option>
@@ -85,25 +102,31 @@
         </div>
         
         <!-- Day of Month (for monthly) -->
-        <div class="form-group" id="dayOfMonthGroup" style="display: <%= plan.frequency_type === 'monthly' ? 'block' : 'none' %>;">
-            <label class="form-label">Day of Month</label>
-            <input type="number" id="dayOfMonth" class="form-input" value="<%= plan.day_of_month || 1 %>" min="1" max="31">
+        <div class="form-group" id="dayOfMonthGroup" style="display: <%= plan.frequency_type === 'monthly' ? 'block' : 'none' %>; margin-bottom: 16px;">
+            <label class="form-label" style="display: block; font-size: 14px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px;">Day of Month</label>
+            <input type="number" id="dayOfMonth" class="form-input" value="<%= plan.day_of_month || 1 %>" min="1" max="31" 
+                style="width: 100px; padding: 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; text-align: center;">
         </div>
         
         <!-- Start Date -->
-        <div class="form-group">
-            <label class="form-label">Start Date *</label>
-            <input type="date" id="startDate" class="form-input" value="<%= plan.start_date %>">
+        <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" style="display: block; font-size: 14px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px;">
+                Start Date <span style="color: var(--danger);">*</span>
+            </label>
+            <input type="date" id="startDate" class="form-input" value="<%= plan.start_date %>" 
+                style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; box-sizing: border-box;">
         </div>
     </div>
     
-    <div class="card">
-        <div class="card-title">Settings</div>
+    <!-- Settings Card -->
+    <div class="card" style="margin-bottom: 20px; padding: 20px;">
+        <div style="font-size: 14px; font-weight: 600; color: var(--gray-700); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px;">Settings</div>
         
         <!-- Priority -->
-        <div class="form-group">
-            <label class="form-label">Priority</label>
-            <select id="priority" class="form-input">
+        <div class="form-group" style="margin-bottom: 16px;">
+            <label class="form-label" style="display: block; font-size: 14px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px;">Priority</label>
+            <select id="priority" class="form-input" 
+                style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; box-sizing: border-box; background: white;">
                 <option value="low" <%= plan.priority === 'low' ? 'selected' : '' %>>Low</option>
                 <option value="medium" <%= plan.priority === 'medium' ? 'selected' : '' %>>Medium</option>
                 <option value="high" <%= plan.priority === 'high' ? 'selected' : '' %>>High</option>
@@ -113,15 +136,17 @@
         
         <!-- Active Status -->
         <div class="form-group" style="margin-bottom: 0;">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" id="isActive" <%= plan.is_active ? 'checked' : '' %>>
+            <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 16px; color: var(--gray-700);">
+                <input type="checkbox" id="isActive" <%= plan.is_active ? 'checked' : '' %> 
+                    style="width: 22px; height: 22px; accent-color: var(--primary);">
                 <span>Active</span>
             </label>
         </div>
     </div>
     
     <!-- Save Button -->
-    <button class="btn btn-primary btn-large btn-full" onclick="savePlan()" style="margin-top: 20px; margin-bottom: 20px;">
+    <button class="btn btn-primary btn-large btn-full" onclick="savePlan()" 
+        style="padding: 16px; font-size: 16px; font-weight: 600; border-radius: 8px; margin-bottom: 40px;">
         <%= plan.id ? 'Save Changes' : 'Create Plan' %>
     </button>
 </div>
@@ -153,7 +178,7 @@ async function savePlan() {
     
     // Validate
     if (!data.plan_name || !data.task_template_id || !data.start_date) {
-        alert('Please fill in all required fields');
+        alert('Please fill in all required fields (marked with *)');
         return;
     }
     

@@ -1,58 +1,85 @@
 <% title = 'Maintenance Plans' %>
 
-<div style="padding: 16px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h1 style="font-size: 24px; margin: 0;">Maintenance Plans</h1>
-        <a href="/mobile/maintenance-plans/new" class="btn btn-primary">
+<div style="padding: 16px; max-width: 800px; margin: 0 auto;">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <div>
+            <h1 style="font-size: 24px; font-weight: 700; margin: 0 0 4px 0; color: var(--gray-900);">Maintenance Plans</h1>
+            <p style="font-size: 14px; color: var(--gray-600); margin: 0;">Define when and where to apply inspection templates</p>
+        </div>
+        <a href="/mobile/maintenance-plans/new" class="btn btn-primary" 
+            style="padding: 12px 20px; font-size: 14px; font-weight: 600; border-radius: 8px; white-space: nowrap;">
             + New Plan
         </a>
     </div>
     
-    <div style="font-size: 14px; color: var(--gray-600); margin-bottom: 20px;">
-        Define <strong>WHEN</strong> and <strong>WHERE</strong> to apply inspection templates
+    <!-- Info Card -->
+    <div style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-radius: 12px; padding: 16px 20px; margin-bottom: 20px;">
+        <div style="display: flex; gap: 16px; font-size: 13px; color: #1565c0;">
+            <div style="flex: 1;">
+                <strong>📋 Task Templates</strong><br>
+                Define WHAT to inspect
+            </div>
+            <div style="flex: 1;">
+                <strong>📅 Maintenance Plans</strong><br>
+                Define WHEN & WHERE
+            </div>
+        </div>
     </div>
     
     <!-- Plans List -->
-    <div id="plansList">
+    <% if (plans.length > 0) { %>
+    <div style="display: grid; gap: 16px;">
         <% plans.forEach(function(plan) { %>
-        <div class="card" style="margin-bottom: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                <div>
-                    <div style="font-weight: 600; font-size: 16px;"><%= plan.plan_name %></div>
-                    <div style="font-size: 13px; color: var(--gray-600); margin-top: 4px;">
+        <div class="card" style="padding: 20px; border-left: 4px solid <%= plan.isActive ? 'var(--success)' : 'var(--gray-400)' %>;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; font-size: 16px; color: var(--gray-900); margin-bottom: 4px;">
+                        <%= plan.plan_name %>
+                    </div>
+                    <div style="font-size: 13px; color: var(--gray-600);">
                         Template: <%= plan.template_name %>
                     </div>
                 </div>
-                <span class="status-badge <%= plan.isActive ? 'status-released' : 'status-archived' %>">
+                <span class="status-badge <%= plan.isActive ? 'status-released' : 'status-archived' %>" 
+                    style="font-size: 12px; padding: 4px 12px; margin-left: 12px;">
                     <%= plan.isActive ? 'Active' : 'Inactive' %>
                 </span>
             </div>
             
-            <div style="font-size: 13px; color: var(--gray-600); margin-bottom: 12px;">
-                <span style="margin-right: 16px;">
-                    📅 <%= plan.frequency_type %>, every <%= plan.frequency_interval %> <%= plan.frequency_type === 'daily' ? 'day' : plan.frequency_type === 'weekly' ? 'week' : 'month' %><%= plan.frequency_interval > 1 ? 's' : '' %>
+            <div style="display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--gray-600); margin-bottom: 16px; padding: 12px 0; border-top: 1px solid var(--gray-200); border-bottom: 1px solid var(--gray-200);">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span>📅</span>
+                    <%= plan.frequency_type.charAt(0).toUpperCase() + plan.frequency_type.slice(1) %>, every <%= plan.frequency_interval %> <%= plan.frequency_type === 'daily' ? 'day' : plan.frequency_type === 'weekly' ? 'week' : 'month' %><%= plan.frequency_interval > 1 ? 's' : '' %>
                 </span>
-                <span>
-                    ⚡ <%= plan.priority %> priority
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span>⚡</span>
+                    <%= plan.priority.charAt(0).toUpperCase() + plan.priority.slice(1) %> priority
+                </span>
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span>📆</span>
+                    Started <%= new Date(plan.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
                 </span>
             </div>
             
-            <div style="display: flex; gap: 8px;">
-                <a href="/mobile/maintenance-plans/<%= plan.id %>/edit" class="btn btn-outline btn-full" style="flex: 1;">Edit</a>
-                <button class="btn btn-danger" style="flex: 1;" onclick="deletePlan(<%= plan.id %>, '<%= plan.plan_name %>')">Delete</button>
+            <div style="display: flex; gap: 12px;">
+                <a href="/mobile/maintenance-plans/<%= plan.id %>/edit" class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; font-weight: 500;">Edit</a>
+                <button class="btn btn-danger" style="flex: 1; padding: 10px; font-size: 14px; font-weight: 500;" onclick="deletePlan(<%= plan.id %>, '<%= plan.plan_name.replace(/'/g, "\\'") %>')">Delete</button>
             </div>
         </div>
         <% }); %>
     </div>
-    
-    <% if (plans.length === 0) { %>
-    <div style="text-align: center; padding: 40px; color: var(--gray-600);">
-        <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
-        <div style="font-size: 16px; margin-bottom: 8px;">No maintenance plans yet</div>
-        <div style="font-size: 14px; margin-bottom: 20px;">
-            Create a plan to schedule work orders automatically
+    <% } else { %>
+    <!-- Empty State -->
+    <div style="text-align: center; padding: 60px 20px; background: var(--gray-100); border-radius: 12px; margin-top: 20px;">
+        <div style="font-size: 64px; margin-bottom: 20px;">📋</div>
+        <div style="font-size: 18px; font-weight: 600; color: var(--gray-800); margin-bottom: 8px;">No maintenance plans yet</div>
+        <div style="font-size: 14px; color: var(--gray-600); margin-bottom: 24px; max-width: 300px; margin-left: auto; margin-right: auto;">
+            Create a plan to automatically schedule work orders based on inspection templates
         </div>
-        <a href="/mobile/maintenance-plans/new" class="btn btn-primary">Create First Plan</a>
+        <a href="/mobile/maintenance-plans/new" class="btn btn-primary" style="padding: 14px 28px; font-size: 16px; font-weight: 600; border-radius: 8px;">
+            Create First Plan
+        </a>
     </div>
     <% } %>
 </div>
