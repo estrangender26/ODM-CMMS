@@ -1,0 +1,432 @@
+<% title = template.id ? 'Edit Template' : 'New Template' %>
+<% showBack = true %>
+<% showNav = false %>
+<% activeNav = '' %>
+
+<!-- Template Header -->
+<div class="card">
+    <div class="form-group">
+        <label class="form-label">Template Name</label>
+        <input type="text" id="templateName" class="form-input" value="<%= template.name %>" placeholder="e.g., Daily Pump Inspection">
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">Equipment Type</label>
+        <select id="equipmentType" class="form-input" <%= template.id ? 'disabled' : '' %>>
+            <option value="">Select Equipment Type</option>
+            <% equipmentTypes.forEach(function(type) { %>
+            <option value="<%= type.id %>" <%= template.equipmentTypeId == type.id ? 'selected' : '' %>>
+                <%= type.name %>
+            </option>
+            <% }); %>
+        </select>
+    </div>
+    
+    <% if (template.id) { %>
+    <div style="font-size: 13px; color: var(--gray-600); margin-top: 8px;">
+        Version <%= template.version %>
+        <% if (template.isActive) { %>
+        <span class="status-badge status-released" style="margin-left: 8px;">Active</span>
+        <% } %>
+    </div>
+    <% } %>
+</div>
+
+<!-- Inspection Items -->
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div class="card-title" style="margin: 0;">Inspection Items</div>
+        <span style="font-size: 14px; color: var(--gray-600);"><%= items.length %> items</span>
+    </div>
+    
+    <div id="itemsList" class="items-list">
+        <% items.forEach(function(item, index) { %>
+        <div class="inspection-item" data-index="<%= index %>" data-id="<%= item.id %>">
+            <div class="item-header">
+                <div class="item-sequence"><%= index + 1 %></div>
+                <div class="item-type-badge type-<%= item.type %>"><%= item.type.replace('_', ' ') %></div>
+                <% if (item.isRequired) { %>
+                <span style="color: var(--danger); font-size: 12px;">*</span>
+                <% } %>
+            </div>
+            <div class="item-prompt"><%= item.prompt %></div>
+            <% if (item.subunit || item.maintainableItem) { %>
+            <div class="item-context">
+                <%= item.subunit %><% if (item.subunit && item.maintainableItem) { %> • <% } %><%= item.maintainableItem %>
+            </div>
+            <% } %>
+            <div class="item-actions">
+                <button class="btn-icon" onclick="editItem(<%= index %>)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                </button>
+                <button class="btn-icon" onclick="deleteItem(<%= index %>)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <% }); %>
+    </div>
+    
+    <button class="btn btn-outline btn-full" onclick="addItem()" style="margin-top: 12px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Add Inspection Item
+    </button>
+</div>
+
+<!-- Save Button -->
+<div style="position: fixed; bottom: calc(var(--nav-height) + 16px); left: 16px; right: 16px;">
+    <button class="btn btn-primary btn-large btn-full" onclick="saveTemplate()">
+        <%= template.id ? 'Save Changes' : 'Create Template' %>
+    </button>
+</div>
+
+<!-- Item Editor Modal -->
+<div id="itemModal" class="modal">
+    <div class="modal-content" style="padding: 20px; max-height: 90vh; overflow-y: auto;">
+        <h2 style="margin-bottom: 20px;"><span id="modalTitle">Add Item</span></h2>
+        
+        <input type="hidden" id="editIndex" value="">
+        
+        <div class="form-group">
+            <label class="form-label">Inspection Prompt *</label>
+            <textarea id="itemPrompt" class="form-input" rows="3" placeholder="e.g., Check coupling for wear or damage"></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Inspection Type *</label>
+            <select id="itemType" class="form-input" onchange="onTypeChange()">
+                <option value="">Select Type</option>
+                <option value="pass_fail">Pass / Fail</option>
+                <option value="numeric">Numeric Value</option>
+                <option value="multiple_choice">Multiple Choice</option>
+                <option value="text">Text Input</option>
+                <option value="photo">Photo Only</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Subunit (Optional)</label>
+            <select id="subunitId" class="form-input">
+                <option value="">None</option>
+                <% subunits.forEach(function(su) { %>
+                <option value="<%= su.id %>"><%= su.name %></option>
+                <% }); %>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Maintainable Item (Optional)</label>
+            <select id="maintainableItemId" class="form-input">
+                <option value="">None</option>
+                <% maintainableItems.forEach(function(mi) { %>
+                <option value="<%= mi.id %>"><%= mi.name %></option>
+                <% }); %>
+            </select>
+        </div>
+        
+        <div class="form-group" style="display: flex; align-items: center; gap: 12px;">
+            <label class="toggle">
+                <input type="checkbox" id="isRequired" checked>
+                <span class="toggle-slider"></span>
+            </label>
+            <span>Required</span>
+        </div>
+        
+        <div style="display: flex; gap: 12px; margin-top: 24px;">
+            <button class="btn btn-outline btn-full" onclick="closeItemModal()">Cancel</button>
+            <button class="btn btn-primary btn-full" onclick="saveItem()">Save Item</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--gray-600);
+    margin-bottom: 8px;
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--gray-300);
+    border-radius: 12px;
+    font-size: 16px;
+    background: white;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.inspection-item {
+    padding: 16px;
+    background: var(--gray-100);
+    border-radius: 12px;
+    position: relative;
+}
+
+.item-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.item-sequence {
+    width: 28px;
+    height: 28px;
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.item-type-badge {
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+.type-pass_fail { background: #e8f5e9; color: #2e7d32; }
+.type-numeric { background: #e3f2fd; color: #1565c0; }
+.type-multiple_choice { background: #fff3e0; color: #e65100; }
+.type-text { background: #f3e5f5; color: #6a1b9a; }
+.type-photo { background: #fce4ec; color: #c2185b; }
+
+.item-prompt {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.item-context {
+    font-size: 13px;
+    color: var(--gray-600);
+}
+
+.item-actions {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    gap: 8px;
+}
+
+.btn-icon {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: white;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gray-600);
+    cursor: pointer;
+}
+
+.btn-icon:active {
+    background: var(--gray-200);
+}
+
+.toggle {
+    position: relative;
+    width: 48px;
+    height: 28px;
+}
+
+.toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--gray-300);
+    border-radius: 28px;
+    transition: 0.3s;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+input:checked + .toggle-slider {
+    background-color: var(--primary);
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(20px);
+}
+</style>
+
+<script>
+let items = <%- JSON.stringify(items) %>;
+
+function addItem() {
+    document.getElementById('modalTitle').textContent = 'Add Item';
+    document.getElementById('editIndex').value = '';
+    document.getElementById('itemPrompt').value = '';
+    document.getElementById('itemType').value = '';
+    document.getElementById('subunitId').value = '';
+    document.getElementById('maintainableItemId').value = '';
+    document.getElementById('isRequired').checked = true;
+    document.getElementById('itemModal').classList.add('active');
+}
+
+function editItem(index) {
+    const item = items[index];
+    document.getElementById('modalTitle').textContent = 'Edit Item';
+    document.getElementById('editIndex').value = index;
+    document.getElementById('itemPrompt').value = item.prompt;
+    document.getElementById('itemType').value = item.type;
+    document.getElementById('subunitId').value = item.subunitId || '';
+    document.getElementById('maintainableItemId').value = item.maintainableItemId || '';
+    document.getElementById('isRequired').checked = item.isRequired;
+    document.getElementById('itemModal').classList.add('active');
+}
+
+function closeItemModal() {
+    document.getElementById('itemModal').classList.remove('active');
+}
+
+function onTypeChange() {
+    // Could show/hide additional options based on type
+}
+
+function saveItem() {
+    const prompt = document.getElementById('itemPrompt').value.trim();
+    const type = document.getElementById('itemType').value;
+    const subunitId = document.getElementById('subunitId').value;
+    const maintainableItemId = document.getElementById('maintainableItemId').value;
+    const isRequired = document.getElementById('isRequired').checked;
+    const editIndex = document.getElementById('editIndex').value;
+    
+    if (!prompt || !type) {
+        alert('Please fill in required fields');
+        return;
+    }
+    
+    const newItem = {
+        id: editIndex !== '' ? items[editIndex].id : 'new-' + Date.now(),
+        prompt: prompt,
+        type: type,
+        subunitId: subunitId || null,
+        maintainableItemId: maintainableItemId || null,
+        isRequired: isRequired,
+        sequence: editIndex !== '' ? items[editIndex].sequence : items.length + 1
+    };
+    
+    if (editIndex !== '') {
+        items[parseInt(editIndex)] = newItem;
+    } else {
+        items.push(newItem);
+    }
+    
+    closeItemModal();
+    renderItems();
+}
+
+function deleteItem(index) {
+    if (confirm('Delete this item?')) {
+        items.splice(index, 1);
+        // Re-sequence
+        items.forEach((item, i) => item.sequence = i + 1);
+        renderItems();
+    }
+}
+
+function renderItems() {
+    location.reload(); // Simple approach - in production would use DOM updates
+}
+
+function saveTemplate() {
+    const name = document.getElementById('templateName').value.trim();
+    const equipmentTypeId = document.getElementById('equipmentType').value;
+    
+    if (!name) {
+        alert('Please enter template name');
+        return;
+    }
+    
+    if (!equipmentTypeId && !'<%= template.id %>') {
+        alert('Please select equipment type');
+        return;
+    }
+    
+    if (items.length === 0) {
+        alert('Please add at least one inspection item');
+        return;
+    }
+    
+    const data = {
+        name: name,
+        equipmentTypeId: equipmentTypeId,
+        items: items
+    };
+    
+    const url = '<%= template.id %>' ? '/api/templates/<%= template.id %>' : '/api/templates';
+    const method = '<%= template.id %>' ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) {
+            alert('Template saved!');
+            location.href = '/mobile/templates';
+        } else {
+            alert('Error: ' + result.message);
+        }
+    })
+    .catch(err => {
+        alert('Error saving template');
+        console.error(err);
+    });
+}
+</script>

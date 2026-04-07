@@ -1,0 +1,151 @@
+<!-- Mobile View -->
+<div class="mobile-only">
+  <% equipment.forEach(function(eq) { %>
+    <div class="card" style="margin-bottom: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-weight: 600;"><%= eq.name %></div>
+        <span class="status-badge status-<%= eq.status %>"><%= eq.status %></span>
+      </div>
+      <div style="font-size: 13px; color: var(--gray-600); margin-top: 6px;">
+        <%= eq.type %> • <%= eq.facility %>
+      </div>
+      <div style="margin-top: 10px;">
+        <button class="btn btn-secondary btn-sm" onclick="location.href='/mobile/asset?code=<%= eq.id %>'">
+          Open Asset
+        </button>
+      </div>
+    </div>
+  <% }) %>
+</div>
+
+<!-- Desktop View - Sortable Table -->
+<div class="desktop-only">
+  <div class="filter-bar-desktop" style="margin-bottom: 20px;">
+    <div class="filter-group">
+      <label>Search:</label>
+      <input type="text" class="filter-input" id="searchEquipment" placeholder="Search equipment..." onkeyup="searchEquipment()">
+    </div>
+    <div class="filter-group">
+      <label>Status:</label>
+      <select class="filter-input" onchange="filterEquipmentStatus(this.value)">
+        <option value="all">All</option>
+        <option value="operational">Operational</option>
+        <option value="maintenance">Maintenance</option>
+        <option value="out_of_order">Out of Order</option>
+      </select>
+    </div>
+    <div style="flex: 1;"></div>
+    <button class="btn btn-primary" onclick="location.href='/mobile/admin/assets'">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      Add Equipment
+    </button>
+  </div>
+
+  <div style="background: var(--white); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+    <table class="desktop-table" id="equipmentTable">
+      <thead>
+        <tr>
+          <th class="sortable" onclick="sortEquipment('name')">Equipment Name</th>
+          <th class="sortable" onclick="sortEquipment('type')">Type</th>
+          <th class="sortable" onclick="sortEquipment('facility')">Facility</th>
+          <th class="sortable" onclick="sortEquipment('status')">Status</th>
+          <th style="width: 150px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% equipment.forEach(function(eq) { %>
+        <tr class="equipment-row" data-status="<%= eq.status %>" data-name="<%= eq.name.toLowerCase() %>" data-type="<%= eq.type.toLowerCase() %>">
+          <td>
+            <div style="font-weight: 600;"><%= eq.name %></div>
+            <div style="font-size: 13px; color: var(--gray-600);"><%= eq.id %></div>
+          </td>
+          <td><%= eq.type %></td>
+          <td><%= eq.facility %></td>
+          <td>
+            <span class="status-badge status-<%= eq.status %>"><%= eq.status %></span>
+          </td>
+          <td>
+            <div class="table-actions">
+              <button class="btn btn-table btn-outline" onclick="location.href='/mobile/asset?code=<%= eq.id %>'">View</button>
+              <button class="btn btn-table btn-primary" onclick="location.href='/mobile/assets/<%= eq.id %>/qr-label'">QR</button>
+            </div>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let sortDirection = {};
+
+function searchEquipment() {
+  const term = document.getElementById('searchEquipment').value.toLowerCase();
+  const rows = document.querySelectorAll('.equipment-row');
+  
+  rows.forEach(row => {
+    const name = row.getAttribute('data-name');
+    const type = row.getAttribute('data-type');
+    if (name.includes(term) || type.includes(term)) {
+      row.style.display = '';
+    } else {
+      row.style.display = 'none';
+    }
+  });
+}
+
+function filterEquipmentStatus(status) {
+  const rows = document.querySelectorAll('.equipment-row');
+  
+  rows.forEach(row => {
+    const rowStatus = row.getAttribute('data-status');
+    if (status === 'all' || rowStatus === status) {
+      row.style.display = '';
+    } else {
+      row.style.display = 'none';
+    }
+  });
+}
+
+function sortEquipment(column) {
+  const table = document.getElementById('equipmentTable');
+  const tbody = table.querySelector('tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  
+  sortDirection[column] = !sortDirection[column];
+  const direction = sortDirection[column] ? 1 : -1;
+  
+  rows.sort((a, b) => {
+    let aVal, bVal;
+    
+    switch(column) {
+      case 'name':
+        aVal = a.querySelector('td:first-child').textContent.trim();
+        bVal = b.querySelector('td:first-child').textContent.trim();
+        break;
+      case 'type':
+        aVal = a.querySelector('td:nth-child(2)').textContent.trim();
+        bVal = b.querySelector('td:nth-child(2)').textContent.trim();
+        break;
+      case 'facility':
+        aVal = a.querySelector('td:nth-child(3)').textContent.trim();
+        bVal = b.querySelector('td:nth-child(3)').textContent.trim();
+        break;
+      case 'status':
+        aVal = a.querySelector('td:nth-child(4)').textContent.trim();
+        bVal = b.querySelector('td:nth-child(4)').textContent.trim();
+        break;
+      default:
+        return 0;
+    }
+    
+    return aVal.localeCompare(bVal) * direction;
+  });
+  
+  rows.forEach(row => tbody.appendChild(row));
+}
+</script>

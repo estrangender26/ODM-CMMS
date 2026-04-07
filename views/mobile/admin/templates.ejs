@@ -3,33 +3,92 @@
 <% showNav = false %>
 <% activeNav = '' %>
 
-<!-- Add Button -->
-<button class="btn btn-primary btn-full" style="margin-bottom: 16px;" onclick="showAddTemplate()">
-    + Create Template
-</button>
-
-<!-- Templates List -->
-<% templates.forEach(function(template) { %>
-<div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-        <div>
-            <div style="font-weight: 600;"><%= template.name %></div>
-            <div style="font-size: 13px; color: var(--gray-600);"><%= template.equipmentType %></div>
-        </div>
-        <span class="status-badge <%= template.isActive ? 'status-released' : 'status-scheduled' %>">
-            <%= template.isActive ? 'Active' : 'Inactive' %>
-        </span>
-    </div>
-    <div style="display: flex; gap: 16px; font-size: 13px; color: var(--gray-600); margin-bottom: 12px;">
-        <span>v<%= template.version %></span>
-        <span>12 items</span>
-    </div>
-    <div style="display: flex; gap: 8px;">
-        <button class="btn btn-outline" style="flex: 1; height: 40px;">Edit</button>
-        <button class="btn btn-outline" style="flex: 1; height: 40px;">Items</button>
-    </div>
+<!-- Mobile Template Cards -->
+<div class="mobile-only">
+  <button class="btn btn-primary btn-full" style="margin-bottom: 16px;" onclick="showAddTemplate()">
+      + Create Template
+  </button>
+  
+  <% templates.forEach(function(template) { %>
+  <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+          <div>
+              <div style="font-weight: 600;"><%= template.name %></div>
+              <div style="font-size: 13px; color: var(--gray-600);"><%= template.equipmentType %></div>
+          </div>
+          <span class="status-badge <%= template.isActive ? 'status-released' : 'status-scheduled' %>">
+              <%= template.isActive ? 'Active' : 'Inactive' %>
+          </span>
+      </div>
+      <div style="display: flex; gap: 16px; font-size: 13px; color: var(--gray-600); margin-bottom: 12px;">
+          <span>v<%= template.version %></span>
+          <span>12 items</span>
+      </div>
+      <div style="display: flex; gap: 8px;">
+          <button class="btn btn-outline" style="flex: 1; height: 40px;">Edit</button>
+          <button class="btn btn-outline" style="flex: 1; height: 40px;">Items</button>
+      </div>
+  </div>
+  <% }); %>
 </div>
-<% }); %>
+
+<!-- Desktop Templates Table -->
+<div class="desktop-only">
+  <div class="page-header-with-actions">
+    <h1>Templates</h1>
+    <button class="btn btn-primary" onclick="showAddTemplate()">
+      <span style="margin-right: 8px;">+</span> Create Template
+    </button>
+  </div>
+  
+  <div class="card" style="padding: 0; overflow: hidden;">
+    <table class="templates-table">
+      <thead>
+        <tr>
+          <th>Template Name</th>
+          <th>Equipment Type</th>
+          <th>Version</th>
+          <th>Items</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% templates.forEach(function(template) { %>
+        <tr>
+          <td class="template-name-cell">
+            <span class="template-icon">📋</span>
+            <%= template.name %>
+          </td>
+          <td><%= template.equipmentType %></td>
+          <td>v<%= template.version %></td>
+          <td>12 items</td>
+          <td>
+            <span class="status-badge <%= template.isActive ? 'status-released' : 'status-scheduled' %>">
+              <%= template.isActive ? 'Active' : 'Inactive' %>
+            </span>
+          </td>
+          <td>
+            <div class="action-buttons">
+              <button class="btn btn-sm btn-outline" onclick="editTemplate('<%= template.id %>')">Edit</button>
+              <button class="btn btn-sm btn-outline" onclick="manageItems('<%= template.id %>')">Items</button>
+            </div>
+          </td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  
+  <!-- Pagination -->
+  <div class="pagination-bar">
+    <span class="pagination-info">Showing 1-2 of 12 templates</span>
+    <div class="pagination-buttons">
+      <button class="btn btn-outline" disabled>← Previous</button>
+      <button class="btn btn-outline">Next →</button>
+    </div>
+  </div>
+</div>
 
 <!-- Add Template Modal -->
 <div id="addTemplateModal" class="modal">
@@ -82,5 +141,13 @@ function createTemplate() {
     
     hideAddTemplate();
     // Redirect to template editor with new template
+}
+
+function editTemplate(id) {
+    console.log('Edit template:', id);
+}
+
+function manageItems(id) {
+    console.log('Manage items:', id);
 }
 </script>

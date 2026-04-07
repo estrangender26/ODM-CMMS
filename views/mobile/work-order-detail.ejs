@@ -1,13 +1,13 @@
-<% title = 'WO-2026-0042' %>
+<% title = workOrder.id %>
 <% showBack = true %>
 <% showNav = false %>
 <% activeNav = '' %>
 
 <!-- Asset Info Card -->
 <div class="asset-header">
-    <div class="asset-name">Pump P-101</div>
-    <div class="asset-type">Centrifugal Pump</div>
-    <div class="asset-facility">North Plant</div>
+    <div class="asset-name"><%= workOrder.assetName %></div>
+    <div class="asset-type"><%= workOrder.equipmentType %></div>
+    <div class="asset-facility"><%= workOrder.facility %></div>
 </div>
 
 <!-- Work Order Details -->
@@ -15,9 +15,9 @@
     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
         <div>
             <div style="font-size: 13px; color: var(--gray-600); margin-bottom: 4px;">Work Order</div>
-            <div style="font-weight: 600;">WO-2026-0042</div>
+            <div style="font-weight: 600;"><%= workOrder.id %></div>
         </div>
-        <span class="status-badge status-released">Released</span>
+        <span class="status-badge status-<%= workOrder.status %>"><%= workOrder.status.replace('_', ' ').toUpperCase() %></span>
     </div>
     
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
@@ -34,22 +34,22 @@
 
 <!-- Template Info -->
 <div class="card">
-    <div class="card-title">Daily Pump Inspection</div>
-    <div class="card-subtitle">Template: TMP-001 • Version 2</div>
+    <div class="card-title"><%= workOrder.template.name %></div>
+    <div class="card-subtitle">Template: TMP-001 • Version <%= workOrder.template.version %></div>
     <div style="margin-top: 12px;">
         <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--gray-600);">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="9 11 12 14 22 4"/>
                 <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
             </svg>
-            12 Inspection Items
+            <%= workOrder.template.itemCount %> Inspection Items
         </div>
         <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--gray-600); margin-top: 8px;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"/>
                 <polyline points="12 6 12 12 16 14"/>
             </svg>
-            Estimated: 15 minutes
+            Estimated: <%= workOrder.template.estimatedMinutes %> minutes
         </div>
     </div>
 </div>
@@ -58,21 +58,15 @@
 <div class="card">
     <div class="card-title">Inspection Checklist</div>
     <div style="margin-top: 12px;">
+        <% checklistPreview.forEach(function(item, index) { %>
         <div style="display: flex; align-items: center; padding: 12px; background: var(--gray-100); border-radius: 8px; margin-bottom: 8px;">
-            <span style="flex: 1; font-size: 14px;">1. Check coupling for wear</span>
-            <span style="font-size: 12px; color: var(--gray-600);">Pass/Fail</span>
+            <span style="flex: 1; font-size: 14px;"><%= index + 1 %>. <%= item.prompt %></span>
+            <span style="font-size: 12px; color: var(--gray-600);"><%= item.type.replace('_', '/').toUpperCase() %></span>
         </div>
-        <div style="display: flex; align-items: center; padding: 12px; background: var(--gray-100); border-radius: 8px; margin-bottom: 8px;">
-            <span style="flex: 1; font-size: 14px;">2. Check bearing temperature</span>
-            <span style="font-size: 12px; color: var(--gray-600);">Numeric</span>
-        </div>
-        <div style="display: flex; align-items: center; padding: 12px; background: var(--gray-100); border-radius: 8px;">
-            <span style="flex: 1; font-size: 14px;">3. Check seal for leakage</span>
-            <span style="font-size: 12px; color: var(--gray-600);">Choice</span>
-        </div>
+        <% }); %>
     </div>
     <div style="text-align: center; margin-top: 12px; font-size: 13px; color: var(--gray-600);">
-        + 9 more items
+        + <%= workOrder.template.itemCount - checklistPreview.length %> more items
     </div>
 </div>
 
@@ -83,17 +77,48 @@
         <a href="#" style="font-size: 14px; color: var(--primary); text-decoration: none;">View History</a>
     </div>
     <div style="margin-top: 12px; padding: 12px; background: var(--gray-100); border-radius: 8px;">
-        <div style="font-weight: 500; margin-bottom: 4px;">Mar 29, 2026</div>
-        <div style="font-size: 13px; color: var(--gray-600);">Completed by Juan Santos</div>
+        <div style="font-weight: 500; margin-bottom: 4px;"><%= lastInspection.date %></div>
+        <div style="font-size: 13px; color: var(--gray-600);">Completed by <%= lastInspection.by %></div>
         <div style="margin-top: 8px;">
-            <span class="status-badge" style="background: #e8f5e9; color: var(--success);">No Findings</span>
+            <span class="status-badge" style="background: <%= lastInspection.result === 'no_findings' ? '#e8f5e9' : '#fff3e0' %>; color: <%= lastInspection.result === 'no_findings' ? 'var(--success)' : 'var(--warning)' %>;">
+                <%= lastInspection.result === 'no_findings' ? 'No Findings' : 'Findings Reported' %>
+            </span>
         </div>
     </div>
 </div>
 
-<!-- Start Button -->
+<!-- Action Buttons -->
 <div style="position: fixed; bottom: calc(var(--nav-height) + 16px); left: 16px; right: 16px;">
-    <button class="btn btn-primary btn-large btn-full" onclick="location.href='/mobile/inspection/WO-2026-0042'">
-        Start Inspection
-    </button>
+    <% if (workOrder.status === 'completed') { %>
+        <button class="btn btn-success btn-large btn-full" disabled>
+            ✓ Completed
+        </button>
+    <% } else if (workOrder.status === 'in_progress') { %>
+        <button class="btn btn-success btn-large btn-full" onclick="completeWorkOrder('<%= workOrder.id %>')">
+            Complete Work Order
+        </button>
+    <% } else { %>
+        <button class="btn btn-primary btn-large btn-full" onclick="location.href='/mobile/inspection/<%= workOrder.id %>'">
+            Start Inspection
+        </button>
+    <% } %>
 </div>
+
+<script>
+function completeWorkOrder(woId) {
+    if (confirm('Mark this work order as completed?')) {
+        fetch('/mobile/work-orders/' + woId + '/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert('Work order completed!');
+                location.href = '/mobile/work-orders';
+            }
+        })
+        .catch(err => alert('Error: ' + err.message));
+    }
+}
+</script>

@@ -11,6 +11,13 @@
     <h1>Assets</h1>
     <% if (user && user.role === 'admin') { %>
     <div class="header-actions">
+      <button class="btn-icon btn-secondary" id="qr-batch-btn" onclick="window.location.href='/mobile/qr-labels/batch'" title="Generate QR Labels">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+      </button>
       <button class="btn-icon btn-primary" id="add-btn" onclick="openModal()" title="Add Asset">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="12" y1="5" x2="12" y2="19"/>
@@ -702,6 +709,13 @@ function renderEquipment(equipment) {
       </div>
       ${isAdminUser ? `
       <div class="asset-actions" onclick="event.stopPropagation()">
+        <button class="btn-icon" onclick="window.open('/api/assets/${eq.id}/qr-label.pdf', '_blank')" title="Print QR Label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+        </button>
         <button class="btn-icon" onclick="editEquipment(${eq.id})" title="Edit">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>

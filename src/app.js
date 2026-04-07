@@ -28,7 +28,22 @@ app.set('layout', false); // Disable default layout
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, '../public')));
+
+// Static files with cache-busting in development
+const staticOptions = process.env.NODE_ENV === 'production' 
+  ? { maxAge: '1d' } 
+  : { maxAge: 0, etag: false };
+app.use(express.static(path.join(__dirname, '../public'), staticOptions));
+
+// Disable caching for HTML/EJS views in development
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV !== 'production') {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  next();
+});
 
 // CORS - Allow all origins in development
 app.use((req, res, next) => {
@@ -82,107 +97,39 @@ app.get('/signup', (req, res) => {
   });
 });
 
-app.get('/dashboard', (req, res) => {
-  res.render('dashboard', { 
-    title: 'Dashboard - ODM-CMMS',
-    user: req.user 
-  });
-});
+// ========================================
+// ODM DUPLICATE UI REDIRECTS (to Mobile App)
+// These routes redirect to /mobile/* equivalents
+// Old views archived in /archive/views/
+// ========================================
 
-app.get('/work-orders', (req, res) => {
-  res.render('work-orders', { 
-    title: 'Work Orders - ODM-CMMS',
-    user: req.user 
-  });
-});
-
-app.get('/work-orders/:id', (req, res) => {
-  res.render('work-order-detail', { 
-    title: 'Work Order Detail - ODM-CMMS',
-    user: req.user,
-    workOrderId: req.params.id
-  });
-});
-
-app.get('/equipment', (req, res) => {
-  res.render('equipment', { 
-    title: 'Equipment - ODM-CMMS',
-    user: req.user 
-  });
-});
-
-app.get('/profile', (req, res) => {
-  res.render('profile', { 
-    title: 'My Profile - ODM-CMMS',
-    user: req.user 
-  });
-});
-
-app.get('/inspection/:workOrderId', (req, res) => {
-  res.render('inspection', { 
-    title: 'Inspection - ODM-CMMS',
-    user: req.user,
-    workOrderId: req.params.workOrderId
-  });
-});
+app.get('/dashboard', (req, res) => res.redirect('/mobile/dashboard'));
+app.get('/work-orders', (req, res) => res.redirect('/mobile/work-orders'));
+app.get('/work-orders/:id', (req, res) => res.redirect(`/mobile/work-orders/${req.params.id}`));
+app.get('/equipment', (req, res) => res.redirect('/mobile/equipment'));
+app.get('/profile', (req, res) => res.redirect('/mobile/profile'));
+app.get('/inspection/:workOrderId', (req, res) => res.redirect(`/mobile/inspection/${req.params.workOrderId}`));
 
 // Admin route protection middleware
 const requireAdminWeb = (req, res, next) => {
   if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'supervisor')) {
-    return res.redirect('/dashboard');
+    return res.redirect('/mobile/home');
   }
   next();
 };
 
-// Admin routes
-app.get('/admin', requireAdminWeb, (req, res) => {
-  res.render('admin/dashboard', { 
-    title: 'Admin Dashboard - ODM-CMMS',
-    user: req.user 
-  });
-});
+// ========================================
+// ADMIN DUPLICATE UI REDIRECTS (to Mobile App)
+// Old admin views archived in /archive/views/admin/
+// ========================================
 
-app.get('/admin/equipment', requireAdminWeb, (req, res) => {
-  res.render('admin/equipment', { 
-    title: 'Manage Equipment - ODM-CMMS',
-    user: req.user 
-  });
-});
-
-app.get('/admin/tasks', requireAdminWeb, (req, res) => {
-  res.render('admin/tasks', { 
-    title: 'Manage Tasks - ODM-CMMS',
-    user: req.user 
-  });
-});
-
-app.get('/admin/schedules', requireAdminWeb, (req, res) => {
-  res.render('admin/schedules', { 
-    title: 'Manage Schedules - ODM-CMMS',
-    user: req.user 
-  });
-});
-
-app.get('/admin/reports', requireAdminWeb, (req, res) => {
-  res.render('admin/reports', { 
-    title: 'Reports - ODM-CMMS',
-    user: req.user 
-  });
-});
-
-app.get('/admin/facilities', requireAdminWeb, (req, res) => {
-  res.render('admin/facilities', { 
-    title: 'Manage Facilities - ODM-CMMS',
-    user: req.user 
-  });
-});
-
-app.get('/admin/users', requireAdminWeb, (req, res) => {
-  res.render('admin/users', { 
-    title: 'Manage Users - ODM-CMMS',
-    user: req.user 
-  });
-});
+app.get('/admin', requireAdminWeb, (req, res) => res.redirect('/mobile/admin'));
+app.get('/admin/equipment', requireAdminWeb, (req, res) => res.redirect('/mobile/admin/assets'));
+app.get('/admin/tasks', requireAdminWeb, (req, res) => res.redirect('/mobile/admin/templates'));
+app.get('/admin/schedules', requireAdminWeb, (req, res) => res.redirect('/mobile/calendar'));
+app.get('/admin/reports', requireAdminWeb, (req, res) => res.redirect('/mobile/dashboard'));
+app.get('/admin/facilities', requireAdminWeb, (req, res) => res.redirect('/mobile/admin/facilities'));
+app.get('/admin/users', requireAdminWeb, (req, res) => res.redirect('/mobile/admin'));
 
 // Favicon handler - prevents 404 errors from browser requests
 app.get('/favicon.ico', (req, res) => res.status(204).end());

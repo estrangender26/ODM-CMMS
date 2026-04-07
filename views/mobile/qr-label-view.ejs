@@ -1,0 +1,405 @@
+<div class="qr-label-view">
+  <div class="label-preview-container">
+    <!-- Digital Label Preview (70mm x 40mm proportion) -->
+    <div class="label-preview" id="labelPreview">
+      <div class="label-qr">
+        <img src="<%= qrImage %>" alt="QR Code">
+      </div>
+      <div class="label-info">
+        <div class="label-name"><%= asset.name %></div>
+        <div class="label-code"><%= asset.code %></div>
+        <% if (asset.equipment_type) { %>
+          <div class="label-type"><%= asset.equipment_type %></div>
+        <% } %>
+      </div>
+      <div class="label-hint">Scan to inspect</div>
+    </div>
+  </div>
+
+  <!-- Print Size Selector -->
+  <div class="size-selector">
+    <label>Label Size:</label>
+    <div class="size-options">
+      <button type="button" class="size-btn active" data-size="70x40">
+        70mm × 40mm
+      </button>
+      <button type="button" class="size-btn" data-size="50x30">
+        50mm × 30mm
+      </button>
+    </div>
+  </div>
+
+  <!-- Print Quantity -->
+  <div class="quantity-selector">
+    <label>Quantity:</label>
+    <div class="quantity-control">
+      <button type="button" class="qty-btn" id="qtyMinus">-</button>
+      <input type="number" id="qtyInput" value="1" min="1" max="50">
+      <button type="button" class="qty-btn" id="qtyPlus">+</button>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="label-actions">
+    <button type="button" class="btn btn-primary" id="printBtn">
+      <span class="icon">🖨️</span>
+      Print Label
+    </button>
+    <button type="button" class="btn btn-secondary" id="downloadBtn">
+      <span class="icon">📥</span>
+      Download PDF
+    </button>
+    <button type="button" class="btn btn-secondary" id="shareBtn">
+      <span class="icon">📤</span>
+      Share
+    </button>
+  </div>
+
+  <!-- Hidden Print Area -->
+  <div id="printArea" class="print-area" style="display: none;">
+    <div class="print-label" id="printLabel">
+      <div class="print-qr">
+        <img src="<%= qrImage %>" alt="QR Code">
+      </div>
+      <div class="print-info">
+        <div class="print-name"><%= asset.name %></div>
+        <div class="print-code"><%= asset.code %></div>
+        <% if (asset.equipment_type) { %>
+          <div class="print-type"><%= asset.equipment_type %></div>
+        <% } %>
+      </div>
+      <div class="print-hint">Scan to inspect</div>
+    </div>
+  </div>
+</div>
+
+<style>
+.qr-label-view {
+  padding: 16px;
+}
+
+.label-preview-container {
+  background: #f5f5f5;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+/* Digital Preview (scaled) */
+.label-preview {
+  background: white;
+  width: 280px;
+  height: 160px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  grid-template-rows: 1fr auto;
+  padding: 12px;
+  gap: 12px;
+}
+
+.label-preview.size-50x30 {
+  width: 200px;
+  height: 120px;
+  grid-template-columns: 70px 1fr;
+  padding: 8px;
+  gap: 8px;
+}
+
+.label-qr {
+  grid-row: 1 / 3;
+}
+
+.label-qr img {
+  width: 100%;
+  height: auto;
+}
+
+.label-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.label-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.label-code {
+  font-size: 13px;
+  color: #666;
+  font-family: monospace;
+}
+
+.label-type {
+  font-size: 11px;
+  color: #999;
+}
+
+.label-hint {
+  font-size: 11px;
+  color: #1976d2;
+  font-weight: 500;
+}
+
+/* Size Selector */
+.size-selector {
+  margin-bottom: 20px;
+}
+
+.size-selector label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.size-options {
+  display: flex;
+  gap: 12px;
+}
+
+.size-btn {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.size-btn.active {
+  border-color: #1976d2;
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+/* Quantity Selector */
+.quantity-selector {
+  margin-bottom: 24px;
+}
+
+.quantity-selector label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.quantity-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.qty-btn {
+  width: 44px;
+  height: 44px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  cursor: pointer;
+}
+
+#qtyInput {
+  width: 80px;
+  height: 44px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Action Buttons */
+.label-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.label-actions .btn {
+  width: 100%;
+  padding: 16px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.label-actions .icon {
+  font-size: 20px;
+}
+
+/* Print Area (hidden until print) */
+.print-area {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: white;
+  z-index: 9999;
+  overflow: auto;
+}
+
+.print-label {
+  background: white;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Print sizes */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  #printArea, #printArea * {
+    visibility: visible;
+  }
+  
+  #printArea {
+    position: fixed;
+    top: 0;
+    left: 0;
+    display: block !important;
+    width: 100%;
+    height: 100%;
+  }
+  
+  .print-label {
+    border: 1px solid #000;
+    margin: 0;
+  }
+  
+  .print-label.size-70x40 {
+    width: 70mm;
+    height: 40mm;
+  }
+  
+  .print-label.size-50x30 {
+    width: 50mm;
+    height: 30mm;
+  }
+}
+</style>
+
+<script>
+(function() {
+  let currentSize = '70x40';
+  let quantity = 1;
+
+  // Size selector
+  document.querySelectorAll('.size-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      currentSize = this.dataset.size;
+      
+      // Update preview
+      const preview = document.getElementById('labelPreview');
+      if (currentSize === '50x30') {
+        preview.classList.add('size-50x30');
+      } else {
+        preview.classList.remove('size-50x30');
+      }
+    });
+  });
+
+  // Quantity controls
+  document.getElementById('qtyMinus').addEventListener('click', () => {
+    if (quantity > 1) {
+      quantity--;
+      document.getElementById('qtyInput').value = quantity;
+    }
+  });
+
+  document.getElementById('qtyPlus').addEventListener('click', () => {
+    if (quantity < 50) {
+      quantity++;
+      document.getElementById('qtyInput').value = quantity;
+    }
+  });
+
+  document.getElementById('qtyInput').addEventListener('change', function() {
+    let val = parseInt(this.value);
+    if (isNaN(val) || val < 1) val = 1;
+    if (val > 50) val = 50;
+    quantity = val;
+    this.value = val;
+  });
+
+  // Print button
+  document.getElementById('printBtn').addEventListener('click', () => {
+    const printArea = document.getElementById('printArea');
+    const printLabel = document.getElementById('printLabel');
+    
+    // Set size class
+    printLabel.className = 'print-label size-' + currentSize;
+    
+    // Clone labels for quantity
+    printArea.innerHTML = '';
+    for (let i = 0; i < quantity; i++) {
+      const clone = printLabel.cloneNode(true);
+      printArea.appendChild(clone);
+    }
+    
+    // Print
+    printArea.style.display = 'block';
+    window.print();
+    printArea.style.display = 'none';
+  });
+
+  // Download PDF button
+  document.getElementById('downloadBtn').addEventListener('click', async () => {
+    const assetId = '<%= asset.id %>';
+    window.location.href = `/api/assets/${assetId}/qr-label.pdf`;
+  });
+
+  // Share button
+  document.getElementById('shareBtn').addEventListener('click', async () => {
+    if (navigator.share) {
+      try {
+        const response = await fetch(`/api/assets/<%= asset.id %>/qr-label.png`);
+        const blob = await response.blob();
+        const file = new File([blob], `label-<%= asset.code %>.png`, { type: 'image/png' });
+        
+        await navigator.share({
+          title: `QR Label - <%= asset.name %>`,
+          text: `Asset: <%= asset.name %> (<%= asset.code %>)`,
+          files: [file]
+        });
+      } catch (err) {
+        console.error('Share failed:', err);
+        alert('Sharing not available on this device');
+      }
+    } else {
+      alert('Web Share API not supported');
+    }
+  });
+})();
+</script>

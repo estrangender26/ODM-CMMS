@@ -1,0 +1,138 @@
+<!-- Mobile Admin Grid -->
+<div class="admin-mobile-grid mobile-only">
+  <% sections.forEach(function(section) { %>
+    <div class="card admin-section-card" onclick="location.href='<%= section.href %>'">
+      <div class="admin-section-icon">
+        <%= section.icon === 'rocket' ? '🚀' : section.icon === 'building' ? '🏭' : section.icon === 'box' ? '📦' : section.icon === 'file' ? '📋' : section.icon === 'calendar' ? '📅' : section.icon === 'qr' ? '🏷️' : section.icon === 'users' ? '👥' : section.icon === 'settings' ? '⚙️' : section.icon === 'credit' ? '💳' : '⚙️' %>
+      </div>
+      <div class="admin-section-content">
+        <div class="admin-section-title"><%= section.label %></div>
+        <div class="admin-section-desc">Manage <%= section.label %></div>
+      </div>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </div>
+  <% }) %>
+</div>
+
+<!-- Desktop Admin with Sidebar -->
+<div class="admin-desktop-layout desktop-only">
+  <aside class="admin-sidebar">
+    <nav class="admin-sidebar-nav">
+      <% sections.forEach(function(section, index) { %>
+        <a href="<%= section.href %>" class="admin-sidebar-item <%= index === 0 ? 'active' : '' %>">
+          <span class="admin-sidebar-icon">
+            <%= section.icon === 'rocket' ? '🚀' : section.icon === 'building' ? '🏭' : section.icon === 'box' ? '📦' : section.icon === 'file' ? '📋' : section.icon === 'calendar' ? '📅' : section.icon === 'qr' ? '🏷️' : section.icon === 'users' ? '👥' : section.icon === 'settings' ? '⚙️' : section.icon === 'credit' ? '💳' : '⚙️' %>
+          </span>
+          <span class="admin-sidebar-label"><%= section.label %></span>
+        </a>
+      <% }) %>
+    </nav>
+  </aside>
+  
+  <main class="admin-main-content">
+    <div class="admin-dashboard-header">
+      <h1>Admin Dashboard</h1>
+      <p>Manage your maintenance system settings and data</p>
+    </div>
+    
+    <div class="admin-dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+      <div class="admin-dash-card">
+        <div class="admin-dash-icon">👥</div>
+        <div class="admin-dash-info">
+          <h3>Users</h3>
+          <p class="admin-dash-count" id="userCount">-</p>
+          <a href="/mobile/admin/users" class="admin-dash-link">Manage →</a>
+        </div>
+      </div>
+      
+      <div class="admin-dash-card">
+        <div class="admin-dash-icon">⚙️</div>
+        <div class="admin-dash-info">
+          <h3>Organization</h3>
+          <p class="admin-dash-count" style="font-size: 14px;">Settings</p>
+          <a href="/mobile/admin/organization" class="admin-dash-link">Manage →</a>
+        </div>
+      </div>
+      
+      <div class="admin-dash-card">
+        <div class="admin-dash-icon">💳</div>
+        <div class="admin-dash-info">
+          <h3>Subscription</h3>
+          <p class="admin-dash-count" id="planName" style="font-size: 14px;">-</p>
+          <a href="/mobile/admin/subscription" class="admin-dash-link">Manage →</a>
+        </div>
+      </div>
+      
+      <div class="admin-dash-card">
+        <div class="admin-dash-icon">🏭</div>
+        <div class="admin-dash-info">
+          <h3>Facilities</h3>
+          <p class="admin-dash-count" id="facilityCount">-</p>
+          <a href="/mobile/admin/facilities" class="admin-dash-link">Manage →</a>
+        </div>
+      </div>
+      
+      <div class="admin-dash-card">
+        <div class="admin-dash-icon">📦</div>
+        <div class="admin-dash-info">
+          <h3>Assets</h3>
+          <p class="admin-dash-count" id="assetCount">-</p>
+          <a href="/mobile/admin/assets" class="admin-dash-link">Manage →</a>
+        </div>
+      </div>
+      
+      <div class="admin-dash-card">
+        <div class="admin-dash-icon">📋</div>
+        <div class="admin-dash-info">
+          <h3>Templates</h3>
+          <p class="admin-dash-count" id="templateCount">-</p>
+          <a href="/mobile/admin/templates" class="admin-dash-link">Manage →</a>
+        </div>
+      </div>
+    </div>
+    
+    <script>
+    // Load real stats
+    async function loadAdminStats() {
+      try {
+        // Load org stats
+        const orgRes = await fetch('/api/organizations/my');
+        const orgData = await orgRes.json();
+        if (orgData.success) {
+          const org = orgData.data.organization;
+          document.getElementById('userCount').textContent = org.user_count || '-';
+          document.getElementById('facilityCount').textContent = org.facility_count || '-';
+          document.getElementById('assetCount').textContent = org.equipment_count || '-';
+        }
+        
+        // Load subscription
+        const subRes = await fetch('/api/subscriptions/current');
+        const subData = await subRes.json();
+        if (subData.success) {
+          document.getElementById('planName').textContent = subData.data.plan.name || '-';
+        }
+      } catch (err) {
+        console.error('Failed to load stats:', err);
+      }
+    }
+    loadAdminStats();
+    </script>
+    
+    <div class="admin-quick-actions">
+      <h2>Quick Actions</h2>
+      <div class="admin-action-buttons">
+        <a href="/mobile/onboarding" class="btn btn-primary">
+          <span>🚀</span> Start Onboarding
+        </a>
+        <a href="/mobile/qr-labels" class="btn btn-outline">
+          <span>🏷️</span> Print QR Labels
+        </a>
+        <a href="/mobile/calendar" class="btn btn-outline">
+          <span>📅</span> View Scheduler
+        </a>
+      </div>
+    </div>
+  </main>
+</div>

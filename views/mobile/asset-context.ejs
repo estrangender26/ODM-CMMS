@@ -1,58 +1,95 @@
-<% title = 'Asset' %>
+<% title = asset ? asset.name : 'Asset' %>
 <% showBack = true %>
 <% showNav = false %>
 <% activeNav = '' %>
 
 <!-- Asset Header -->
 <div class="asset-header">
-    <div class="asset-name">Pump P-101</div>
-    <div class="asset-type">Centrifugal Pump</div>
-    <div class="asset-facility">North Plant</div>
+    <div class="asset-name"><%= asset.name %></div>
+    <div class="asset-type"><%= asset.equipmentType %></div>
+    <div class="asset-facility"><%= asset.facility %></div>
 </div>
 
+<% if (openWorkOrders && openWorkOrders.length > 0) { %>
 <!-- Open Work Orders -->
 <div class="work-order-list">
-    <div class="list-header">Open Work Orders (2)</div>
+    <div class="list-header">Open Work Orders (<%= openWorkOrders.length %>)</div>
     
-    <div class="wo-item selected" onclick="selectWO(this)">
+    <% openWorkOrders.forEach(function(wo, index) { %>
+    <div class="wo-item <%= wo.selected ? 'selected' : '' %>" onclick="selectWO(this, '<%= wo.id %>')" data-wo-id="<%= wo.id %>">
         <div class="wo-item-info">
-            <div class="wo-item-id">WO-2026-0042</div>
-            <div class="wo-item-due">Due Today • Daily Pump Inspection</div>
+            <div class="wo-item-id"><%= wo.id %></div>
+            <div class="wo-item-due"><%= wo.dueDate %> • <%= wo.templateName %></div>
         </div>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary);">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: <%= wo.selected ? 'var(--primary)' : 'var(--gray-300)' %>;">
             <circle cx="12" cy="12" r="10"/>
-            <circle cx="12" cy="12" r="4" fill="currentColor"/>
+            <% if (wo.selected) { %><circle cx="12" cy="12" r="4" fill="currentColor"/><% } %>
         </svg>
     </div>
-    
-    <div class="wo-item" onclick="selectWO(this)">
-        <div class="wo-item-info">
-            <div class="wo-item-id">WO-2026-0039</div>
-            <div class="wo-item-due">Due Apr 5 • Weekly Maintenance</div>
-        </div>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--gray-300);">
-            <circle cx="12" cy="12" r="10"/>
-        </svg>
-    </div>
+    <% }); %>
 </div>
 
+<% if (hasOverdue && overdueWorkOrder) { %>
 <!-- Overdue Warning -->
 <div class="alert-banner">
     <span class="alert-icon">⚠️</span>
     <div class="alert-content">
-        <div class="alert-title">WO-2026-0038 Overdue</div>
-        <div class="alert-subtitle">2 days past due date</div>
+        <div class="alert-title"><%= overdueWorkOrder.id %> Overdue</div>
+        <div class="alert-subtitle"><%= overdueWorkOrder.daysOverdue %> days past due date</div>
     </div>
 </div>
+<% } %>
 
 <!-- Quick Actions -->
 <div class="card">
-    <button class="btn btn-primary btn-large btn-full" onclick="location.href='/mobile/inspection/WO-2026-0042'" style="margin-bottom: 12px;">
+    <button id="startBtn" class="btn btn-primary btn-large btn-full" onclick="startSelectedWO()" style="margin-bottom: 12px;">
         Start Inspection
     </button>
-    <button class="btn btn-outline btn-full" onclick="location.href='/mobile/asset/P-101/history'">
+    <button class="btn btn-secondary btn-full" onclick="printQRLabel('<%= asset.id %>')" style="margin-bottom: 12px;">
+        <span style="margin-right: 6px;">🖨️</span> Print QR Label
+    </button>
+    <button class="btn btn-outline btn-full" onclick="location.href='/mobile/asset/<%= asset.id %>/history'">
         View Inspection History
     </button>
+</div>
+
+<% } else { %>
+<!-- No Open Work Orders - Ad-hoc Inspection -->
+<div class="card" style="text-align: center; padding: 32px 24px;">
+    <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
+    <div style="font-weight: 600; margin-bottom: 8px;">No Open Work Orders</div>
+    <div style="color: var(--gray-600); margin-bottom: 24px;">This asset has no scheduled inspections</div>
+    <button class="btn btn-primary btn-large btn-full" onclick="startAdHocInspection('<%= asset.equipmentTypeId %>')">
+        Start Ad-hoc Inspection
+    </button>
+</div>
+<% } %>
+
+<!-- QR Code Section -->
+<div class="card qr-card">
+    <div class="card-title">QR Label</div>
+    <div class="qr-display">
+        <% if (asset.qrImage) { %>
+            <img src="<%= asset.qrImage %>" alt="QR Code" class="qr-image">
+            <div class="qr-code-text"><%= asset.qrCode %></div>
+        <% } else { %>
+            <div class="qr-placeholder">
+                <span class="qr-icon">📱</span>
+                <span>No QR generated</span>
+            </div>
+        <% } %>
+    </div>
+    <div class="qr-actions">
+        <button class="btn btn-secondary btn-sm" onclick="viewQRLabel('<%= asset.id %>')">
+            <span class="icon">👁️</span> View
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="printQRLabel('<%= asset.id %>')">
+            <span class="icon">🖨️</span> Print
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="shareQRCode('<%= asset.code %>')">
+            <span class="icon">📤</span> Share
+        </button>
+    </div>
 </div>
 
 <!-- Asset Details -->
@@ -61,19 +98,19 @@
     <div style="margin-top: 12px;">
         <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--gray-200);">
             <span style="color: var(--gray-600);">Asset ID</span>
-            <span style="font-weight: 500;">AST-001</span>
+            <span style="font-weight: 500;"><%= asset.id %></span>
         </div>
         <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--gray-200);">
             <span style="color: var(--gray-600);">Equipment Type</span>
-            <span style="font-weight: 500;">ETYPE-001</span>
+            <span style="font-weight: 500;"><%= asset.equipmentTypeId %></span>
         </div>
         <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--gray-200);">
-            <span style="color: var(--gray-600);">QR Code</span>
-            <span style="font-weight: 500; font-family: monospace;">ODM-AST-001</span>
+            <span style="color: var(--gray-600);">Asset Code</span>
+            <span style="font-weight: 500; font-family: monospace;"><%= asset.code %></span>
         </div>
         <div style="display: flex; justify-content: space-between; padding: 8px 0;">
             <span style="color: var(--gray-600);">Status</span>
-            <span class="status-badge status-released">Active</span>
+            <span class="status-badge status-released"><%= asset.status.toUpperCase() %></span>
         </div>
     </div>
 </div>
@@ -82,19 +119,21 @@
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div class="card-title" style="margin: 0;">Last Inspection</div>
-        <a href="/mobile/asset/P-101/history" style="font-size: 14px; color: var(--primary); text-decoration: none;">View All</a>
+        <a href="/mobile/asset/<%= asset.id %>/history" style="font-size: 14px; color: var(--primary); text-decoration: none;">View All</a>
     </div>
     <div style="margin-top: 12px; padding: 12px; background: var(--gray-100); border-radius: 8px;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <span style="font-weight: 500;">Mar 29, 2026</span>
-            <span class="status-badge" style="background: #e8f5e9; color: var(--success);">Pass</span>
+            <span style="font-weight: 500;"><%= lastInspection.date %></span>
+            <span class="status-badge" style="background: <%= lastInspection.result === 'pass' ? '#e8f5e9' : '#fff3e0' %>; color: <%= lastInspection.result === 'pass' ? 'var(--success)' : 'var(--warning)' %>;"><%= lastInspection.result.toUpperCase() %></span>
         </div>
-        <div style="font-size: 13px; color: var(--gray-600);">Completed by Juan Santos • 12 items</div>
+        <div style="font-size: 13px; color: var(--gray-600);">Completed by <%= lastInspection.by %> • <%= lastInspection.findingsCount %> findings</div>
     </div>
 </div>
 
 <script>
-function selectWO(element) {
+let selectedWO = '<%= openWorkOrders && openWorkOrders.find(wo => wo.selected) ? openWorkOrders.find(wo => wo.selected).id : '' %>';
+
+function selectWO(element, woId) {
     document.querySelectorAll('.wo-item').forEach(item => {
         item.classList.remove('selected');
         item.querySelector('svg').style.color = 'var(--gray-300)';
@@ -103,5 +142,98 @@ function selectWO(element) {
     element.classList.add('selected');
     element.querySelector('svg').style.color = 'var(--primary)';
     element.querySelector('svg').innerHTML = '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4" fill="currentColor"/>';
+    selectedWO = woId;
+}
+
+function startSelectedWO() {
+    if (selectedWO) {
+        location.href = '/mobile/inspection/' + selectedWO;
+    } else {
+        alert('Please select a work order');
+    }
+}
+
+function startAdHocInspection(equipmentTypeId) {
+    // Create ad-hoc inspection for this equipment type
+    location.href = '/mobile/inspection/adhoc?equipmentTypeId=' + encodeURIComponent(equipmentTypeId);
+}
+
+function viewQRLabel(assetId) {
+    location.href = '/mobile/assets/' + assetId + '/qr-label';
+}
+
+function printQRLabel(assetId) {
+    window.open('/api/assets/' + assetId + '/qr-label.pdf', '_blank');
+}
+
+function shareQRCode(assetCode) {
+    if (navigator.share) {
+        navigator.share({
+            title: 'ODM Asset QR Code',
+            text: 'Scan to open asset: ' + assetCode,
+            url: window.location.origin + '/mobile/asset?code=' + encodeURIComponent(assetCode)
+        });
+    } else {
+        // Fallback: copy to clipboard
+        const url = window.location.origin + '/mobile/asset?code=' + encodeURIComponent(assetCode);
+        navigator.clipboard.writeText(url).then(() => {
+            alert('QR URL copied to clipboard!');
+        });
+    }
 }
 </script>
+
+<style>
+.qr-card {
+    text-align: center;
+}
+
+.qr-display {
+    padding: 20px;
+    background: var(--gray-100);
+    border-radius: 12px;
+    margin: 12px 0;
+}
+
+.qr-image {
+    width: 150px;
+    height: 150px;
+    border-radius: 8px;
+}
+
+.qr-code-text {
+    margin-top: 8px;
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--gray-600);
+}
+
+.qr-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 20px;
+    color: var(--gray-500);
+}
+
+.qr-icon {
+    font-size: 32px;
+}
+
+.qr-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.qr-actions .btn {
+    flex: 1;
+    padding: 10px 12px;
+    font-size: 13px;
+}
+
+.qr-actions .icon {
+    margin-right: 4px;
+}
+</style>

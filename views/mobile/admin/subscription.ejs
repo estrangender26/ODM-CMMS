@@ -1,0 +1,461 @@
+<% title = 'Subscription Management' %>
+
+<!-- Current Plan Card -->
+<div class="card" style="margin-bottom: 20px; background: linear-gradient(135deg, var(--primary) 0%, #1565c0 100%); color: white;">
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+    <div>
+      <div style="font-size: 13px; opacity: 0.9; margin-bottom: 4px;">Current Plan</div>
+      <div id="currentPlanName" style="font-size: 24px; font-weight: 700;">-</div>
+    </div>
+    <span id="currentPlanBadge" class="plan-badge" style="background: rgba(255,255,255,0.2); color: white;">-</span>
+  </div>
+  
+  <div style="display: flex; gap: 24px;">
+    <div>
+      <div style="font-size: 13px; opacity: 0.9; margin-bottom: 4px;">Status</div>
+      <div id="subscriptionStatus" style="font-weight: 600;">-</div>
+    </div>
+    <div>
+      <div style="font-size: 13px; opacity: 0.9; margin-bottom: 4px;">Next Billing</div>
+      <div id="nextBilling" style="font-weight: 600;">-</div>
+    </div>
+  </div>
+</div>
+
+<!-- Seat Usage Card -->
+<div class="card" style="margin-bottom: 20px;">
+  <div class="card-title">Seat Usage</div>
+  
+  <div id="seatUsage">
+    <div class="loading-state" style="text-align: center; padding: 20px; color: var(--gray-600);">
+      Loading seat usage...
+    </div>
+  </div>
+</div>
+
+<!-- Available Plans Card -->
+<div class="card" style="margin-bottom: 20px;">
+  <div class="card-title">Available Plans</div>
+  
+  <div id="plansList" style="display: flex; flex-direction: column; gap: 16px;">
+    <div class="loading-state" style="text-align: center; padding: 20px; color: var(--gray-600);">
+      Loading plans...
+    </div>
+  </div>
+</div>
+
+<!-- Extra Seats Card -->
+<div class="card" style="margin-bottom: 20px;">
+  <div class="card-title">Add Extra Seats</div>
+  
+  <div style="display: flex; gap: 12px; align-items: flex-end;">
+    <div style="flex: 1;">
+      <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Number of Seats</label>
+      <input type="number" id="extraSeats" min="1" max="50" value="1"
+             style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+    </div>
+    <button class="btn btn-primary" onclick="addExtraSeats()" id="addSeatsBtn">
+      Add Seats
+    </button>
+  </div>
+  <div id="seatsError" style="color: var(--danger); margin-top: 8px; font-size: 14px; display: none;"></div>
+  <div id="seatsSuccess" style="color: var(--success); margin-top: 8px; font-size: 14px; display: none;"></div>
+</div>
+
+<!-- Billing History Card -->
+<div class="card" style="margin-bottom: 20px;">
+  <div class="card-title">Billing History</div>
+  
+  <div id="billingHistory">
+    <div style="text-align: center; padding: 20px; color: var(--gray-600);">
+      <div style="font-size: 32px; margin-bottom: 12px;">🧾</div>
+      <div>Billing history coming soon</div>
+    </div>
+  </div>
+</div>
+
+<!-- Cancel Subscription -->
+<div id="cancelSection" class="card" style="border: 1px solid var(--danger); background: #fff5f5; display: none;">
+  <div class="card-title" style="color: var(--danger);">Cancel Subscription</div>
+  
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="font-size: 14px; color: var(--gray-700);">
+      Canceling will downgrade your organization to the Free plan at the end of your billing period.
+      Your data will be preserved but some features may become unavailable.
+    </div>
+    <button class="btn btn-outline" style="color: var(--danger); border-color: var(--danger); align-self: flex-start;" onclick="cancelSubscription()">
+      Cancel Subscription
+    </button>
+  </div>
+</div>
+
+<style>
+.plan-card {
+  border: 2px solid var(--gray-200);
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  transition: all 0.2s;
+}
+.plan-card:hover {
+  border-color: var(--primary);
+}
+.plan-card.current {
+  border-color: var(--primary);
+  background: #e3f2fd;
+}
+.plan-card.recommended {
+  border-color: var(--success);
+}
+.plan-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.plan-name {
+  font-size: 18px;
+  font-weight: 600;
+}
+.plan-price {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary);
+}
+.plan-price span {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--gray-600);
+}
+.plan-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px 0;
+}
+.plan-features li {
+  padding: 6px 0;
+  font-size: 14px;
+  color: var(--gray-700);
+}
+.plan-features li:before {
+  content: '✓';
+  margin-right: 8px;
+  color: var(--success);
+  font-weight: 600;
+}
+.plan-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.plan-recommended-badge {
+  position: absolute;
+  top: -10px;
+  right: 12px;
+  background: var(--success);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.seat-bar-container {
+  margin-bottom: 16px;
+}
+.seat-bar-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+.seat-bar {
+  height: 12px;
+  background: var(--gray-200);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.seat-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+.seat-bar-fill.safe { background: var(--success); }
+.seat-bar-fill.warning { background: var(--warning); }
+.seat-bar-fill.danger { background: var(--danger); }
+.seat-legend {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--gray-600);
+}
+.seat-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.seat-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+</style>
+
+<script>
+let currentSubscription = null;
+let currentPlan = null;
+let availablePlans = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadSubscription();
+  await loadSeatUsage();
+  await loadPlans();
+});
+
+async function loadSubscription() {
+  try {
+    const response = await fetch('/api/subscriptions/current');
+    const data = await response.json();
+    
+    if (data.success) {
+      currentSubscription = data.data.subscription;
+      currentPlan = data.data.plan;
+      
+      document.getElementById('currentPlanName').textContent = currentPlan.name;
+      document.getElementById('currentPlanBadge').textContent = currentPlan.code || 'FREE';
+      document.getElementById('subscriptionStatus').textContent = currentSubscription.status;
+      document.getElementById('nextBilling').textContent = formatDate(currentSubscription.current_period_end);
+      
+      // Show cancel section for paid plans
+      if (currentPlan.code !== 'free' && currentSubscription.status === 'active') {
+        document.getElementById('cancelSection').style.display = 'block';
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load subscription:', err);
+  }
+}
+
+async function loadSeatUsage() {
+  try {
+    const response = await fetch('/api/subscriptions/seats');
+    const data = await response.json();
+    
+    if (data.success) {
+      const seats = data.data;
+      const percentage = (seats.used / seats.total) * 100;
+      const barClass = percentage < 70 ? 'safe' : percentage < 90 ? 'warning' : 'danger';
+      
+      document.getElementById('seatUsage').innerHTML = `
+        <div class="seat-bar-container">
+          <div class="seat-bar-header">
+            <span>${seats.used} of ${seats.total} seats used</span>
+            <span>${seats.available} available</span>
+          </div>
+          <div class="seat-bar">
+            <div class="seat-bar-fill ${barClass}" style="width: ${Math.min(percentage, 100)}%"></div>
+          </div>
+        </div>
+        
+        <div class="seat-legend">
+          <div class="seat-legend-item">
+            <div class="seat-legend-dot" style="background: var(--success);"></div>
+            <span>Active: ${seats.used}</span>
+          </div>
+          <div class="seat-legend-item">
+            <div class="seat-legend-dot" style="background: var(--gray-300);"></div>
+            <span>Available: ${seats.available}</span>
+          </div>
+          ${seats.extra > 0 ? `
+          <div class="seat-legend-item">
+            <div class="seat-legend-dot" style="background: var(--primary);"></div>
+            <span>Extra: ${seats.extra}</span>
+          </div>
+          ` : ''}
+        </div>
+        
+        ${seats.available <= 0 ? `
+        <div style="margin-top: 16px; padding: 12px; background: #fff3e0; border-radius: 8px; color: #ef6c00; font-size: 14px;">
+          ⚠️ You've reached your seat limit. Add extra seats or upgrade your plan to add more users.
+        </div>
+        ` : ''}
+      `;
+    }
+  } catch (err) {
+    console.error('Failed to load seat usage:', err);
+    document.getElementById('seatUsage').innerHTML = `
+      <div style="text-align: center; color: var(--danger);">Failed to load seat usage</div>
+    `;
+  }
+}
+
+async function loadPlans() {
+  try {
+    const response = await fetch('/api/subscriptions/plans');
+    const data = await response.json();
+    
+    if (data.success) {
+      availablePlans = data.data.plans || [];
+      renderPlans();
+    }
+  } catch (err) {
+    console.error('Failed to load plans:', err);
+    document.getElementById('plansList').innerHTML = `
+      <div style="text-align: center; color: var(--danger);">Failed to load plans</div>
+    `;
+  }
+}
+
+function renderPlans() {
+  const container = document.getElementById('plansList');
+  
+  container.innerHTML = availablePlans.map(plan => {
+    const isCurrent = currentPlan && plan.id === currentPlan.id;
+    const isRecommended = plan.code === 'professional';
+    
+    return `
+      <div class="plan-card ${isCurrent ? 'current' : ''} ${isRecommended ? 'recommended' : ''}">
+        ${isRecommended ? '<div class="plan-recommended-badge">Recommended</div>' : ''}
+        
+        <div class="plan-header">
+          <div class="plan-name">${plan.name}</div>
+          <div class="plan-price">
+            $${plan.price_monthly}
+            <span>/mo</span>
+          </div>
+        </div>
+        
+        <ul class="plan-features">
+          <li>Up to ${plan.max_users} users</li>
+          <li>Up to ${plan.max_facilities} facilities</li>
+          <li>Up to ${plan.max_equipment} equipment</li>
+          ${plan.features ? plan.features.map(f => `<li>${f}</li>`).join('') : ''}
+        </ul>
+        
+        ${isCurrent ? `
+          <button class="btn btn-outline btn-full" disabled>Current Plan</button>
+        ` : `
+          <button class="btn btn-primary btn-full" onclick="upgradePlan('${plan.code}')">
+            ${currentPlan && currentPlan.price_monthly > plan.price_monthly ? 'Downgrade' : 'Upgrade'}
+          </button>
+        `}
+      </div>
+    `;
+  }).join('');
+}
+
+async function upgradePlan(planCode) {
+  if (!confirm(`Are you sure you want to change to the ${planCode} plan?`)) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/subscriptions/plan', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan_code: planCode })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      alert('Plan updated successfully!');
+      location.reload();
+    } else {
+      alert(data.message || 'Failed to update plan');
+    }
+  } catch (err) {
+    console.error('Failed to upgrade plan:', err);
+    alert('Failed to update plan. Please try again.');
+  }
+}
+
+async function addExtraSeats() {
+  const count = parseInt(document.getElementById('extraSeats').value);
+  
+  if (!count || count < 1) {
+    showError('seatsError', 'Please enter a valid number of seats');
+    return;
+  }
+  
+  const btn = document.getElementById('addSeatsBtn');
+  btn.disabled = true;
+  btn.textContent = 'Adding...';
+  
+  try {
+    const response = await fetch('/api/subscriptions/extra-users', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ count })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showSuccess('seatsSuccess', `${count} extra seat${count > 1 ? 's' : ''} added successfully!`);
+      hideError('seatsError');
+      await loadSeatUsage();
+    } else {
+      showError('seatsError', data.message);
+      hideSuccess('seatsSuccess');
+    }
+  } catch (err) {
+    console.error('Failed to add seats:', err);
+    showError('seatsError', 'Failed to add seats. Please try again.');
+    hideSuccess('seatsSuccess');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Add Seats';
+  }
+}
+
+async function cancelSubscription() {
+  if (!confirm('Are you sure you want to cancel your subscription? You will be downgraded to the Free plan at the end of your billing period.')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/subscriptions/cancel', {
+      method: 'POST'
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      alert('Subscription cancelled successfully. You will be downgraded at the end of your billing period.');
+      location.reload();
+    } else {
+      alert(data.message || 'Failed to cancel subscription');
+    }
+  } catch (err) {
+    console.error('Failed to cancel subscription:', err);
+    alert('Failed to cancel subscription. Please try again.');
+  }
+}
+
+function formatDate(dateString) {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function hideError(id) {
+  document.getElementById(id).style.display = 'none';
+}
+
+function showSuccess(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+</script>

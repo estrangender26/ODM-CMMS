@@ -266,6 +266,7 @@ window.RBAC = {
   isOperator,
   showIfPermitted,
   disableIfNotPermitted,
+  applyRBAC,
   fetchUserPermissions,
   clearPermissionsCache
 };

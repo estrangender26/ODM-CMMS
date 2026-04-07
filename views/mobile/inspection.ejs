@@ -6,15 +6,15 @@
 <!-- Progress Bar -->
 <div class="inspection-progress">
     <div class="progress-bar">
-        <div class="progress-fill" style="width: 8%;"></div>
+        <div class="progress-fill" style="width: <%= Math.round((itemIndex / totalItems) * 100) %>%;"></div>
     </div>
-    <div class="progress-text">Item 1 of 12</div>
+    <div class="progress-text">Item <%= itemIndex %> of <%= totalItems %></div>
 </div>
 
 <!-- Inspection Card -->
 <div class="inspection-card">
-    <div class="inspection-context">Coupling Assembly • Mechanical Component</div>
-    <div class="inspection-prompt">Check coupling for wear or damage</div>
+    <div class="inspection-context"><%= item.subunit %> • <%= item.maintainableItem %></div>
+    <div class="inspection-prompt"><%= item.prompt %></div>
     
     <!-- Pass/Fail Input -->
     <div class="input-pass-fail">
@@ -46,18 +46,37 @@
     
     <!-- Navigation -->
     <div class="inspection-nav">
+        <% if (itemIndex > 1) { %>
+        <button class="btn btn-outline" onclick="previousItem()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+                <polyline points="15 18 9 12 15 6"/>
+            </svg>
+            Prev
+        </button>
+        <% } else { %>
         <button class="btn btn-outline" disabled>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
                 <polyline points="15 18 9 12 15 6"/>
             </svg>
             Prev
         </button>
+        <% } %>
+        
+        <% if (itemIndex >= totalItems) { %>
+        <button class="btn btn-success" onclick="nextItem()">
+            Complete
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: 8px;">
+                <polyline points="9 18 15 12 9 6"/>
+            </svg>
+        </button>
+        <% } else { %>
         <button class="btn btn-primary" onclick="nextItem()">
             Next
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: 8px;">
                 <polyline points="9 18 15 12 9 6"/>
             </svg>
         </button>
+        <% } %>
     </div>
 </div>
 
@@ -130,8 +149,30 @@ function saveFinding() {
 }
 
 function nextItem() {
-    // In real implementation, this would load the next inspection item
-    location.reload(); // Temporary: reload to show next item
+    // Navigate to next inspection item
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentItem = parseInt(urlParams.get('item')) || 1;
+    const totalItems = <%= totalItems %>;
+    const nextItemNum = currentItem + 1;
+    
+    if (nextItemNum > totalItems) {
+        // Inspection complete - go to work order detail
+        location.href = '/mobile/work-orders/' + '<%= workOrderId %>';
+    } else {
+        // Go to next item
+        location.href = '/mobile/inspection/<%= workOrderId %>?item=' + nextItemNum;
+    }
+}
+
+function previousItem() {
+    // Navigate to previous inspection item
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentItem = parseInt(urlParams.get('item')) || 1;
+    const prevItemNum = currentItem - 1;
+    
+    if (prevItemNum >= 1) {
+        location.href = '/mobile/inspection/<%= workOrderId %>?item=' + prevItemNum;
+    }
 }
 
 function takePhoto() {

@@ -50,7 +50,7 @@
         <div class="wo-equipment">Centrifugal Pump</div>
         <div class="wo-footer">
             <span class="wo-due today">Due Today</span>
-            <button class="btn btn-primary" style="min-width: 80px;">Start</button>
+            <button class="btn btn-primary" style="min-width: 80px;" onclick="location.href='/mobile/inspection/WO-2026-0042'">Start</button>
         </div>
     </div>
     
@@ -65,9 +65,28 @@
         <div class="wo-equipment">Electric Motor</div>
         <div class="wo-footer">
             <span class="wo-due overdue">2 Days Overdue</span>
-            <button class="btn btn-danger" style="min-width: 80px;">Start</button>
+            <button class="btn btn-danger" style="min-width: 80px;" onclick="location.href='/mobile/inspection/WO-2026-0038'">Start</button>
         </div>
     </div>
 </div>
 
-<a href="/mobile/work-orders" class="btn btn-outline btn-full">View All Tasks</a>
+<a href="/mobile/work-orders" class="btn btn-outline btn-full" style="margin-bottom: 12px;">View All Tasks</a>
+
+<!-- Admin Tools -->
+<div class="admin-tools" style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--gray-200);">
+    <div style="font-size: 13px; font-weight: 600; color: var(--gray-500); margin-bottom: 12px; text-transform: uppercase;">Admin Tools</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+        <button class="btn btn-secondary" onclick="location.href='/mobile/equipment'">
+            <span style="font-size: 20px;">⚙️</span>
+            <div style="font-size: 12px; margin-top: 4px;">Equipment</div>
+        </button>
+        <button class="btn btn-secondary" onclick="location.href='/mobile/calendar'">
+            <span style="font-size: 20px;">📅</span>
+            <div style="font-size: 12px; margin-top: 4px;">Schedule</div>
+        </button>
+        <button class="btn btn-secondary" onclick="location.href='/mobile/qr-labels'">
+            <span style="font-size: 20px;">🏷️</span>
+            <div style="font-size: 12px; margin-top: 4px;">QR Labels</div>
+        </button>
+    </div>
+</div>

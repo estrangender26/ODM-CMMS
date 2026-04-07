@@ -1,20 +1,17 @@
 <% title = 'Work Orders' %>
-<% showBack = false %>
-<% showNav = true %>
-<% activeNav = 'work-orders' %>
 
 <!-- Filters -->
 <div class="filter-bar">
-    <button class="filter-chip active">All</button>
-    <button class="filter-chip">Today</button>
-    <button class="filter-chip">Overdue</button>
-    <button class="filter-chip">In Progress</button>
-    <button class="filter-chip">North Plant</button>
+    <button class="filter-chip active" onclick="setFilter(this, 'all')">All</button>
+    <button class="filter-chip" onclick="setFilter(this, 'today')">Today</button>
+    <button class="filter-chip" onclick="setFilter(this, 'overdue')">Overdue</button>
+    <button class="filter-chip" onclick="setFilter(this, 'in_progress')">In Progress</button>
+    <button class="filter-chip" onclick="setFilter(this, 'north_plant')">North Plant</button>
 </div>
 
 <!-- Work Orders List -->
 <div class="wo-list">
-    <div class="wo-card card" onclick="location.href='/mobile/work-orders/WO-2026-0042'">
+    <div class="wo-card card" data-status="released" data-due="today" data-facility="North Plant" onclick="location.href='/mobile/work-orders/WO-2026-0042'">
         <div class="wo-header">
             <div>
                 <div class="wo-title">Pump P-101</div>
@@ -31,7 +28,7 @@
         </div>
     </div>
 
-    <div class="wo-card card" onclick="location.href='/mobile/work-orders/WO-2026-0038'">
+    <div class="wo-card card" data-status="released" data-due="overdue" data-facility="South Plant" onclick="location.href='/mobile/work-orders/WO-2026-0038'">
         <div class="wo-header">
             <div>
                 <div class="wo-title">Motor M-205</div>
@@ -48,7 +45,7 @@
         </div>
     </div>
 
-    <div class="wo-card card" onclick="location.href='/mobile/work-orders/WO-2026-0035'">
+    <div class="wo-card card" data-status="in_progress" data-due="upcoming" data-facility="North Plant" onclick="location.href='/mobile/work-orders/WO-2026-0035'">
         <div class="wo-header">
             <div>
                 <div class="wo-title">Heat Exchanger HX-301</div>
@@ -65,7 +62,7 @@
         </div>
     </div>
 
-    <div class="wo-card card" onclick="location.href='/mobile/work-orders/WO-2026-0030'">
+    <div class="wo-card card" data-status="scheduled" data-due="upcoming" data-facility="East Plant" onclick="location.href='/mobile/work-orders/WO-2026-0030'">
         <div class="wo-header">
             <div>
                 <div class="wo-title">Compressor C-102</div>
@@ -82,7 +79,7 @@
         </div>
     </div>
 
-    <div class="wo-card card" onclick="location.href='/mobile/work-orders/WO-2026-0028'">
+    <div class="wo-card card" data-status="completed" data-due="completed" data-facility="South Plant" onclick="location.href='/mobile/work-orders/WO-2026-0028'">
         <div class="wo-header">
             <div>
                 <div class="wo-title">Fan F-201</div>
@@ -99,3 +96,27 @@
         </div>
     </div>
 </div>
+
+<script>
+function setFilter(btn, filter) {
+    document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    // Filter work order cards
+    const cards = document.querySelectorAll('.wo-card');
+    cards.forEach(card => {
+        const status = card.getAttribute('data-status');
+        const due = card.getAttribute('data-due');
+        const facility = card.getAttribute('data-facility');
+        
+        let show = false;
+        if (filter === 'all') show = true;
+        else if (filter === 'today' && due === 'today') show = true;
+        else if (filter === 'overdue' && due === 'overdue') show = true;
+        else if (filter === 'in_progress' && status === 'in_progress') show = true;
+        else if (filter === 'north_plant' && facility === 'North Plant') show = true;
+        
+        card.style.display = show ? 'block' : 'none';
+    });
+}
+</script>

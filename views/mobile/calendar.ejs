@@ -1,7 +1,32 @@
-<% title = 'Calendar' %>
-<% showBack = true %>
-<% showNav = false %>
-<% activeNav = '' %>
+<% title = 'Scheduler' %>
+
+<!-- Scheduler Status Card -->
+<div class="card" style="background: linear-gradient(135deg, var(--primary) 0%, #1565c0 100%); color: white;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+            <div style="font-size: 13px; opacity: 0.9; margin-bottom: 4px;">Next Auto-Run</div>
+            <div style="font-size: 24px; font-weight: 700;" id="nextRunTime">Tomorrow 6:00 AM</div>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 13px; opacity: 0.9; margin-bottom: 4px;">Active Schedules</div>
+            <div style="font-size: 32px; font-weight: 700;" id="activeSchedules">12</div>
+        </div>
+    </div>
+</div>
+
+<!-- Admin Actions -->
+<div class="card" id="adminActions">
+    <div class="card-title">Scheduler Controls</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+        <button class="btn btn-primary btn-full" onclick="previewSchedule()">
+            <span style="margin-right: 6px;">👁️</span> Preview
+        </button>
+        <button class="btn btn-success btn-full" onclick="runScheduler()">
+            <span style="margin-right: 6px;">▶️</span> Run Now
+        </button>
+    </div>
+    <div id="schedulerResult" style="margin-top: 12px; font-size: 13px; display: none;"></div>
+</div>
 
 <!-- Date Navigation -->
 <div class="card" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;">
@@ -20,18 +45,18 @@
 
 <!-- Filters -->
 <div class="filter-bar">
-    <button class="filter-chip active">All</button>
-    <button class="filter-chip">North Plant</button>
-    <button class="filter-chip">South Plant</button>
-    <button class="filter-chip">My Tasks</button>
+    <button class="filter-chip active" onclick="setFilter(this, 'all')">All</button>
+    <button class="filter-chip" onclick="setFilter(this, 'north')">North Plant</button>
+    <button class="filter-chip" onclick="setFilter(this, 'south')">South Plant</button>
+    <button class="filter-chip" onclick="setFilter(this, 'mytasks')">My Tasks</button>
 </div>
 
 <!-- Work Orders for Selected Date -->
 <div class="card">
-    <div class="card-title">Monday, April 6</div>
+    <div class="card-title">Scheduled Work Orders</div>
     
-    <div style="margin-top: 16px;">
-        <div class="wo-card card" style="margin-bottom: 12px; border-left: 4px solid var(--warning);">
+    <div style="margin-top: 16px;" id="woList">
+        <div class="wo-card card" style="margin-bottom: 12px; border-left: 4px solid var(--warning);" data-facility="North Plant" data-assigned="Juan Santos" onclick="location.href='/mobile/inspection/WO-2026-0042'">
             <div class="wo-header">
                 <div>
                     <div class="wo-title">Pump P-101</div>
@@ -46,7 +71,7 @@
             </div>
         </div>
         
-        <div class="wo-card card" style="margin-bottom: 12px; border-left: 4px solid var(--danger);">
+        <div class="wo-card card" style="margin-bottom: 12px; border-left: 4px solid var(--danger);" data-facility="South Plant" data-assigned="Maria Garcia" onclick="location.href='/mobile/inspection/WO-2026-0043'">
             <div class="wo-header">
                 <div>
                     <div class="wo-title">Motor M-205</div>
@@ -61,7 +86,7 @@
             </div>
         </div>
         
-        <div class="wo-card card" style="margin-bottom: 0; border-left: 4px solid var(--success);">
+        <div class="wo-card card" style="margin-bottom: 0; border-left: 4px solid var(--success);" data-facility="South Plant" data-assigned="Juan Santos" onclick="location.href='/mobile/work-orders/WO-2026-0041'">
             <div class="wo-header">
                 <div>
                     <div class="wo-title">Fan F-201</div>
@@ -78,8 +103,8 @@
     </div>
 </div>
 
-<!-- Week Summary -->
-<div class="card">
+<!-- Week Summary (Mobile) -->
+<div class="card mobile-only">
     <div class="card-title">Week of Apr 6</div>
     <div style="display: flex; gap: 8px; margin-top: 16px; overflow-x: auto;">
         <div style="min-width: 60px; text-align: center; padding: 12px 8px; background: var(--primary); color: white; border-radius: 12px;">
@@ -110,12 +135,157 @@
     </div>
 </div>
 
+<!-- Desktop Run History Table -->
+<div class="card desktop-only" style="margin-top: 24px;">
+    <div class="card-title" style="margin-bottom: 20px;">Run History</div>
+    <table class="run-history-table">
+        <thead>
+            <tr>
+                <th>Run Date</th>
+                <th>Type</th>
+                <th>WO Created</th>
+                <th>WO Skipped</th>
+                <th>Status</th>
+                <th>Run By</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Apr 6, 2026 06:00 AM</td>
+                <td><span style="background: var(--gray-200); padding: 4px 12px; border-radius: 4px; font-size: 12px;">Auto</span></td>
+                <td>12</td>
+                <td>3</td>
+                <td class="run-status-success">✓ Success</td>
+                <td>System</td>
+            </tr>
+            <tr>
+                <td>Apr 5, 2026 06:00 AM</td>
+                <td><span style="background: var(--gray-200); padding: 4px 12px; border-radius: 4px; font-size: 12px;">Auto</span></td>
+                <td>8</td>
+                <td>5</td>
+                <td class="run-status-success">✓ Success</td>
+                <td>System</td>
+            </tr>
+            <tr>
+                <td>Apr 4, 2026 02:30 PM</td>
+                <td><span style="background: var(--primary); color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px;">Manual</span></td>
+                <td>5</td>
+                <td>0</td>
+                <td class="run-status-success">✓ Success</td>
+                <td>Admin User</td>
+            </tr>
+            <tr>
+                <td>Apr 3, 2026 06:00 AM</td>
+                <td><span style="background: var(--gray-200); padding: 4px 12px; border-radius: 4px; font-size: 12px;">Auto</span></td>
+                <td>0</td>
+                <td>0</td>
+                <td class="run-status-success">✓ Success</td>
+                <td>System</td>
+            </tr>
+            <tr>
+                <td>Apr 2, 2026 06:00 AM</td>
+                <td><span style="background: var(--gray-200); padding: 4px 12px; border-radius: 4px; font-size: 12px;">Auto</span></td>
+                <td>15</td>
+                <td>2</td>
+                <td class="run-status-success">✓ Success</td>
+                <td>System</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
 <script>
 function previousDay() {
-    // Navigate to previous day
+    console.log('Previous day');
 }
 
 function nextDay() {
-    // Navigate to next day
+    console.log('Next day');
 }
+
+function setFilter(btn, filter) {
+    document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    const cards = document.querySelectorAll('.wo-card');
+    cards.forEach(card => {
+        const facility = card.getAttribute('data-facility');
+        const assigned = card.getAttribute('data-assigned');
+        
+        let show = false;
+        if (filter === 'all') show = true;
+        else if (filter === 'north' && facility === 'North Plant') show = true;
+        else if (filter === 'south' && facility === 'South Plant') show = true;
+        else if (filter === 'mytasks' && assigned === 'Juan Santos') show = true;
+        
+        card.style.display = show ? 'block' : 'none';
+    });
+}
+
+async function previewSchedule() {
+    const resultDiv = document.getElementById('schedulerResult');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<span style="color: var(--gray-600);">Loading preview...</span>';
+    
+    try {
+        const response = await fetch('/api/scheduler/preview');
+        const data = await response.json();
+        
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <span style="color: var(--success);">✓ Preview: ${data.data.would_create} work orders would be created</span>
+                <br><small style="color: var(--gray-600);">${data.data.would_skip} already exist and would be skipped</small>
+            `;
+        } else {
+            resultDiv.innerHTML = `<span style="color: var(--danger);">✗ ${data.message}</span>`;
+        }
+    } catch (err) {
+        resultDiv.innerHTML = `<span style="color: var(--danger);">✗ Preview failed</span>`;
+    }
+}
+
+async function runScheduler() {
+    if (!confirm('Run scheduler now? This will create work orders.')) return;
+    
+    const resultDiv = document.getElementById('schedulerResult');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<span style="color: var(--gray-600);">Running scheduler...</span>';
+    
+    try {
+        const response = await fetch('/api/scheduler/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <span style="color: var(--success);">✓ ${data.message}</span>
+                <br><small style="color: var(--gray-600);">Created: ${data.data.created} | Skipped: ${data.data.skipped}</small>
+            `;
+            // Reload after a delay to show new work orders
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            resultDiv.innerHTML = `<span style="color: var(--danger);">✗ ${data.message}</span>`;
+        }
+    } catch (err) {
+        resultDiv.innerHTML = `<span style="color: var(--danger);">✗ Scheduler failed</span>`;
+    }
+}
+
+// Load scheduler stats on page load
+async function loadSchedulerStats() {
+    try {
+        const response = await fetch('/api/scheduler/preview');
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('activeSchedules').textContent = data.data.total || '0';
+        }
+    } catch (err) {
+        console.log('Could not load scheduler stats');
+    }
+}
+
+loadSchedulerStats();
 </script>

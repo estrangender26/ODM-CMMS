@@ -485,40 +485,97 @@ class EquipmentModel extends BaseModel {
   }
 
   /**
+   * Update QR code for equipment
+   * @param {number} equipmentId - Equipment ID
+   * @param {string} qrCode - QR code value
+   * @param {number} organizationId - Organization ID
+   */
+  async updateQRCode(equipmentId, qrCode, organizationId) {
+    const sql = `
+      UPDATE ${this.tableName}
+      SET qr_code = ?,
+          qr_data = ?,
+          qr_generated_at = NOW(),
+          updated_at = NOW()
+      WHERE id = ? AND organization_id = ?
+    `;
+    await this.query(sql, [qrCode, qrCode, equipmentId, organizationId]);
+    return true;
+  }
+
+  /**
+   * Get equipment by QR code
+   * @param {string} qrCode - QR code value
+   * @returns {Promise<Object|null>}
+   */
+  async getByQRCode(qrCode) {
+    const sql = `
+      SELECT e.*,
+        f.id as facility_id, f.name as facility_name, f.code as facility_code,
+        o.id as organization_id,
+        et.type_name as equipment_type
+      FROM ${this.tableName} e
+      JOIN facilities f ON e.facility_id = f.id
+      JOIN organizations o ON e.organization_id = o.id
+      LEFT JOIN equipment_types et ON e.equipment_type_id = et.id
+      WHERE e.qr_code = ? OR e.code = ?
+      LIMIT 1
+    `;
+    const [result] = await this.query(sql, [qrCode, qrCode]);
+    return result || null;
+  }
+
+  /**
+   * Get assets without QR codes
+   * @param {number} organizationId - Organization ID
+   * @returns {Promise<Array>}
+   */
+  async getWithoutQRCode(organizationId) {
+    const sql = `
+      SELECT e.*, f.name as facility_name, f.code as facility_code
+      FROM ${this.tableName} e
+      JOIN facilities f ON e.facility_id = f.id
+      WHERE e.organization_id = ? AND (e.qr_code IS NULL OR e.qr_code = '')
+      ORDER BY e.code
+    `;
+    return this.query(sql, [organizationId]);
+  }
+
+  /**
    * Get QR code data for equipment
    * Returns data needed to generate QR code
    * @param {number} equipmentId - Equipment ID
    * @param {number} organizationId - Organization ID
-   * @param {string} baseUrl - Base URL for QR code
    */
-  async getQRCodeData(equipmentId, organizationId, baseUrl) {
-    let equipment = await this.getWithQRInfo(equipmentId, organizationId);
+  async getQRCodeData(equipmentId, organizationId) {
+    const sql = `
+      SELECT e.*,
+        f.name as facility_name, f.code as facility_code,
+        et.type_name as equipment_type
+      FROM ${this.tableName} e
+      JOIN facilities f ON e.facility_id = f.id
+      LEFT JOIN equipment_types et ON e.equipment_type_id = et.id
+      WHERE e.id = ? AND e.organization_id = ?
+    `;
+    const [equipment] = await this.query(sql, [equipmentId, organizationId]);
     
     if (!equipment) {
       return null;
     }
     
-    // Generate token if not exists
-    if (!equipment.qr_token) {
-      const token = await this.generateQRToken(equipmentId, organizationId);
-      equipment = await this.getWithQRInfo(equipmentId, organizationId);
-      equipment.qr_token = token;
-    }
-    
-    const qrUrl = `${baseUrl}/m/asset/${equipment.qr_token}`;
-    
     return {
-      equipment: {
-        id: equipment.id,
-        name: equipment.name,
-        code: equipment.code,
-        facility_name: equipment.facility_name
-      },
-      qr_token: equipment.qr_token,
-      qr_url: qrUrl,
-      generated_at: equipment.qr_token_generated_at
+      id: equipment.id,
+      code: equipment.code,
+      name: equipment.name,
+      equipment_type: equipment.equipment_type,
+      facility_code: equipment.facility_code,
+      org_code: 'ODM',
+      qr_code: equipment.qr_code,
+      qr_generated_at: equipment.qr_generated_at
     };
   }
 }
+
+module.exports = new EquipmentModel();
 
 module.exports = new EquipmentModel();

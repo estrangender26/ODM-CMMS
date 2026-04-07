@@ -599,7 +599,7 @@ async function handleSignup(e) {
         // Store token and redirect to dashboard
         localStorage.setItem('token', data.data.token);
         setTimeout(() => {
-          window.location.href = '/dashboard';
+          window.location.href = '/mobile/home';
         }, 1000);
       } else {
         showToast('Account created successfully! Please sign in.', 'success');

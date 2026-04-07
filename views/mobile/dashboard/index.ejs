@@ -1,0 +1,162 @@
+<!-- Mobile View -->
+<div class="mobile-only">
+  <% sections.forEach(function(section) { %>
+    <div class="card" style="margin-bottom: 12px; display: flex; align-items: center; gap: 16px;"
+         onclick="location.href='<%= section.href %>'">
+      <div style="width: 48px; height: 48px; background: var(--gray-100); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+        <%= section.icon === 'clipboard' ? '📋' : section.icon === 'alert' ? '⚠️' : '📊' %>
+      </div>
+      <div style="flex: 1;">
+        <div style="font-weight: 600;"><%= section.label %></div>
+        <div style="font-size: 13px; color: var(--gray-600);">View <%= section.label.toLowerCase() %></div>
+      </div>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </div>
+  <% }) %>
+</div>
+
+<!-- Desktop View - Charts Layout -->
+<div class="desktop-only">
+  <!-- Stats Row -->
+  <div class="dashboard-stats" style="margin-bottom: 24px;">
+    <div class="stat-card">
+      <div class="stat-value" style="font-size: 36px;">45</div>
+      <div class="stat-label">Scheduled</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="font-size: 36px; color: var(--success);">38</div>
+      <div class="stat-label">Completed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="font-size: 36px; color: var(--warning);">5</div>
+      <div class="stat-label">Overdue</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="font-size: 36px; color: var(--primary);">2</div>
+      <div class="stat-label">In Progress</div>
+    </div>
+  </div>
+
+  <!-- Charts Grid -->
+  <div class="dashboard-charts">
+    <!-- Main Chart -->
+    <div class="chart-card">
+      <div class="card-title" style="margin-bottom: 20px;">Work Orders by Status</div>
+      <div style="display: flex; align-items: center; gap: 40px;">
+        <!-- Simple Bar Chart -->
+        <div style="flex: 1; display: flex; align-items: flex-end; gap: 16px; height: 200px; padding: 20px 0;">
+          <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <div style="width: 100%; background: var(--success); border-radius: 4px 4px 0 0; height: 168px;"></div>
+            <span style="font-size: 13px; color: var(--gray-600);">Completed</span>
+            <span style="font-weight: 600;">38</span>
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <div style="width: 100%; background: var(--warning); border-radius: 4px 4px 0 0; height: 44px;"></div>
+            <span style="font-size: 13px; color: var(--gray-600);">Overdue</span>
+            <span style="font-weight: 600;">5</span>
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <div style="width: 100%; background: var(--primary); border-radius: 4px 4px 0 0; height: 18px;"></div>
+            <span style="font-size: 13px; color: var(--gray-600);">In Progress</span>
+            <span style="font-weight: 600;">2</span>
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <div style="width: 100%; background: var(--gray-300); border-radius: 4px 4px 0 0; height: 44px;"></div>
+            <span style="font-size: 13px; color: var(--gray-600);">Scheduled</span>
+            <span style="font-weight: 600;">5</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Side Panel -->
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+      <div class="chart-card">
+        <div class="card-title" style="margin-bottom: 16px;">Quick Links</div>
+        <% sections.forEach(function(section) { %>
+          <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; cursor: pointer; transition: background 0.2s;"
+               onclick="location.href='<%= section.href %>'" onmouseover="this.style.background='var(--gray-100)'" onmouseout="this.style.background='transparent'">
+            <div style="width: 40px; height: 40px; background: var(--gray-100); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+              <%= section.icon === 'clipboard' ? '📋' : section.icon === 'alert' ? '⚠️' : '📊' %>
+            </div>
+            <div style="flex: 1;">
+              <div style="font-weight: 500;"><%= section.label %></div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </div>
+        <% }) %>
+      </div>
+
+      <div class="chart-card">
+        <div class="card-title" style="margin-bottom: 16px;">Findings by Severity</div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 12px; height: 12px; background: var(--danger); border-radius: 50%;"></div>
+            <span style="flex: 1;">High</span>
+            <span style="font-weight: 600;">3</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 12px; height: 12px; background: var(--warning); border-radius: 50%;"></div>
+            <span style="flex: 1;">Medium</span>
+            <span style="font-weight: 600;">8</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 12px; height: 12px; background: var(--gray-400); border-radius: 50%;"></div>
+            <span style="flex: 1;">Low</span>
+            <span style="font-weight: 600;">12</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Activity Table -->
+  <div class="chart-card full-width" style="margin-top: 24px;">
+    <div class="card-title" style="margin-bottom: 20px;">Recent Work Orders</div>
+    <table class="desktop-table">
+      <thead>
+        <tr>
+          <th>Work Order</th>
+          <th>Asset</th>
+          <th>Facility</th>
+          <th>Status</th>
+          <th>Due Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="font-weight: 500;">WO-2026-0042</td>
+          <td>Pump P-101</td>
+          <td>North Plant</td>
+          <td><span class="status-badge status-released">Released</span></td>
+          <td>Today</td>
+        </tr>
+        <tr>
+          <td style="font-weight: 500;">WO-2026-0038</td>
+          <td>Motor M-205</td>
+          <td>South Plant</td>
+          <td><span class="status-badge status-released">Released</span></td>
+          <td>2 Days Overdue</td>
+        </tr>
+        <tr>
+          <td style="font-weight: 500;">WO-2026-0035</td>
+          <td>Heat Exchanger HX-301</td>
+          <td>North Plant</td>
+          <td><span class="status-badge status-in_progress">In Progress</span></td>
+          <td>Apr 5</td>
+        </tr>
+        <tr>
+          <td style="font-weight: 500;">WO-2026-0030</td>
+          <td>Compressor C-102</td>
+          <td>East Plant</td>
+          <td><span class="status-badge status-scheduled">Scheduled</span></td>
+          <td>Apr 6</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1,0 +1,361 @@
+<% title = 'Organization Settings' %>
+
+<!-- Organization Info Card -->
+<div class="card" style="margin-bottom: 20px;">
+  <div class="card-title">Organization Information</div>
+  
+  <div id="orgForm">
+    <div style="margin-bottom: 16px;">
+      <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Organization Name</label>
+      <input type="text" id="orgName" 
+             style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+    </div>
+    
+    <div style="margin-bottom: 16px;">
+      <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Billing Email</label>
+      <input type="email" id="billingEmail"
+             style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+      <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Phone</label>
+      <input type="tel" id="orgPhone"
+             style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+    </div>
+    
+    <div id="orgError" style="color: var(--danger); margin-bottom: 16px; font-size: 14px; display: none;"></div>
+    <div id="orgSuccess" style="color: var(--success); margin-bottom: 16px; font-size: 14px; display: none;"></div>
+    
+    <button type="button" class="btn btn-primary" onclick="saveOrganization()" id="saveOrgBtn">
+      Save Changes
+    </button>
+  </div>
+</div>
+
+<!-- Usage Stats Card -->
+<div class="card" style="margin-bottom: 20px;">
+  <div class="card-title">Usage & Limits</div>
+  
+  <div id="usageStats" style="display: flex; flex-direction: column; gap: 20px;">
+    <div class="loading-state" style="text-align: center; padding: 20px; color: var(--gray-600);">
+      Loading usage stats...
+    </div>
+  </div>
+</div>
+
+<!-- Subscription Card -->
+<div class="card" style="margin-bottom: 20px;">
+  <div class="card-title">Subscription</div>
+  
+  <div id="subscriptionInfo">
+    <div class="loading-state" style="text-align: center; padding: 20px; color: var(--gray-600);">
+      Loading subscription...
+    </div>
+  </div>
+</div>
+
+<!-- Danger Zone -->
+<div class="card" style="border: 1px solid var(--danger); background: #fff5f5;">
+  <div class="card-title" style="color: var(--danger);">Danger Zone</div>
+  
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <div style="font-weight: 500;">Deactivate Organization</div>
+        <div style="font-size: 13px; color: var(--gray-600);">Temporarily disable all access</div>
+      </div>
+      <button class="btn btn-outline" style="color: var(--danger); border-color: var(--danger);" onclick="deactivateOrg()">
+        Deactivate
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+.usage-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.usage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.usage-label {
+  font-weight: 500;
+  color: var(--gray-800);
+}
+.usage-value {
+  font-size: 14px;
+  color: var(--gray-600);
+}
+.usage-bar {
+  height: 8px;
+  background: var(--gray-200);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.usage-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+.usage-fill.safe { background: var(--success); }
+.usage-fill.warning { background: var(--warning); }
+.usage-fill.danger { background: var(--danger); }
+
+.plan-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.plan-free { background: #e8f5e9; color: #2e7d32; }
+.plan-basic { background: #e3f2fd; color: #1565c0; }
+.plan-professional { background: #f3e5f5; color: #7b1fa2; }
+.plan-enterprise { background: #fff3e0; color: #ef6c00; }
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.status-active { background: #e8f5e9; color: #2e7d32; }
+.status-trial { background: #fff3e0; color: #ef6c00; }
+.status-cancelled { background: #ffebee; color: #c62828; }
+</style>
+
+<script>
+let currentOrg = null;
+let currentSubscription = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadOrganization();
+  await loadUsageStats();
+  await loadSubscription();
+});
+
+async function loadOrganization() {
+  try {
+    const response = await fetch('/api/organizations/my');
+    const data = await response.json();
+    
+    if (data.success) {
+      currentOrg = data.data.organization;
+      document.getElementById('orgName').value = currentOrg.organization_name || '';
+      document.getElementById('billingEmail').value = currentOrg.billing_email || '';
+      document.getElementById('orgPhone').value = currentOrg.phone || '';
+    } else {
+      showError('orgError', data.message);
+    }
+  } catch (err) {
+    console.error('Failed to load organization:', err);
+    showError('orgError', 'Failed to load organization');
+  }
+}
+
+async function loadUsageStats() {
+  try {
+    if (!currentOrg) return;
+    
+    const response = await fetch(`/api/organizations/${currentOrg.id}/stats`);
+    const data = await response.json();
+    
+    if (data.success) {
+      const stats = data.data.stats;
+      const limits = stats.limits;
+      const percentages = stats.usage_percentages;
+      
+      const getBarClass = (pct) => {
+        if (pct < 70) return 'safe';
+        if (pct < 90) return 'warning';
+        return 'danger';
+      };
+      
+      document.getElementById('usageStats').innerHTML = `
+        <div class="usage-item">
+          <div class="usage-header">
+            <span class="usage-label">👥 Users</span>
+            <span class="usage-value">${stats.user_count} / ${limits.max_users}</span>
+          </div>
+          <div class="usage-bar">
+            <div class="usage-fill ${getBarClass(percentages.users)}" style="width: ${Math.min(percentages.users, 100)}%"></div>
+          </div>
+        </div>
+        
+        <div class="usage-item">
+          <div class="usage-header">
+            <span class="usage-label">🏭 Facilities</span>
+            <span class="usage-value">${stats.facility_count} / ${limits.max_facilities}</span>
+          </div>
+          <div class="usage-bar">
+            <div class="usage-fill ${getBarClass(percentages.facilities)}" style="width: ${Math.min(percentages.facilities, 100)}%"></div>
+          </div>
+        </div>
+        
+        <div class="usage-item">
+          <div class="usage-header">
+            <span class="usage-label">⚙️ Equipment</span>
+            <span class="usage-value">${stats.equipment_count} / ${limits.max_equipment}</span>
+          </div>
+          <div class="usage-bar">
+            <div class="usage-fill ${getBarClass(percentages.equipment)}" style="width: ${Math.min(percentages.equipment, 100)}%"></div>
+          </div>
+        </div>
+        
+        <div class="usage-item">
+          <div class="usage-header">
+            <span class="usage-label">📋 Work Orders (This Month)</span>
+            <span class="usage-value">${stats.work_order_count}</span>
+          </div>
+        </div>
+      `;
+    }
+  } catch (err) {
+    console.error('Failed to load usage stats:', err);
+    document.getElementById('usageStats').innerHTML = `
+      <div style="text-align: center; color: var(--danger);">Failed to load usage stats</div>
+    `;
+  }
+}
+
+async function loadSubscription() {
+  try {
+    const response = await fetch('/api/subscriptions/current');
+    const data = await response.json();
+    
+    if (data.success) {
+      currentSubscription = data.data.subscription;
+      const plan = data.data.plan;
+      
+      const planClass = `plan-${plan.code || 'free'}`;
+      const statusClass = `status-${currentSubscription.status}`;
+      
+      document.getElementById('subscriptionInfo').innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div>
+            <div style="font-size: 13px; color: var(--gray-600); margin-bottom: 4px;">Current Plan</div>
+            <div style="font-size: 20px; font-weight: 600;">${plan.name}</div>
+          </div>
+          <span class="plan-badge ${planClass}">${plan.code || 'FREE'}</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div>
+            <div style="font-size: 13px; color: var(--gray-600); margin-bottom: 4px;">Status</div>
+            <span class="status-badge ${statusClass}">${currentSubscription.status}</span>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 13px; color: var(--gray-600); margin-bottom: 4px;">Renews</div>
+            <div>${formatDate(currentSubscription.current_period_end)}</div>
+          </div>
+        </div>
+        
+        <div style="background: var(--gray-100); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+          <div style="font-size: 13px; color: var(--gray-600); margin-bottom: 8px;">Plan Includes</div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; text-align: center;">
+            <div>
+              <div style="font-size: 20px; font-weight: 600;">${plan.max_users || currentOrg.max_users}</div>
+              <div style="font-size: 12px; color: var(--gray-600);">Users</div>
+            </div>
+            <div>
+              <div style="font-size: 20px; font-weight: 600;">${plan.max_facilities || currentOrg.max_facilities}</div>
+              <div style="font-size: 12px; color: var(--gray-600);">Facilities</div>
+            </div>
+            <div>
+              <div style="font-size: 20px; font-weight: 600;">${plan.max_equipment || currentOrg.max_equipment}</div>
+              <div style="font-size: 12px; color: var(--gray-600);">Equipment</div>
+            </div>
+          </div>
+        </div>
+        
+        <a href="/mobile/admin/subscription" class="btn btn-primary btn-full" style="text-align: center; display: block; text-decoration: none;">
+          Manage Subscription
+        </a>
+      `;
+    }
+  } catch (err) {
+    console.error('Failed to load subscription:', err);
+    document.getElementById('subscriptionInfo').innerHTML = `
+      <div style="text-align: center; color: var(--danger);">Failed to load subscription</div>
+    `;
+  }
+}
+
+async function saveOrganization() {
+  const btn = document.getElementById('saveOrgBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  
+  try {
+    const payload = {
+      organization_name: document.getElementById('orgName').value,
+      billing_email: document.getElementById('billingEmail').value,
+      phone: document.getElementById('orgPhone').value
+    };
+    
+    const response = await fetch(`/api/organizations/${currentOrg.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showSuccess('orgSuccess', 'Organization updated successfully');
+      hideError('orgError');
+    } else {
+      showError('orgError', data.message);
+      hideSuccess('orgSuccess');
+    }
+  } catch (err) {
+    console.error('Failed to save organization:', err);
+    showError('orgError', 'Failed to save organization');
+    hideSuccess('orgSuccess');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Changes';
+  }
+}
+
+function deactivateOrg() {
+  if (!confirm('WARNING: This will deactivate your organization and prevent all users from accessing the system. Are you sure?')) {
+    return;
+  }
+  
+  alert('Please contact support to deactivate your organization.');
+}
+
+function formatDate(dateString) {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function hideError(id) {
+  document.getElementById(id).style.display = 'none';
+}
+
+function showSuccess(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => hideSuccess(id), 3000);
+}
+
+function hideSuccess(id) {
+  document.getElementById(id).style.display = 'none';
+}
+</script>

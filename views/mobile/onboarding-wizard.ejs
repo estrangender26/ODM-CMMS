@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1976d2">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>ODM - Setup Wizard</title>
+    <link rel="stylesheet" href="/css/odm-mobile.css?v=<%= Date.now() %>">
+    <style>
+        .wizard-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            padding: 24px;
+        }
+        
+        .wizard-header {
+            text-align: center;
+            color: white;
+            margin-bottom: 32px;
+        }
+        
+        .wizard-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .wizard-subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        .progress-steps {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 32px;
+        }
+        
+        .step-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            transition: all 0.3s;
+        }
+        
+        .step-dot.active {
+            background: white;
+            width: 32px;
+            border-radius: 6px;
+        }
+        
+        .step-dot.completed {
+            background: var(--success);
+        }
+        
+        .wizard-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        
+        .step-number {
+            font-size: 14px;
+            color: var(--primary);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .step-title {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .step-description {
+            font-size: 14px;
+            color: var(--gray-600);
+            margin-bottom: 24px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-700);
+            margin-bottom: 8px;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid var(--gray-300);
+            border-radius: 12px;
+            font-size: 16px;
+            background: white;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        .file-upload {
+            border: 2px dashed var(--gray-400);
+            border-radius: 12px;
+            padding: 32px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .file-upload:hover {
+            border-color: var(--primary);
+            background: var(--gray-100);
+        }
+        
+        .file-upload-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        
+        .template-item {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            background: var(--gray-100);
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .template-info {
+            flex: 1;
+        }
+        
+        .template-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .template-type {
+            font-size: 13px;
+            color: var(--gray-600);
+        }
+        
+        .toggle {
+            position: relative;
+            width: 48px;
+            height: 28px;
+        }
+        
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--gray-300);
+            border-radius: 28px;
+            transition: 0.3s;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        
+        input:checked + .toggle-slider {
+            background-color: var(--success);
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+        
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin: 24px 0;
+        }
+        
+        .stat-box {
+            text-align: center;
+            padding: 20px 12px;
+            background: var(--gray-100);
+            border-radius: 12px;
+        }
+        
+        .stat-number {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .stat-label {
+            font-size: 13px;
+            color: var(--gray-600);
+            margin-top: 4px;
+        }
+        
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: var(--success);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            color: white;
+        }
+        
+        .wizard-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        
+        .btn-half {
+            flex: 1;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .validation-error {
+            color: var(--danger);
+            font-size: 13px;
+            margin-top: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="wizard-container">
+        <!-- Header -->
+        <div class="wizard-header">
+            <div class="wizard-title">ODM Setup</div>
+            <div class="wizard-subtitle">Let's get your maintenance program running</div>
+        </div>
+        
+        <!-- Progress Steps -->
+        <div class="progress-steps">
+            <div class="step-dot active" data-step="1"></div>
+            <div class="step-dot" data-step="2"></div>
+            <div class="step-dot" data-step="3"></div>
+            <div class="step-dot" data-step="4"></div>
+            <div class="step-dot" data-step="5"></div>
+        </div>
+        
+        <!-- Step 1: Create Facility -->
+        <div id="step1" class="wizard-step">
+            <div class="wizard-card">
+                <div class="step-number">STEP 1 OF 5</div>
+                <div class="step-title">Create Your First Facility</div>
+                <div class="step-description">A facility groups your assets together. You can add more later.</div>
+                
+                <div class="form-group">
+                    <label class="form-label">Facility Name *</label>
+                    <input type="text" id="facilityName" class="form-input" placeholder="e.g., North Plant">
+                    <div id="facilityError" class="validation-error hidden">Please enter a facility name</div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Timezone</label>
+                    <select id="timezone" class="form-input">
+                        <option value="UTC">UTC</option>
+                        <option value="America/New_York">Eastern Time</option>
+                        <option value="America/Chicago">Central Time</option>
+                        <option value="America/Denver">Mountain Time</option>
+                        <option value="America/Los_Angeles">Pacific Time</option>
+                        <option value="Europe/London">London</option>
+                        <option value="Asia/Singapore">Singapore</option>
+                    </select>
+                </div>
+            </div>
+            
+            <button class="btn btn-primary btn-large btn-full" onclick="nextStep()">
+                Continue
+            </button>
+        </div>
+        
+        <!-- Step 2: Import Assets -->
+        <div id="step2" class="wizard-step hidden">
+            <div class="wizard-card">
+                <div class="step-number">STEP 2 OF 5</div>
+                <div class="step-title">Import Your Assets</div>
+                <div class="step-description">Upload a CSV file with your equipment. We'll match them to inspection templates automatically.</div>
+                
+                <div class="file-upload" onclick="document.getElementById('csvFile').click()">
+                    <div class="file-upload-icon">📄</div>
+                    <div style="font-weight: 500; margin-bottom: 4px;">Tap to upload CSV</div>
+                    <div style="font-size: 13px; color: var(--gray-600);">or drag and drop</div>
+                    <input type="file" id="csvFile" accept=".csv" class="hidden" onchange="onFileSelected(this)">
+                </div>
+                
+                <div id="fileInfo" class="hidden" style="margin-top: 16px; padding: 16px; background: #e8f5e9; border-radius: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span>✅</span>
+                        <span id="fileName"></span>
+                    </div>
+                    <div id="importStatus" style="font-size: 13px; color: var(--gray-600); margin-top: 4px;"></div>
+                </div>
+                
+                <div style="margin-top: 20px; padding: 16px; background: var(--gray-100); border-radius: 8px;">
+                    <div style="font-weight: 500; margin-bottom: 8px;">CSV Format</div>
+                    <div style="font-size: 13px; color: var(--gray-600);">
+                        Required: facility_name, asset_name, equipment_type_code<br>
+                        Optional: description, manufacturer, serial_number
+                    </div>
+                    <a href="/mobile/onboarding/template" style="font-size: 13px; color: var(--primary); margin-top: 8px; display: inline-block;">Download template</a>
+                </div>
+            </div>
+            
+            <div class="wizard-actions">
+                <button class="btn btn-outline btn-large btn-half" onclick="prevStep()">Back</button>
+                <button class="btn btn-primary btn-large btn-half" onclick="nextStep()" id="step2Continue" disabled>
+                    Continue
+                </button>
+            </div>
+        </div>
+        
+        <!-- Step 3: Review Templates -->
+        <div id="step3" class="wizard-step hidden">
+            <div class="wizard-card">
+                <div class="step-number">STEP 3 OF 5</div>
+                <div class="step-title">Review Templates</div>
+                <div class="step-description">We've matched inspection templates to your equipment types. Activate the ones you want to use.</div>
+                
+                <div id="templatesList">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+            
+            <div class="wizard-actions">
+                <button class="btn btn-outline btn-large btn-half" onclick="prevStep()">Back</button>
+                <button class="btn btn-primary btn-large btn-half" onclick="nextStep()">
+                    Continue
+                </button>
+            </div>
+        </div>
+        
+        <!-- Step 4: Activate Scheduler -->
+        <div id="step4" class="wizard-step hidden">
+            <div class="wizard-card">
+                <div class="step-number">STEP 4 OF 5</div>
+                <div class="step-title">Activate Work Order Automation</div>
+                <div class="step-description">Enable automatic work order generation based on your template schedules.</div>
+                
+                <div style="padding: 24px; background: var(--gray-100); border-radius: 12px; text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">⚙️</div>
+                    <div style="font-weight: 600; margin-bottom: 8px;">Daily Scheduler</div>
+                    <div style="font-size: 14px; color: var(--gray-600); margin-bottom: 20px;">
+                        Automatically creates work orders based on template frequency<br>
+                        (daily, weekly, monthly)
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 12px;">
+                        <label class="toggle">
+                            <input type="checkbox" id="schedulerEnabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span id="schedulerStatus" style="font-weight: 500;">Enabled</span>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px; padding: 16px; background: #e3f2fd; border-radius: 8px;">
+                    <div style="font-size: 13px; color: var(--gray-700);">
+                        <strong>How it works:</strong><br>
+                        • Checks daily for templates due<br>
+                        • Creates work orders automatically<br>
+                        • Assigns to default operator<br>
+                        • No manual scheduling needed
+                    </div>
+                </div>
+            </div>
+            
+            <div class="wizard-actions">
+                <button class="btn btn-outline btn-large btn-half" onclick="prevStep()">Back</button>
+                <button class="btn btn-primary btn-large btn-half" onclick="nextStep()">
+                    Continue
+                </button>
+            </div>
+        </div>
+        
+        <!-- Step 5: Confirm Ready -->
+        <div id="step5" class="wizard-step hidden">
+            <div class="wizard-card">
+                <div class="success-icon">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                </div>
+                
+                <div style="text-align: center;">
+                    <div class="step-title" style="margin-bottom: 8px;">You're All Set!</div>
+                    <div class="step-description">Your ODM maintenance program is ready to go.</div>
+                </div>
+                
+                <div class="summary-stats">
+                    <div class="stat-box">
+                        <div class="stat-number" id="statFacilities">1</div>
+                        <div class="stat-label">Facility</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number" id="statAssets">0</div>
+                        <div class="stat-label">Assets</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number" id="statTemplates">0</div>
+                        <div class="stat-label">Templates</div>
+                    </div>
+                </div>
+                
+                <div style="padding: 20px; background: #e8f5e9; border-radius: 12px; text-align: center;">
+                    <div style="font-weight: 500; margin-bottom: 4px;">🎯 Work orders will appear automatically</div>
+                    <div style="font-size: 13px; color: var(--gray-600);">Based on your template schedules</div>
+                </div>
+            </div>
+            
+            <button class="btn btn-primary btn-large btn-full" onclick="finishSetup()">
+                Go to Dashboard
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        const totalSteps = 5;
+        const wizardData = {
+            facility: {},
+            assets: [],
+            templates: []
+        };
+        
+        function updateProgress() {
+            document.querySelectorAll('.step-dot').forEach((dot, index) => {
+                dot.classList.remove('active', 'completed');
+                if (index + 1 < currentStep) {
+                    dot.classList.add('completed');
+                } else if (index + 1 === currentStep) {
+                    dot.classList.add('active');
+                }
+            });
+        }
+        
+        function showStep(step) {
+            document.querySelectorAll('.wizard-step').forEach(el => el.classList.add('hidden'));
+            document.getElementById('step' + step).classList.remove('hidden');
+            currentStep = step;
+            updateProgress();
+        }
+        
+        function nextStep() {
+            if (currentStep === 1) {
+                const facilityName = document.getElementById('facilityName').value.trim();
+                if (!facilityName) {
+                    document.getElementById('facilityError').classList.remove('hidden');
+                    return;
+                }
+                document.getElementById('facilityError').classList.add('hidden');
+                wizardData.facility = {
+                    name: facilityName,
+                    timezone: document.getElementById('timezone').value
+                };
+            }
+            
+            if (currentStep === 2 && wizardData.assets.length === 0) {
+                alert('Please upload a CSV file with your assets');
+                return;
+            }
+            
+            if (currentStep === 3) {
+                // Collect active templates
+                const activeTemplates = [];
+                document.querySelectorAll('.template-toggle').forEach(toggle => {
+                    if (toggle.checked) {
+                        activeTemplates.push(toggle.dataset.templateId);
+                    }
+                });
+                wizardData.activeTemplates = activeTemplates;
+                document.getElementById('statTemplates').textContent = activeTemplates.length;
+            }
+            
+            if (currentStep < totalSteps) {
+                showStep(currentStep + 1);
+            }
+            
+            if (currentStep === 5) {
+                document.getElementById('statAssets').textContent = wizardData.assets.length;
+            }
+        }
+        
+        function prevStep() {
+            if (currentStep > 1) {
+                showStep(currentStep - 1);
+            }
+        }
+        
+        function onFileSelected(input) {
+            const file = input.files[0];
+            if (file) {
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('fileInfo').classList.remove('hidden');
+                document.getElementById('importStatus').textContent = 'Processing...';
+                
+                // Simulate import
+                setTimeout(() => {
+                    wizardData.assets = [
+                        { name: 'Pump P-101', type: 'Centrifugal Pump' },
+                        { name: 'Motor M-201', type: 'TEFC Motor' },
+                        { name: 'Compressor C-101', type: 'Reciprocating Compressor' }
+                    ];
+                    document.getElementById('importStatus').textContent = 
+                        `Imported ${wizardData.assets.length} assets successfully`;
+                    document.getElementById('step2Continue').disabled = false;
+                    
+                    // Populate templates for step 3
+                    populateTemplates();
+                }, 1500);
+            }
+        }
+        
+        function populateTemplates() {
+            const templates = [
+                { id: 'TMP-001', name: 'Daily Pump Inspection', type: 'Centrifugal Pump', items: 12 },
+                { id: 'TMP-002', name: 'Weekly Motor Check', type: 'TEFC Motor', items: 8 },
+                { id: 'TMP-003', name: 'Monthly Compressor Maintenance', type: 'Reciprocating Compressor', items: 15 }
+            ];
+            wizardData.templates = templates;
+            
+            const listHtml = templates.map(t => `
+                <div class="template-item">
+                    <div class="template-info">
+                        <div class="template-name">${t.name}</div>
+                        <div class="template-type">${t.type} • ${t.items} items</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" class="template-toggle" data-template-id="${t.id}" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            `).join('');
+            
+            document.getElementById('templatesList').innerHTML = listHtml;
+        }
+        
+        document.getElementById('schedulerEnabled').addEventListener('change', function() {
+            document.getElementById('schedulerStatus').textContent = this.checked ? 'Enabled' : 'Disabled';
+        });
+        
+        function finishSetup() {
+            // Save wizard data
+            fetch('/api/onboarding/complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(wizardData)
+            }).then(() => {
+                location.href = '/mobile/home';
+            }).catch(() => {
+                // Even if API fails, go to dashboard
+                location.href = '/mobile/home';
+            });
+        }
+        
+        // Initialize
+        showStep(1);
+    </script>
+</body>
+</html>

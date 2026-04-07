@@ -171,7 +171,7 @@ function checkExistingAuth() {
       }
     }).then(response => {
       if (response.ok) {
-        window.location.href = '/dashboard';
+        window.location.href = '/mobile/home';
       } else {
         localStorage.clear();
       }
@@ -217,7 +217,7 @@ async function handleLogin(e) {
       
       // Redirect to dashboard
       setTimeout(() => {
-        window.location.href = '/dashboard';
+        window.location.href = '/mobile/home';
       }, 500);
     } else {
       showToast(data.message || 'Invalid username or password', 'error');

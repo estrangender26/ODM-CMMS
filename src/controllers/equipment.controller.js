@@ -4,6 +4,7 @@
  */
 
 const { Equipment } = require('../models');
+const qrLabelService = require('../services/qr-label.service');
 
 /**
  * Get all equipment (organization-aware)
@@ -83,11 +84,24 @@ const create = async (req, res, next) => {
     };
 
     const equipment = await Equipment.create(data);
-    res.status(201).json({
-      success: true,
-      message: 'Equipment created successfully',
-      data: { equipment }
-    });
+    
+    // Auto-generate QR code for new asset
+    try {
+      await qrLabelService.generateForAsset(equipment.id);
+      const updatedEquipment = await Equipment.getWithQRInfo(equipment.id, organizationId);
+      res.status(201).json({
+        success: true,
+        message: 'Equipment created successfully',
+        data: { equipment: updatedEquipment || equipment }
+      });
+    } catch (qrError) {
+      console.error('Auto QR generation failed:', qrError);
+      res.status(201).json({
+        success: true,
+        message: 'Equipment created successfully (QR generation pending)',
+        data: { equipment }
+      });
+    }
   } catch (error) {
     next(error);
   }
