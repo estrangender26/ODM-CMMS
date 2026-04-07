@@ -6,7 +6,8 @@
 
 const { WorkOrder, Equipment } = require('../models');
 const { TaskTemplate } = require('../models/task-template.model');
-const db = require('../config/database');
+const { getDb } = require('../config/database');
+const db = getDb();
 
 class SchedulerService {
   constructor() {
