@@ -98,7 +98,7 @@
     async function loadAdminStats() {
       try {
         // Load org stats
-        const orgRes = await fetch('/api/organizations/my');
+        const orgRes = await fetch('/api/organizations/my', { credentials: 'same-origin' });
         const orgData = await orgRes.json();
         if (orgData.success) {
           const org = orgData.data.organization;
@@ -108,7 +108,7 @@
         }
         
         // Load subscription
-        const subRes = await fetch('/api/subscriptions/current');
+        const subRes = await fetch('/api/subscriptions/current', { credentials: 'same-origin' });
         const subData = await subRes.json();
         if (subData.success) {
           document.getElementById('planName').textContent = subData.data.plan.name || '-';

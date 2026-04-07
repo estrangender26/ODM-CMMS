@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadOrganization() {
   try {
-    const response = await fetch('/api/organizations/my');
+    const response = await fetch('/api/organizations/my', { credentials: 'same-origin' });
     const data = await response.json();
     
     if (data.success) {
@@ -226,7 +226,7 @@ async function loadUsageStats() {
 
 async function loadSubscription() {
   try {
-    const response = await fetch('/api/subscriptions/current');
+    const response = await fetch('/api/subscriptions/current', { credentials: 'same-origin' });
     const data = await response.json();
     
     if (data.success) {
@@ -302,6 +302,7 @@ async function saveOrganization() {
     const response = await fetch(`/api/organizations/${currentOrg.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify(payload)
     });
     

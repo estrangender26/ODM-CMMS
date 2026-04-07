@@ -218,7 +218,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadCurrentUser() {
   try {
-    const response = await fetch('/api/auth/profile');
+    const response = await fetch('/api/auth/profile', { credentials: 'same-origin' });
     const data = await response.json();
     if (data.success) {
       currentUserRole = data.data.user.role;
@@ -239,7 +239,7 @@ async function loadCurrentUser() {
 
 async function loadFacilities() {
   try {
-    const response = await fetch('/api/facilities');
+    const response = await fetch('/api/facilities', { credentials: 'same-origin' });
     const data = await response.json();
     if (data.success) {
       facilities = data.data.facilities || [];
@@ -258,7 +258,7 @@ async function loadFacilities() {
 
 async function loadUsers() {
   try {
-    const response = await fetch('/api/users');
+    const response = await fetch('/api/users', { credentials: 'same-origin' });
     const data = await response.json();
     
     if (data.success) {
@@ -402,7 +402,7 @@ async function deleteUser(id) {
   if (!confirm('Are you sure you want to delete this user?')) return;
   
   try {
-    const response = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+    const response = await fetch(`/api/users/${id}`, { method: 'DELETE', credentials: 'same-origin' });
     const data = await response.json();
     
     if (data.success) {
@@ -443,6 +443,7 @@ document.getElementById('userForm').addEventListener('submit', async (e) => {
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify(payload)
     });
     

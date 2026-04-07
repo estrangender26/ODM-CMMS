@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadSubscription() {
   try {
-    const response = await fetch('/api/subscriptions/current');
+    const response = await fetch('/api/subscriptions/current', { credentials: 'same-origin' });
     const data = await response.json();
     
     if (data.success) {
@@ -241,7 +241,7 @@ async function loadSubscription() {
 
 async function loadSeatUsage() {
   try {
-    const response = await fetch('/api/subscriptions/seats');
+    const response = await fetch('/api/subscriptions/seats', { credentials: 'same-origin' });
     const data = await response.json();
     
     if (data.success) {
@@ -294,7 +294,7 @@ async function loadSeatUsage() {
 
 async function loadPlans() {
   try {
-    const response = await fetch('/api/subscriptions/plans');
+    const response = await fetch('/api/subscriptions/plans', { credentials: 'same-origin' });
     const data = await response.json();
     
     if (data.success) {
@@ -356,6 +356,7 @@ async function upgradePlan(planCode) {
     const response = await fetch('/api/subscriptions/plan', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({ plan_code: planCode })
     });
     
@@ -389,6 +390,7 @@ async function addExtraSeats() {
     const response = await fetch('/api/subscriptions/extra-users', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({ count })
     });
     
@@ -419,7 +421,8 @@ async function cancelSubscription() {
   
   try {
     const response = await fetch('/api/subscriptions/cancel', {
-      method: 'POST'
+      method: 'POST',
+      credentials: 'same-origin'
     });
     
     const data = await response.json();
