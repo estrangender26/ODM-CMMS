@@ -592,6 +592,110 @@ router.get('/calendar', requireAuth, (req, res) => {
   renderMobile(res, 'calendar', data);
 });
 
+// Maintenance Plans List
+router.get('/maintenance-plans', requireAuth, requireAdminUI, async (req, res) => {
+  try {
+    const { TaskTemplate } = require('../models');
+    const organizationId = req.user.organization_id;
+    
+    // Get maintenance plans with template info
+    const plans = await TaskTemplate.query(`
+      SELECT 
+        mp.id,
+        mp.plan_name,
+        mp.frequency_type,
+        mp.frequency_interval,
+        mp.priority,
+        mp.is_active as isActive,
+        mp.start_date,
+        tt.template_name
+      FROM maintenance_plans mp
+      JOIN task_templates tt ON mp.task_template_id = tt.id
+      WHERE mp.organization_id = ?
+      ORDER BY mp.plan_name
+    `, [organizationId]);
+    
+    const data = {
+      title: 'Maintenance Plans',
+      showBack: false,
+      showNav: true,
+      activeNav: 'admin',
+      plans: plans.map(p => ({
+        id: p.id,
+        plan_name: p.plan_name,
+        template_name: p.template_name,
+        frequency_type: p.frequency_type,
+        frequency_interval: p.frequency_interval,
+        priority: p.priority,
+        isActive: p.isActive === 1 || p.isActive === true,
+        start_date: p.start_date
+      }))
+    };
+    renderMobile(res, 'maintenance-plans', data);
+  } catch (error) {
+    console.error('[MOBILE] Error loading maintenance plans:', error);
+    res.status(500).render('error', { 
+      message: 'Error loading maintenance plans: ' + error.message,
+      error: process.env.NODE_ENV === 'development' ? error : {}
+    });
+  }
+});
+
+// New Maintenance Plan
+router.get('/maintenance-plans/new', requireAuth, requireAdminUI, async (req, res) => {
+  try {
+    const { TaskTemplate, EquipmentType } = require('../models');
+    const organizationId = req.user.organization_id;
+    
+    // Get all templates
+    const templates = await TaskTemplate.query(`
+      SELECT tt.id, tt.template_name as name, et.type_name as equipment_type
+      FROM task_templates tt
+      JOIN equipment_types et ON tt.equipment_type_id = et.id
+      WHERE tt.organization_id IS NULL OR tt.organization_id = ?
+      ORDER BY tt.template_name
+    `, [organizationId]);
+    
+    // Get equipment (optional - for specific equipment plans)
+    const equipment = await TaskTemplate.query(`
+      SELECT e.id, e.name, e.code, et.type_name as type
+      FROM equipment e
+      JOIN equipment_types et ON e.equipment_type_id = et.id
+      WHERE e.organization_id = ? AND e.status IN ('operational', 'active')
+      ORDER BY e.name
+    `, [organizationId]);
+    
+    const data = {
+      title: 'New Maintenance Plan',
+      showBack: true,
+      showNav: false,
+      activeNav: '',
+      plan: {
+        id: null,
+        plan_name: '',
+        task_template_id: '',
+        equipment_id: '',
+        frequency_type: 'daily',
+        frequency_interval: 1,
+        day_of_week: 1,
+        day_of_month: 1,
+        start_date: new Date().toISOString().split('T')[0],
+        priority: 'medium',
+        is_active: true
+      },
+      templates,
+      equipment
+    };
+    renderMobile(res, 'maintenance-plan-editor', data);
+  } catch (error) {
+    console.error('[MOBILE] Error loading plan form:', error);
+    res.status(500).render('error', { 
+      message: 'Error loading form: ' + error.message,
+      error: process.env.NODE_ENV === 'development' ? error : {}
+    });
+  }
+});
+
 /**
  * Admin Routes
  */

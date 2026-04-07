@@ -1,0 +1,183 @@
+<% title = plan.id ? 'Edit Plan' : 'New Maintenance Plan' %>
+
+<div style="padding: 16px;">
+    <div style="margin-bottom: 20px;">
+        <h1 style="font-size: 24px; margin: 0;"><%= plan.id ? 'Edit Plan' : 'New Maintenance Plan' %></h1>
+        <div style="font-size: 13px; color: var(--gray-600); margin-top: 4px;">
+            Define when and where to apply an inspection template
+        </div>
+    </div>
+    
+    <div class="card">
+        <!-- Plan Name -->
+        <div class="form-group">
+            <label class="form-label">Plan Name *</label>
+            <input type="text" id="planName" class="form-input" value="<%= plan.plan_name %>" placeholder="e.g., Daily Pump Inspection - North Plant">
+        </div>
+        
+        <!-- Template Selection -->
+        <div class="form-group">
+            <label class="form-label">Inspection Template *</label>
+            <select id="templateId" class="form-input">
+                <option value="">Select Template</option>
+                <% templates.forEach(function(t) { %>
+                <option value="<%= t.id %>" <%= plan.task_template_id == t.id ? 'selected' : '' %>>
+                    <%= t.name %> (<%= t.equipment_type %>)
+                </option>
+                <% }); %>
+            </select>
+            <div style="font-size: 12px; color: var(--gray-600); margin-top: 4px;">
+                Templates define WHAT to inspect
+            </div>
+        </div>
+        
+        <!-- Equipment Selection (Optional) -->
+        <div class="form-group">
+            <label class="form-label">Specific Equipment (Optional)</label>
+            <select id="equipmentId" class="form-input">
+                <option value="">All equipment of this type</option>
+                <% equipment.forEach(function(e) { %>
+                <option value="<%= e.id %>" <%= plan.equipment_id == e.id ? 'selected' : '' %>>
+                    <%= e.name %> (<%= e.code %>)
+                </option>
+                <% }); %>
+            </select>
+            <div style="font-size: 12px; color: var(--gray-600); margin-top: 4px;">
+                Leave empty to apply to all equipment of this type
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-title">Schedule Configuration</div>
+        
+        <!-- Frequency -->
+        <div class="form-group">
+            <label class="form-label">Frequency *</label>
+            <select id="frequencyType" class="form-input" onchange="onFrequencyChange()">
+                <option value="daily" <%= plan.frequency_type === 'daily' ? 'selected' : '' %>>Daily</option>
+                <option value="weekly" <%= plan.frequency_type === 'weekly' ? 'selected' : '' %>>Weekly</option>
+                <option value="monthly" <%= plan.frequency_type === 'monthly' ? 'selected' : '' %>>Monthly</option>
+            </select>
+        </div>
+        
+        <!-- Interval -->
+        <div class="form-group">
+            <label class="form-label">Every</label>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="number" id="frequencyInterval" class="form-input" value="<%= plan.frequency_interval %>" min="1" style="width: 80px;">
+                <span id="intervalLabel">day(s)</span>
+            </div>
+        </div>
+        
+        <!-- Day of Week (for weekly) -->
+        <div class="form-group" id="dayOfWeekGroup" style="display: <%= plan.frequency_type === 'weekly' ? 'block' : 'none' %>;">
+            <label class="form-label">Day of Week</label>
+            <select id="dayOfWeek" class="form-input">
+                <option value="1" <%= plan.day_of_week == 1 ? 'selected' : '' %>>Monday</option>
+                <option value="2" <%= plan.day_of_week == 2 ? 'selected' : '' %>>Tuesday</option>
+                <option value="3" <%= plan.day_of_week == 3 ? 'selected' : '' %>>Wednesday</option>
+                <option value="4" <%= plan.day_of_week == 4 ? 'selected' : '' %>>Thursday</option>
+                <option value="5" <%= plan.day_of_week == 5 ? 'selected' : '' %>>Friday</option>
+                <option value="6" <%= plan.day_of_week == 6 ? 'selected' : '' %>>Saturday</option>
+                <option value="0" <%= plan.day_of_week == 0 ? 'selected' : '' %>>Sunday</option>
+            </select>
+        </div>
+        
+        <!-- Day of Month (for monthly) -->
+        <div class="form-group" id="dayOfMonthGroup" style="display: <%= plan.frequency_type === 'monthly' ? 'block' : 'none' %>;">
+            <label class="form-label">Day of Month</label>
+            <input type="number" id="dayOfMonth" class="form-input" value="<%= plan.day_of_month || 1 %>" min="1" max="31">
+        </div>
+        
+        <!-- Start Date -->
+        <div class="form-group">
+            <label class="form-label">Start Date *</label>
+            <input type="date" id="startDate" class="form-input" value="<%= plan.start_date %>">
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-title">Settings</div>
+        
+        <!-- Priority -->
+        <div class="form-group">
+            <label class="form-label">Priority</label>
+            <select id="priority" class="form-input">
+                <option value="low" <%= plan.priority === 'low' ? 'selected' : '' %>>Low</option>
+                <option value="medium" <%= plan.priority === 'medium' ? 'selected' : '' %>>Medium</option>
+                <option value="high" <%= plan.priority === 'high' ? 'selected' : '' %>>High</option>
+                <option value="urgent" <%= plan.priority === 'urgent' ? 'selected' : '' %>>Urgent</option>
+            </select>
+        </div>
+        
+        <!-- Active Status -->
+        <div class="form-group" style="margin-bottom: 0;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="isActive" <%= plan.is_active ? 'checked' : '' %>>
+                <span>Active</span>
+            </label>
+        </div>
+    </div>
+    
+    <!-- Save Button -->
+    <button class="btn btn-primary btn-large btn-full" onclick="savePlan()" style="margin-top: 20px; margin-bottom: 20px;">
+        <%= plan.id ? 'Save Changes' : 'Create Plan' %>
+    </button>
+</div>
+
+<script>
+function onFrequencyChange() {
+    const type = document.getElementById('frequencyType').value;
+    document.getElementById('dayOfWeekGroup').style.display = type === 'weekly' ? 'block' : 'none';
+    document.getElementById('dayOfMonthGroup').style.display = type === 'monthly' ? 'block' : 'none';
+    
+    const labels = { daily: 'day(s)', weekly: 'week(s)', monthly: 'month(s)' };
+    document.getElementById('intervalLabel').textContent = labels[type] || 'day(s)';
+}
+
+async function savePlan() {
+    const planId = '<%= plan.id %>';
+    const data = {
+        plan_name: document.getElementById('planName').value,
+        task_template_id: document.getElementById('templateId').value,
+        equipment_id: document.getElementById('equipmentId').value || null,
+        frequency_type: document.getElementById('frequencyType').value,
+        frequency_interval: parseInt(document.getElementById('frequencyInterval').value) || 1,
+        day_of_week: document.getElementById('frequencyType').value === 'weekly' ? parseInt(document.getElementById('dayOfWeek').value) : null,
+        day_of_month: document.getElementById('frequencyType').value === 'monthly' ? parseInt(document.getElementById('dayOfMonth').value) : null,
+        start_date: document.getElementById('startDate').value,
+        priority: document.getElementById('priority').value,
+        is_active: document.getElementById('isActive').checked
+    };
+    
+    // Validate
+    if (!data.plan_name || !data.task_template_id || !data.start_date) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    try {
+        const url = planId ? `/api/maintenance-plans/${planId}` : '/api/maintenance-plans';
+        const method = planId ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(planId ? 'Plan updated!' : 'Plan created!');
+            location.href = '/mobile/maintenance-plans';
+        } else {
+            alert('Error: ' + result.message);
+        }
+    } catch (err) {
+        alert('Error saving plan');
+    }
+}
+</script>

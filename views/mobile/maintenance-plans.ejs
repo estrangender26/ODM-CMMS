@@ -1,0 +1,81 @@
+<% title = 'Maintenance Plans' %>
+
+<div style="padding: 16px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h1 style="font-size: 24px; margin: 0;">Maintenance Plans</h1>
+        <a href="/mobile/maintenance-plans/new" class="btn btn-primary">
+            + New Plan
+        </a>
+    </div>
+    
+    <div style="font-size: 14px; color: var(--gray-600); margin-bottom: 20px;">
+        Define <strong>WHEN</strong> and <strong>WHERE</strong> to apply inspection templates
+    </div>
+    
+    <!-- Plans List -->
+    <div id="plansList">
+        <% plans.forEach(function(plan) { %>
+        <div class="card" style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                <div>
+                    <div style="font-weight: 600; font-size: 16px;"><%= plan.plan_name %></div>
+                    <div style="font-size: 13px; color: var(--gray-600); margin-top: 4px;">
+                        Template: <%= plan.template_name %>
+                    </div>
+                </div>
+                <span class="status-badge <%= plan.isActive ? 'status-released' : 'status-archived' %>">
+                    <%= plan.isActive ? 'Active' : 'Inactive' %>
+                </span>
+            </div>
+            
+            <div style="font-size: 13px; color: var(--gray-600); margin-bottom: 12px;">
+                <span style="margin-right: 16px;">
+                    📅 <%= plan.frequency_type %>, every <%= plan.frequency_interval %> <%= plan.frequency_type === 'daily' ? 'day' : plan.frequency_type === 'weekly' ? 'week' : 'month' %><%= plan.frequency_interval > 1 ? 's' : '' %>
+                </span>
+                <span>
+                    ⚡ <%= plan.priority %> priority
+                </span>
+            </div>
+            
+            <div style="display: flex; gap: 8px;">
+                <a href="/mobile/maintenance-plans/<%= plan.id %>/edit" class="btn btn-outline btn-full" style="flex: 1;">Edit</a>
+                <button class="btn btn-danger" style="flex: 1;" onclick="deletePlan(<%= plan.id %>, '<%= plan.plan_name %>')">Delete</button>
+            </div>
+        </div>
+        <% }); %>
+    </div>
+    
+    <% if (plans.length === 0) { %>
+    <div style="text-align: center; padding: 40px; color: var(--gray-600);">
+        <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
+        <div style="font-size: 16px; margin-bottom: 8px;">No maintenance plans yet</div>
+        <div style="font-size: 14px; margin-bottom: 20px;">
+            Create a plan to schedule work orders automatically
+        </div>
+        <a href="/mobile/maintenance-plans/new" class="btn btn-primary">Create First Plan</a>
+    </div>
+    <% } %>
+</div>
+
+<script>
+async function deletePlan(id, name) {
+    if (!confirm(`Delete plan "${name}"?\n\nThis will stop creating work orders from this plan.`)) return;
+    
+    try {
+        const response = await fetch(`/api/maintenance-plans/${id}`, {
+            method: 'DELETE',
+            credentials: 'same-origin'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Plan deleted');
+            location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Could not delete'));
+        }
+    } catch (err) {
+        alert('Error deleting plan');
+    }
+}
+</script>
