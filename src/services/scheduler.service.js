@@ -92,7 +92,8 @@ class SchedulerService {
    * Only assets with status = 'operational' or 'active'
    */
   async getActiveAssets(organizationId) {
-    const sql = `
+    // Try with default_operator_id first (if migration has been run)
+    const sqlWithOperator = `
       SELECT 
         e.id,
         e.name,
@@ -108,7 +109,34 @@ class SchedulerService {
         AND e.equipment_type_id IS NOT NULL
       ORDER BY e.id
     `;
-    return await db.query(sql, [organizationId]);
+    
+    // Fallback without default_operator_id
+    const sqlWithoutOperator = `
+      SELECT 
+        e.id,
+        e.name,
+        e.code,
+        e.facility_id,
+        e.equipment_type_id,
+        f.name as facility_name,
+        NULL as default_operator_id
+      FROM equipment e
+      JOIN facilities f ON e.facility_id = f.id
+      WHERE e.organization_id = ?
+        AND e.status IN ('operational', 'active')
+        AND e.equipment_type_id IS NOT NULL
+      ORDER BY e.id
+    `;
+    
+    try {
+      return await db.query(sqlWithOperator, [organizationId]);
+    } catch (error) {
+      // If column doesn't exist, use fallback
+      if (error.message?.includes('default_operator_id')) {
+        return await db.query(sqlWithoutOperator, [organizationId]);
+      }
+      throw error;
+    }
   }
 
   /**
