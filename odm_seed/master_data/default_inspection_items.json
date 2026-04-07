@@ -1,0 +1,52 @@
+{
+  "default_inspections": {
+    "PUMP": [
+      { "step_no": 1, "step_type": "inspection", "instruction": "Check pump casing for leaks or damage", "data_type": "boolean", "is_required": true },
+      { "step_no": 2, "step_type": "measurement", "instruction": "Record bearing temperature (drive end)", "data_type": "number", "unit": "°C", "min_value": 20, "max_value": 80, "is_required": true },
+      { "step_no": 3, "step_type": "measurement", "instruction": "Record bearing temperature (non-drive end)", "data_type": "number", "unit": "°C", "min_value": 20, "max_value": 80, "is_required": true },
+      { "step_no": 4, "step_type": "inspection", "instruction": "Check mechanical seal for leakage", "data_type": "dropdown", "options": ["No leak", "Minor drip", "Active leak"], "is_required": true },
+      { "step_no": 5, "step_type": "inspection", "instruction": "Check coupling alignment and condition", "data_type": "boolean", "is_required": true },
+      { "step_no": 6, "step_type": "measurement", "instruction": "Record vibration level", "data_type": "number", "unit": "mm/s", "min_value": 0, "max_value": 10, "is_required": true },
+      { "step_no": 7, "step_type": "inspection", "instruction": "Check oil level in bearing housing", "data_type": "dropdown", "options": ["Full", "Half", "Low", "Empty"], "is_required": true },
+      { "step_no": 8, "step_type": "inspection", "instruction": "Check for unusual noise or vibration", "data_type": "boolean", "is_required": true }
+    ],
+    "MOTOR": [
+      { "step_no": 1, "step_type": "inspection", "instruction": "Check motor frame for overheating", "data_type": "boolean", "is_required": true },
+      { "step_no": 2, "step_type": "measurement", "instruction": "Record winding temperature", "data_type": "number", "unit": "°C", "min_value": 20, "max_value": 120, "is_required": true },
+      { "step_no": 3, "step_type": "inspection", "instruction": "Check cooling fan operation", "data_type": "boolean", "is_required": true },
+      { "step_no": 4, "step_type": "inspection", "instruction": "Check terminal box condition", "data_type": "boolean", "is_required": true },
+      { "step_no": 5, "step_type": "inspection", "instruction": "Check for unusual noise", "data_type": "boolean", "is_required": true },
+      { "step_no": 6, "step_type": "measurement", "instruction": "Record current draw (A)", "data_type": "number", "unit": "A", "min_value": 0, "max_value": 100, "is_required": true }
+    ],
+    "VALVE": [
+      { "step_no": 1, "step_type": "inspection", "instruction": "Check valve body for leaks", "data_type": "boolean", "is_required": true },
+      { "step_no": 2, "step_type": "inspection", "instruction": "Verify valve position indicator", "data_type": "boolean", "is_required": true },
+      { "step_no": 3, "step_type": "inspection", "instruction": "Check actuator operation", "data_type": "dropdown", "options": ["Normal", "Slow", "Stiff", "Not working"], "is_required": true },
+      { "step_no": 4, "step_type": "inspection", "instruction": "Check packing/seals condition", "data_type": "dropdown", "options": ["Good", "Worn", "Leaking"], "is_required": true }
+    ],
+    "INSTRUMENT": [
+      { "step_no": 1, "step_type": "inspection", "instruction": "Check instrument display/readout", "data_type": "boolean", "is_required": true },
+      { "step_no": 2, "step_type": "measurement", "instruction": "Record current reading", "data_type": "number", "is_required": true },
+      { "step_no": 3, "step_type": "inspection", "instruction": "Check process connection for leaks", "data_type": "boolean", "is_required": true },
+      { "step_no": 4, "step_type": "inspection", "instruction": "Verify signal cable condition", "data_type": "boolean", "is_required": true }
+    ],
+    "COMPRESSOR": [
+      { "step_no": 1, "step_type": "inspection", "instruction": "Check for air/gas leaks", "data_type": "boolean", "is_required": true },
+      { "step_no": 2, "step_type": "measurement", "instruction": "Record discharge pressure", "data_type": "number", "unit": "bar", "is_required": true },
+      { "step_no": 3, "step_type": "measurement", "instruction": "Record discharge temperature", "data_type": "number", "unit": "°C", "is_required": true },
+      { "step_no": 4, "step_type": "inspection", "instruction": "Check oil level and condition", "data_type": "dropdown", "options": ["Good", "Dark", "Low", "Empty"], "is_required": true },
+      { "step_no": 5, "step_type": "inspection", "instruction": "Check for unusual vibration or noise", "data_type": "boolean", "is_required": true }
+    ],
+    "FILTER": [
+      { "step_no": 1, "step_type": "inspection", "instruction": "Check filter housing for leaks", "data_type": "boolean", "is_required": true },
+      { "step_no": 2, "step_type": "measurement", "instruction": "Record differential pressure", "data_type": "number", "unit": "bar", "is_required": true },
+      { "step_no": 3, "step_type": "inspection", "instruction": "Check drain valve operation", "data_type": "boolean", "is_required": true }
+    ],
+    "GENERIC": [
+      { "step_no": 1, "step_type": "inspection", "instruction": "Visual inspection for damage or wear", "data_type": "boolean", "is_required": true },
+      { "step_no": 2, "step_type": "inspection", "instruction": "Check for leaks", "data_type": "boolean", "is_required": true },
+      { "step_no": 3, "step_type": "inspection", "instruction": "Verify normal operation", "data_type": "boolean", "is_required": true },
+      { "step_no": 4, "step_type": "inspection", "instruction": "Check for unusual noise or vibration", "data_type": "boolean", "is_required": true }
+    ]
+  }
+}
