@@ -34,28 +34,34 @@
 </div>
 
 <!-- Active Maintenance Plans (Schedules) -->
-<div class="card" id="plansList" style="display: none;">
+<div class="card" id="plansList" style="display: none; border-left: 4px solid var(--primary);">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <div class="card-title" style="margin: 0;">Active Maintenance Plans</div>
-        <a href="/mobile/maintenance-plans" style="font-size: 13px; color: var(--primary);">View All</a>
+        <div class="card-title" style="margin: 0; font-size: 16px;">📅 Active Maintenance Plans</div>
+        <a href="/mobile/maintenance-plans" style="font-size: 13px; color: var(--primary); font-weight: 500;">View All →</a>
     </div>
-    <div style="font-size: 12px; color: var(--gray-600); margin-bottom: 12px;">
+    <div style="font-size: 13px; color: var(--gray-600); margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--gray-200);">
         Define WHEN and WHERE to apply inspection templates
     </div>
-    <div id="plansContainer" style="margin-top: 12px;">
+    <div id="plansContainer">
         <!-- Plans loaded dynamically -->
     </div>
 </div>
 
 <!-- Task Templates Info Card -->
-<div class="card" style="background: var(--gray-100);">
-    <div style="font-size: 13px; color: var(--gray-600);">
-        <strong>📋 Task Templates:</strong> Define WHAT to inspect (inspection items)<br>
-        <strong>📅 Maintenance Plans:</strong> Define WHEN and WHERE to apply templates
+<div class="card" style="background: linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%); border: 1px solid var(--gray-300);">
+    <div style="font-size: 14px; color: var(--gray-700); line-height: 1.6;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <span style="font-size: 20px;">📋</span>
+            <strong>Task Templates</strong> — Define WHAT to inspect
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 20px;">📅</span>
+            <strong>Maintenance Plans</strong> — Define WHEN & WHERE
+        </div>
     </div>
-    <div style="margin-top: 12px; display: flex; gap: 8px;">
-        <a href="/mobile/templates" class="btn btn-outline" style="flex: 1; font-size: 13px;">Manage Templates</a>
-        <a href="/mobile/maintenance-plans" class="btn btn-outline" style="flex: 1; font-size: 13px;">Manage Plans</a>
+    <div style="margin-top: 16px; display: flex; gap: 12px;">
+        <a href="/mobile/templates" class="btn btn-outline" style="flex: 1; font-size: 14px; padding: 12px; font-weight: 500;">Manage Templates</a>
+        <a href="/mobile/maintenance-plans" class="btn btn-outline" style="flex: 1; font-size: 14px; padding: 12px; font-weight: 500;">Manage Plans</a>
     </div>
 </div>
 

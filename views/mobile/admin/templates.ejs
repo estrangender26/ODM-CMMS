@@ -3,151 +3,120 @@
 <% showNav = false %>
 <% activeNav = '' %>
 
-<!-- Mobile Template Cards -->
-<div class="mobile-only">
-  <button class="btn btn-primary btn-full" style="margin-bottom: 16px;" onclick="showAddTemplate()">
-      + Create Template
-  </button>
-  
-  <% templates.forEach(function(template) { %>
-  <div class="card">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-          <div>
-              <div style="font-weight: 600;"><%= template.name %></div>
-              <div style="font-size: 13px; color: var(--gray-600);"><%= template.equipmentType %></div>
-          </div>
-          <span class="status-badge <%= template.isActive ? 'status-released' : 'status-scheduled' %>">
-              <%= template.isActive ? 'Active' : 'Inactive' %>
-          </span>
-      </div>
-      <div style="display: flex; gap: 16px; font-size: 13px; color: var(--gray-600); margin-bottom: 12px;">
-
-          <span>12 items</span>
-      </div>
-      <div style="display: flex; gap: 8px;">
-          <button class="btn btn-outline" style="flex: 1; height: 40px;">Edit</button>
-          <button class="btn btn-outline" style="flex: 1; height: 40px;">Items</button>
-      </div>
-  </div>
-  <% }); %>
+<!-- Mobile View -->
+<div class="mobile-only" style="padding: 16px; max-width: 600px; margin: 0 auto;">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <div>
+            <h1 style="font-size: 24px; font-weight: 700; margin: 0 0 4px 0;">Task Templates</h1>
+            <p style="font-size: 14px; color: var(--gray-600); margin: 0;">Define WHAT to inspect</p>
+        </div>
+    </div>
+    
+    <!-- Create Button -->
+    <a href="/mobile/templates/new" class="btn btn-primary btn-full" style="margin-bottom: 20px; padding: 14px; font-size: 16px; font-weight: 600;">
+        + Create Template
+    </a>
+    
+    <!-- Info Card -->
+    <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border-radius: 12px; padding: 16px 20px; margin-bottom: 20px;">
+        <div style="font-size: 13px; color: #2e7d32;">
+            <strong>💡 Tip:</strong> Create templates with inspection items (steps), then use Maintenance Plans to schedule them.
+        </div>
+    </div>
+    
+    <!-- Template Cards -->
+    <div style="display: grid; gap: 16px;">
+        <% templates.forEach(function(template) { %>
+        <div class="card" style="border-left: 4px solid <%= template.isActive ? 'var(--success)' : 'var(--gray-400)' %>; padding: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; font-size: 16px; color: var(--gray-900); margin-bottom: 4px;">
+                        <%= template.name %>
+                    </div>
+                    <div style="font-size: 13px; color: var(--gray-600);">
+                        <%= template.equipmentType %>
+                    </div>
+                </div>
+                <span class="status-badge <%= template.isActive ? 'status-released' : 'status-archived' %>" style="font-size: 12px; padding: 4px 12px;">
+                    <%= template.isActive ? 'Active' : 'Inactive' %>
+                </span>
+            </div>
+            <div style="font-size: 13px; color: var(--gray-600); margin-bottom: 16px; padding: 8px 0; border-top: 1px solid var(--gray-200); border-bottom: 1px solid var(--gray-200);">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span>✓</span> <%= template.itemCount %> inspection items
+                </span>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <a href="/mobile/templates/<%= template.id %>/edit" class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; font-weight: 500;">Edit</a>
+                <a href="/mobile/templates/<%= template.id %>/edit#items" class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; font-weight: 500;">Items</a>
+            </div>
+        </div>
+        <% }); %>
+    </div>
+    
+    <% if (templates.length === 0) { %>
+    <div style="text-align: center; padding: 60px 20px; background: var(--gray-100); border-radius: 12px;">
+        <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
+        <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">No templates yet</div>
+        <div style="font-size: 14px; color: var(--gray-600); margin-bottom: 20px;">
+            Create your first inspection template
+        </div>
+        <a href="/mobile/templates/new" class="btn btn-primary">Create Template</a>
+    </div>
+    <% } %>
 </div>
 
 <!-- Desktop Templates Table -->
-<div class="desktop-only">
-  <div class="page-header-with-actions">
-    <h1>Templates</h1>
-    <button class="btn btn-primary" onclick="showAddTemplate()">
-      <span style="margin-right: 8px;">+</span> Create Template
-    </button>
-  </div>
-  
-  <div class="card" style="padding: 0; overflow: hidden;">
-    <table class="templates-table">
-      <thead>
-        <tr>
-          <th>Template Name</th>
-          <th>Equipment Type</th>
-          <th>Version</th>
-          <th>Items</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% templates.forEach(function(template) { %>
-        <tr>
-          <td class="template-name-cell">
-            <span class="template-icon">📋</span>
-            <%= template.name %>
-          </td>
-          <td><%= template.equipmentType %></td>
-          <td>-</td>
-          <td>12 items</td>
-          <td>
-            <span class="status-badge <%= template.isActive ? 'status-released' : 'status-scheduled' %>">
-              <%= template.isActive ? 'Active' : 'Inactive' %>
-            </span>
-          </td>
-          <td>
-            <div class="action-buttons">
-              <button class="btn btn-sm btn-outline" onclick="editTemplate('<%= template.id %>')">Edit</button>
-              <button class="btn btn-sm btn-outline" onclick="manageItems('<%= template.id %>')">Items</button>
-            </div>
-          </td>
-        </tr>
-        <% }); %>
-      </tbody>
-    </table>
-  </div>
-  
-  <!-- Pagination -->
-  <div class="pagination-bar">
-    <span class="pagination-info">Showing 1-2 of 12 templates</span>
-    <div class="pagination-buttons">
-      <button class="btn btn-outline" disabled>← Previous</button>
-      <button class="btn btn-outline">Next →</button>
+<div class="desktop-only" style="padding: 24px; max-width: 1200px; margin: 0 auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <div>
+            <h1 style="font-size: 28px; font-weight: 700; margin: 0 0 4px 0;">Task Templates</h1>
+            <p style="font-size: 14px; color: var(--gray-600); margin: 0;">Define inspection steps and checklists for equipment types</p>
+        </div>
+        <a href="/mobile/templates/new" class="btn btn-primary" style="padding: 12px 24px; font-size: 14px; font-weight: 600;">
+            + Create Template
+        </a>
     </div>
-  </div>
-</div>
-
-<!-- Add Template Modal -->
-<div id="addTemplateModal" class="modal">
-    <div class="modal-content" style="padding: 24px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="font-size: 20px;">Create Template</h2>
-            <button class="btn-close" onclick="hideAddTemplate()">&times;</button>
-        </div>
-        
-        <div style="margin-bottom: 16px;">
-            <label style="display: block; font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">Template Name *</label>
-            <input type="text" id="templateName" placeholder="e.g., Daily Pump Inspection" style="width: 100%; height: 48px; padding: 0 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px;">
-        </div>
-        
-        <div style="margin-bottom: 20px;">
-            <label style="display: block; font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">Equipment Type *</label>
-            <select id="templateEquipmentType" style="width: 100%; height: 48px; padding: 0 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; background: white;">
-                <option value="">Select Equipment Type</option>
-                <option value="ETYPE-001">Centrifugal Pump</option>
-                <option value="ETYPE-002">Positive Displacement Pump</option>
-                <option value="ETYPE-013">Electric Motor</option>
-                <option value="ETYPE-038">Shell and Tube Heat Exchanger</option>
-            </select>
-        </div>
-        
-        <div style="display: flex; gap: 12px;">
-            <button class="btn btn-outline" style="flex: 1;" onclick="hideAddTemplate()">Cancel</button>
-            <button class="btn btn-primary" style="flex: 1;" onclick="createTemplate()">Create</button>
-        </div>
+    
+    <div class="card" style="padding: 0; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+        <table class="templates-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: var(--gray-100);">
+                    <th style="padding: 16px; text-align: left; font-size: 13px; font-weight: 600; color: var(--gray-700); text-transform: uppercase; letter-spacing: 0.5px;">Template Name</th>
+                    <th style="padding: 16px; text-align: left; font-size: 13px; font-weight: 600; color: var(--gray-700); text-transform: uppercase; letter-spacing: 0.5px;">Equipment Type</th>
+                    <th style="padding: 16px; text-align: center; font-size: 13px; font-weight: 600; color: var(--gray-700); text-transform: uppercase; letter-spacing: 0.5px;">Items</th>
+                    <th style="padding: 16px; text-align: center; font-size: 13px; font-weight: 600; color: var(--gray-700); text-transform: uppercase; letter-spacing: 0.5px;">Status</th>
+                    <th style="padding: 16px; text-align: center; font-size: 13px; font-weight: 600; color: var(--gray-700); text-transform: uppercase; letter-spacing: 0.5px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% templates.forEach(function(template) { %>
+                <tr style="border-top: 1px solid var(--gray-200);">
+                    <td style="padding: 16px;">
+                        <div style="font-weight: 500; color: var(--gray-900);"><%= template.name %></div>
+                    </td>
+                    <td style="padding: 16px; color: var(--gray-600);"><%= template.equipmentType %></td>
+                    <td style="padding: 16px; text-align: center;"><%= template.itemCount %> items</td>
+                    <td style="padding: 16px; text-align: center;">
+                        <span class="status-badge <%= template.isActive ? 'status-released' : 'status-archived' %>">
+                            <%= template.isActive ? 'Active' : 'Inactive' %>
+                        </span>
+                    </td>
+                    <td style="padding: 16px; text-align: center;">
+                        <div style="display: flex; gap: 8px; justify-content: center;">
+                            <a href="/mobile/templates/<%= template.id %>/edit" class="btn btn-sm btn-outline">Edit</a>
+                            <a href="/mobile/templates/<%= template.id %>/edit#items" class="btn btn-sm btn-outline">Items</a>
+                        </div>
+                    </td>
+                </tr>
+                <% }); %>
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Pagination -->
+    <div class="pagination-bar" style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 16px;">
+        <span style="font-size: 14px; color: var(--gray-600);">Showing 1-<%= templates.length %> of <%= templates.length %> templates</span>
     </div>
 </div>
-
-<script>
-function showAddTemplate() {
-    document.getElementById('addTemplateModal').classList.add('active');
-}
-
-function hideAddTemplate() {
-    document.getElementById('addTemplateModal').classList.remove('active');
-}
-
-function createTemplate() {
-    const name = document.getElementById('templateName').value;
-    const type = document.getElementById('templateEquipmentType').value;
-    
-    if (!name || !type) {
-        alert('Please fill in all required fields');
-        return;
-    }
-    
-    hideAddTemplate();
-    // Redirect to template editor with new template
-}
-
-function editTemplate(id) {
-    location.href = '/mobile/templates/' + id + '/edit';
-}
-
-function manageItems(id) {
-    location.href = '/mobile/templates/' + id + '/edit#items';
-}
-</script>
