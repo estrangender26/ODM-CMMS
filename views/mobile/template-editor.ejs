@@ -32,6 +32,55 @@
     <% } %>
 </div>
 
+<!-- Schedule Configuration -->
+<div class="card">
+    <div class="card-title">Schedule Configuration</div>
+    <div style="margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="form-group" style="margin: 0;">
+            <label class="form-label">Frequency</label>
+            <select id="frequencyType" class="form-input">
+                <option value="">No Schedule</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin: 0;">
+            <label class="form-label">Every</label>
+            <input type="number" id="frequencyInterval" class="form-input" value="1" min="1" style="width: 100%;">
+        </div>
+    </div>
+    <div id="dayOfWeekContainer" style="margin-top: 12px; display: none;">
+        <label class="form-label">Day of Week</label>
+        <select id="dayOfWeek" class="form-input">
+            <option value="1">Monday</option>
+            <option value="2">Tuesday</option>
+            <option value="3">Wednesday</option>
+            <option value="4">Thursday</option>
+            <option value="5">Friday</option>
+            <option value="6">Saturday</option>
+            <option value="0">Sunday</option>
+        </select>
+    </div>
+    <div id="dayOfMonthContainer" style="margin-top: 12px; display: none;">
+        <label class="form-label">Day of Month</label>
+        <input type="number" id="dayOfMonth" class="form-input" value="1" min="1" max="31">
+    </div>
+    <div style="margin-top: 12px;">
+        <label class="form-label">Start Date</label>
+        <input type="date" id="startDate" class="form-input">
+    </div>
+    <div style="margin-top: 12px;">
+        <label class="form-label">Priority</label>
+        <select id="priority" class="form-input">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+        </select>
+    </div>
+</div>
+
 <!-- Inspection Items -->
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
@@ -401,10 +450,22 @@ function saveTemplate() {
         return;
     }
     
+    // Get schedule fields
+    const frequencyType = document.getElementById('frequencyType').value;
+    const frequencyInterval = parseInt(document.getElementById('frequencyInterval').value) || 1;
+    const startDate = document.getElementById('startDate').value;
+    const priority = document.getElementById('priority').value;
+    
     const data = {
         name: name,
         equipmentTypeId: equipmentTypeId,
-        items: items
+        items: items,
+        frequency_type: frequencyType || null,
+        frequency_interval: frequencyType ? frequencyInterval : null,
+        day_of_week: frequencyType === 'weekly' ? parseInt(document.getElementById('dayOfWeek').value) : null,
+        day_of_month: frequencyType === 'monthly' ? parseInt(document.getElementById('dayOfMonth').value) : null,
+        start_date: startDate || null,
+        priority: priority
     };
     
     const url = '<%= template.id %>' ? '/api/templates/<%= template.id %>' : '/api/templates';
@@ -413,6 +474,7 @@ function saveTemplate() {
     fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify(data)
     })
     .then(r => r.json())
@@ -429,4 +491,14 @@ function saveTemplate() {
         console.error(err);
     });
 }
+
+// Handle frequency type change to show/hide day selectors
+document.getElementById('frequencyType').addEventListener('change', function() {
+    const type = this.value;
+    document.getElementById('dayOfWeekContainer').style.display = type === 'weekly' ? 'block' : 'none';
+    document.getElementById('dayOfMonthContainer').style.display = type === 'monthly' ? 'block' : 'none';
+});
+
+// Set default start date to today
+document.getElementById('startDate').value = new Date().toISOString().split('T')[0];
 </script>
