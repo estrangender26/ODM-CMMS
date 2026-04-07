@@ -653,18 +653,50 @@ router.get('/admin/assets', requireAuth, requireAdminOnly, (req, res) => {
 });
 
 // Template Management - admin and supervisor
-router.get('/admin/templates', requireAuth, requireAdminUI, (req, res) => {
-  const data = {
-    title: 'Templates',
-    showBack: true,
-    showNav: true,
-    activeNav: 'admin',
-    templates: [
-      { id: 'TMP-001', name: 'Daily Pump Inspection', equipmentType: 'Centrifugal Pump', version: 2, isActive: true },
-      { id: 'TMP-002', name: 'Weekly Motor Check', equipmentType: 'Electric Motor', version: 1, isActive: true }
-    ]
-  };
-  renderMobile(res, 'admin/templates', data);
+router.get('/admin/templates', requireAuth, requireAdminUI, async (req, res) => {
+  try {
+    const { TaskTemplate } = require('../models');
+    const organizationId = req.user.organization_id;
+    
+    // Get templates from database
+    const templates = await TaskTemplate.query(`
+      SELECT 
+        tt.id,
+        tt.template_name as name,
+        tt.version,
+        tt.is_active as isActive,
+        et.type_name as equipmentType,
+        COUNT(tts.id) as itemCount
+      FROM task_templates tt
+      JOIN equipment_types et ON tt.equipment_type_id = et.id
+      LEFT JOIN task_template_steps tts ON tt.id = tts.task_template_id
+      WHERE tt.organization_id IS NULL OR tt.organization_id = ?
+      GROUP BY tt.id, tt.template_name, tt.version, tt.is_active, et.type_name
+      ORDER BY tt.template_name
+    `, [organizationId]);
+    
+    const data = {
+      title: 'Templates',
+      showBack: true,
+      showNav: true,
+      activeNav: 'admin',
+      templates: templates.map(t => ({
+        id: t.id,
+        name: t.name,
+        equipmentType: t.equipmentType,
+        version: t.version || 1,
+        isActive: t.isActive === 1 || t.isActive === true,
+        itemCount: t.itemCount || 0
+      }))
+    };
+    renderMobile(res, 'admin/templates', data);
+  } catch (error) {
+    console.error('[MOBILE] Error loading admin templates:', error);
+    res.status(500).render('error', { 
+      message: 'Error loading templates: ' + error.message,
+      error: process.env.NODE_ENV === 'development' ? error : {}
+    });
+  }
 });
 
 // User Management - admin and supervisor
@@ -815,6 +847,8 @@ router.get('/templates/new', requireAuth, async (req, res) => {
   try {
     const { EquipmentType } = require('../models');
     
+    console.log('[MOBILE] Fetching equipment types for template editor...');
+    
     // Get all equipment types from database
     const equipmentTypes = await EquipmentType.query(`
       SELECT et.id, et.type_name as name, et.type_code as code, ec.class_name
@@ -822,6 +856,8 @@ router.get('/templates/new', requireAuth, async (req, res) => {
       JOIN equipment_classes ec ON et.class_id = ec.id
       ORDER BY ec.class_name, et.type_name
     `);
+    
+    console.log('[MOBILE] Found equipment types:', equipmentTypes.length);
     
     const data = {
       title: 'New Template',
@@ -852,72 +888,79 @@ router.get('/templates/new', requireAuth, async (req, res) => {
 });
 
 // Edit Template
-router.get('/templates/:id/edit', requireAuth, (req, res) => {
-  const templateId = req.params.id;
-  const data = {
-    title: 'Edit Template',
-    showBack: true,
-    showNav: false,
-    activeNav: '',
-    template: {
-      id: templateId,
-      name: 'Daily Pump Inspection',
-      equipmentTypeId: 'ETYPE-001',
-      version: 2,
-      isActive: true
-    },
-    items: [
-      {
-        id: 'II-001',
-        sequence: 1,
-        prompt: 'Check coupling for wear or damage',
-        type: 'pass_fail',
-        subunit: 'Coupling Assembly',
-        subunitId: 'SU-001',
-        maintainableItem: 'Coupling Element',
-        maintainableItemId: 'MI-001',
-        isRequired: true
+router.get('/templates/:id/edit', requireAuth, async (req, res) => {
+  try {
+    const { TaskTemplate, EquipmentType } = require('../models');
+    const templateId = req.params.id;
+    
+    // Get template details from database
+    const [template] = await TaskTemplate.query(`
+      SELECT tt.*, et.id as equipment_type_id, et.type_name as equipment_type_name
+      FROM task_templates tt
+      JOIN equipment_types et ON tt.equipment_type_id = et.id
+      WHERE tt.id = ?
+    `, [templateId]);
+    
+    if (!template) {
+      return res.status(404).render('error', { message: 'Template not found', error: {} });
+    }
+    
+    // Get template items (steps)
+    const items = await TaskTemplate.query(`
+      SELECT 
+        id,
+        step_no as sequence,
+        instruction as prompt,
+        data_type as type,
+        is_required as isRequired
+      FROM task_template_steps
+      WHERE task_template_id = ?
+      ORDER BY step_no
+    `, [templateId]);
+    
+    // Get all equipment types
+    const equipmentTypes = await EquipmentType.query(`
+      SELECT et.id, et.type_name as name, et.type_code as code, ec.class_name
+      FROM equipment_types et
+      JOIN equipment_classes ec ON et.class_id = ec.id
+      ORDER BY ec.class_name, et.type_name
+    `);
+    
+    const data = {
+      title: 'Edit Template',
+      showBack: true,
+      showNav: false,
+      activeNav: '',
+      template: {
+        id: template.id,
+        name: template.template_name,
+        equipmentTypeId: template.equipment_type_id,
+        version: template.version || 1,
+        isActive: template.is_active === 1 || template.is_active === true
       },
-      {
-        id: 'II-002',
-        sequence: 2,
-        prompt: 'Check bearing temperature (drive end)',
-        type: 'numeric',
-        subunit: 'Bearing Assembly',
-        subunitId: 'SU-002',
-        maintainableItem: 'Bearing DE',
-        maintainableItemId: 'MI-002',
-        isRequired: true
-      },
-      {
-        id: 'II-003',
-        sequence: 3,
-        prompt: 'Check mechanical seal for leakage',
-        type: 'multiple_choice',
-        subunit: 'Sealing System',
-        subunitId: 'SU-003',
-        maintainableItem: 'Mechanical Seal',
-        maintainableItemId: 'MI-003',
-        isRequired: false
-      }
-    ],
-    equipmentTypes: [
-      { id: 'ETYPE-001', name: 'Centrifugal Pump' },
-      { id: 'ETYPE-002', name: 'TEFC Motor' },
-      { id: 'ETYPE-003', name: 'Reciprocating Compressor' }
-    ],
-    subunits: [
-      { id: 'SU-001', name: 'Coupling Assembly' },
-      { id: 'SU-002', name: 'Bearing Assembly' },
-      { id: 'SU-003', name: 'Sealing System' }
-    ],
-    maintainableItems: [
-      { id: 'MI-001', name: 'Coupling Element' },
-      { id: 'MI-002', name: 'Bearing DE' },
-      { id: 'MI-003', name: 'Mechanical Seal' }
-    ]
-  };
-  renderMobile(res, 'template-editor', data);
+      items: items.map(item => ({
+        id: item.id,
+        sequence: item.sequence,
+        prompt: item.prompt,
+        type: item.type || 'pass_fail',
+        isRequired: item.isRequired === 1 || item.isRequired === true
+      })),
+      equipmentTypes: equipmentTypes.map(et => ({
+        id: et.id,
+        name: et.name,
+        class: et.class_name
+      })),
+      subunits: [],
+      maintainableItems: []
+    };
+    renderMobile(res, 'template-editor', data);
+  } catch (error) {
+    console.error('[MOBILE] Error loading template for edit:', error);
+    res.status(500).render('error', { 
+      message: 'Error loading template: ' + error.message,
+      error: process.env.NODE_ENV === 'development' ? error : {}
+    });
+  }
 });
 
 /**
