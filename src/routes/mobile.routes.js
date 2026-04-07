@@ -996,45 +996,51 @@ router.get('/templates', requireAuth, async (req, res) => {
     const { TaskTemplate } = require('../models');
     const organizationId = req.user.organization_id;
     
-    console.log('[MOBILE] Loading templates for org:', organizationId);
-    
-    // Get templates from database
+    // Get templates from database with category and class
     const templates = await TaskTemplate.query(`
       SELECT 
         tt.id,
         tt.template_name as name,
         tt.is_active as isActive,
-        et.type_name as equipmentTypeName,
-        et.type_code as equipmentTypeCode,
-        et.id as equipmentTypeId,
+        et.type_name as equipmentType,
+        ec.class_name as className,
+        c.category_name as categoryName,
         COUNT(tts.id) as itemCount
       FROM task_templates tt
       JOIN equipment_types et ON tt.equipment_type_id = et.id
+      JOIN equipment_classes ec ON et.class_id = ec.id
+      JOIN equipment_categories c ON ec.category_id = c.id
       LEFT JOIN task_template_steps tts ON tt.id = tts.task_template_id
       WHERE tt.organization_id IS NULL OR tt.organization_id = ?
-      GROUP BY tt.id, tt.template_name, tt.is_active, et.type_name, et.type_code, et.id
-      ORDER BY tt.template_name
+      GROUP BY tt.id, tt.template_name, tt.is_active, et.type_name, ec.class_name, c.category_name
+      ORDER BY c.category_name, ec.class_name, tt.template_name
     `, [organizationId]);
     
-    console.log('[MOBILE] Found templates:', templates.length);
-    if (templates.length > 0) {
-      console.log('[MOBILE] First template:', templates[0]);
-    }
+    // Group templates by category and class
+    const templatesByCategory = {};
+    templates.forEach(t => {
+      const category = t.categoryName;
+      const className = t.className;
+      
+      if (!templatesByCategory[category]) templatesByCategory[category] = {};
+      if (!templatesByCategory[category][className]) templatesByCategory[category][className] = [];
+      
+      templatesByCategory[category][className].push({
+        id: t.id,
+        name: t.name,
+        equipmentType: t.equipmentType,
+        isActive: t.isActive === 1 || t.isActive === true,
+        itemCount: t.itemCount || 0
+      });
+    });
     
     const data = {
       title: 'Templates',
       showBack: false,
       showNav: true,
       activeNav: 'templates',
-      templates: templates.map(t => ({
-        id: t.id,
-        name: t.name,
-        equipmentTypeName: t.equipmentTypeName,
-        equipmentTypeCode: t.equipmentTypeCode?.toLowerCase() || '',
-        equipmentTypeId: t.equipmentTypeId,
-        itemCount: t.itemCount || 0,
-        isActive: t.isActive === 1 || t.isActive === true
-      }))
+      templatesByCategory,
+      totalTemplates: templates.length
     };
     renderMobile(res, 'template-list', data);
   } catch (error) {
