@@ -34,6 +34,9 @@ router.use('/subunits', require('./subunit.routes'));
 router.use('/task-templates', require('./task-template.routes'));
 router.use('/templates', require('./task-template.routes'));
 
+// Maintenance Plans (Schedules - separates WHEN from WHAT)
+router.use('/maintenance-plans', require('./maintenance-plan.routes'));
+
 // ODM Scheduler (Auto WO Generation)
 router.use('/scheduler', require('./scheduler.routes'));
 

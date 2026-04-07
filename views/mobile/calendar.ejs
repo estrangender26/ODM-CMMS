@@ -18,8 +18,8 @@
 <div class="card" id="adminActions">
     <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
         <span>Scheduler Controls</span>
-        <a href="/mobile/templates" class="btn btn-outline" style="font-size: 13px; padding: 6px 12px;">
-            + New Schedule
+        <a href="/mobile/maintenance-plans/new" class="btn btn-outline" style="font-size: 13px; padding: 6px 12px;">
+            + New Plan
         </a>
     </div>
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
@@ -33,14 +33,29 @@
     <div id="schedulerResult" style="margin-top: 12px; font-size: 13px; display: none;"></div>
 </div>
 
-<!-- Active Template Schedules -->
-<div class="card" id="schedulesList" style="display: none;">
-    <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
-        <span>Active Schedules</span>
-        <span id="scheduleCount" style="font-size: 13px; color: var(--gray-600);">0</span>
+<!-- Active Maintenance Plans (Schedules) -->
+<div class="card" id="plansList" style="display: none;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <div class="card-title" style="margin: 0;">Active Maintenance Plans</div>
+        <a href="/mobile/maintenance-plans" style="font-size: 13px; color: var(--primary);">View All</a>
     </div>
-    <div id="schedulesContainer" style="margin-top: 12px;">
-        <!-- Schedules loaded dynamically -->
+    <div style="font-size: 12px; color: var(--gray-600); margin-bottom: 12px;">
+        Define WHEN and WHERE to apply inspection templates
+    </div>
+    <div id="plansContainer" style="margin-top: 12px;">
+        <!-- Plans loaded dynamically -->
+    </div>
+</div>
+
+<!-- Task Templates Info Card -->
+<div class="card" style="background: var(--gray-100);">
+    <div style="font-size: 13px; color: var(--gray-600);">
+        <strong>📋 Task Templates:</strong> Define WHAT to inspect (inspection items)<br>
+        <strong>📅 Maintenance Plans:</strong> Define WHEN and WHERE to apply templates
+    </div>
+    <div style="margin-top: 12px; display: flex; gap: 8px;">
+        <a href="/mobile/templates" class="btn btn-outline" style="flex: 1; font-size: 13px;">Manage Templates</a>
+        <a href="/mobile/maintenance-plans" class="btn btn-outline" style="flex: 1; font-size: 13px;">Manage Plans</a>
     </div>
 </div>
 
@@ -314,32 +329,29 @@ async function loadSchedulerStats() {
     }
 }
 
-// Load active template schedules
-async function loadTemplateSchedules() {
+// Load active maintenance plans
+async function loadMaintenancePlans() {
     try {
-        const response = await fetch('/api/templates?scheduled=true', {
+        const response = await fetch('/api/maintenance-plans?active=true', {
             credentials: 'same-origin'
         });
         const data = await response.json();
         
         if (data.success && data.data && data.data.length > 0) {
-            const container = document.getElementById('schedulesContainer');
-            const listCard = document.getElementById('schedulesList');
+            const container = document.getElementById('plansContainer');
+            const listCard = document.getElementById('plansList');
             
-            document.getElementById('scheduleCount').textContent = data.data.length;
-            
-            container.innerHTML = data.data.map(t => `
-                <div class="schedule-item" style="padding: 12px; background: var(--gray-100); border-radius: 8px; margin-bottom: 8px;">
+            container.innerHTML = data.data.map(p => `
+                <div class="plan-item" style="padding: 12px; background: var(--gray-100); border-radius: 8px; margin-bottom: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div>
-                            <div style="font-weight: 600; font-size: 14px;">${t.template_name}</div>
+                            <div style="font-weight: 600; font-size: 14px;">${p.plan_name}</div>
                             <div style="font-size: 12px; color: var(--gray-600); margin-top: 2px;">
-                                ${t.type_name} • ${t.frequency_type}, ${t.frequency_interval === 1 ? 'every' : 'every ' + t.frequency_interval} ${t.frequency_type === 'daily' ? 'day' : t.frequency_type === 'weekly' ? 'week' : 'month'}
+                                ${p.template_name} • ${p.frequency_type}, every ${p.frequency_interval} ${p.frequency_type === 'daily' ? 'day' : p.frequency_type === 'weekly' ? 'week' : 'month'}${p.frequency_interval > 1 ? 's' : ''}
                             </div>
                         </div>
                         <div style="display: flex; gap: 8px;">
-                            <a href="/mobile/templates/${t.id}/edit" class="btn btn-outline" style="padding: 4px 8px; font-size: 12px;">Edit</a>
-                            <button class="btn btn-danger" style="padding: 4px 8px; font-size: 12px;" onclick="deleteSchedule(${t.id}, '${t.template_name}')">Delete</button>
+                            <a href="/mobile/maintenance-plans/${p.id}/edit" class="btn btn-outline" style="padding: 4px 8px; font-size: 12px;">Edit</a>
                         </div>
                     </div>
                 </div>
@@ -348,33 +360,10 @@ async function loadTemplateSchedules() {
             listCard.style.display = 'block';
         }
     } catch (err) {
-        console.log('Could not load template schedules:', err);
-    }
-}
-
-// Delete/disable a schedule
-async function deleteSchedule(id, name) {
-    if (!confirm(`Delete schedule "${name}"?\n\nThis will stop creating work orders from this template.`)) return;
-    
-    try {
-        const response = await fetch(`/api/templates/${id}`, {
-            method: 'DELETE',
-            credentials: 'same-origin'
-        });
-        const data = await response.json();
-        
-        if (data.success) {
-            alert('Schedule deleted');
-            loadTemplateSchedules();
-            previewSchedule();
-        } else {
-            alert('Error: ' + (data.message || 'Could not delete'));
-        }
-    } catch (err) {
-        alert('Error deleting schedule');
+        console.log('Could not load maintenance plans:', err);
     }
 }
 
 loadSchedulerStats();
-loadTemplateSchedules();
+loadMaintenancePlans();
 </script>
