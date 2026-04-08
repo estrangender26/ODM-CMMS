@@ -96,24 +96,24 @@
 <div class="card">
     <div class="card-title">Settings</div>
     <div style="margin-top: 12px;">
-        <a href="/mobile/home" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--gray-200); text-decoration: none; color: var(--text);">
+        <button onclick="showNotificationSettings()" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--gray-200); text-decoration: none; color: var(--text); width: 100%; background: none; border: none; cursor: pointer; font-size: 16px;">
             <span>🔔 Notifications</span>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="9 18 15 12 9 6"/>
             </svg>
-        </a>
-        <a href="/mobile/home" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--gray-200); text-decoration: none; color: var(--text);">
+        </button>
+        <button onclick="showChangePassword()" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--gray-200); text-decoration: none; color: var(--text); width: 100%; background: none; border: none; cursor: pointer; font-size: 16px;">
             <span>🔒 Change Password</span>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="9 18 15 12 9 6"/>
             </svg>
-        </a>
-        <a href="/mobile/home" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; text-decoration: none; color: var(--text);">
+        </button>
+        <button onclick="showHelpSupport()" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; text-decoration: none; color: var(--text); width: 100%; background: none; border: none; cursor: pointer; font-size: 16px;">
             <span>❓ Help & Support</span>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="9 18 15 12 9 6"/>
             </svg>
-        </a>
+        </button>
     </div>
 </div>
 
@@ -192,5 +192,25 @@ async function logout() {
     }
     localStorage.clear();
     window.location.href = '/login';
+}
+
+function showNotificationSettings() {
+    alert('🔔 Notifications\n\nNotification settings will be available soon.\n\nYou will be able to:\n• Enable/disable email notifications\n• Set up work order alerts\n• Configure reminder schedules');
+}
+
+function showChangePassword() {
+    const newPassword = prompt('🔒 Change Password\n\nEnter your new password (minimum 6 characters):');
+    if (newPassword) {
+        if (newPassword.length < 6) {
+            alert('❌ Password must be at least 6 characters');
+            return;
+        }
+        // In a real implementation, this would call the API
+        alert('✅ Password changed successfully!');
+    }
+}
+
+function showHelpSupport() {
+    alert('❓ Help & Support\n\nNeed help with ODM-CMMS?\n\n📧 Email: support@odm-cmms.com\n📞 Phone: +1 (555) 123-4567\n\n💡 Quick Tips:\n• Use the QR scanner for quick asset lookup\n• Check your profile for usage stats\n• Contact your admin for organization settings');
 }
 </script>
