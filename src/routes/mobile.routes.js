@@ -44,8 +44,10 @@ const requireAdminOnly = (req, res, next) => {
 };
 
 // Mobile Layout Wrapper
-const renderMobile = (res, view, options = {}) => {
-  res.render(`mobile/${view}`, { ...options, layout: 'mobile/layout' });
+const renderMobile = (res, view, options = {}, req = null) => {
+  // Include user role if request is provided (for RBAC in views)
+  const userRole = req?.user?.role;
+  res.render(`mobile/${view}`, { ...options, layout: 'mobile/layout', userRole });
 };
 
 /**
@@ -69,11 +71,17 @@ router.post('/login', (req, res) => {
 
 // Home Dashboard
 router.get('/home', requireAuth, (req, res) => {
+  // Admins should not see inspection tasks - redirect to admin dashboard
+  if (req.user && req.user.role === 'admin') {
+    return res.redirect('/mobile/admin');
+  }
+  
   const data = {
     title: 'Home',
     showBack: false,
     showNav: true,
     activeNav: 'home',
+    userRole: req.user?.role,
     todayCount: 5,
     overdueCount: 2,
     priorityTasks: [
@@ -96,11 +104,16 @@ router.get('/home', requireAuth, (req, res) => {
       }
     ]
   };
-  renderMobile(res, 'home', data);
+  renderMobile(res, 'home', data, req);
 });
 
-// Work Order List
+// Work Order List - operators and supervisors only
 router.get('/work-orders', requireAuth, (req, res) => {
+  // Admins should not access work orders - redirect to admin
+  if (req.user?.role === 'admin') {
+    return res.redirect('/mobile/admin');
+  }
+  
   const data = {
     title: 'Work Orders',
     showBack: false,
@@ -156,11 +169,16 @@ router.get('/work-orders', requireAuth, (req, res) => {
       }
     ]
   };
-  renderMobile(res, 'work-orders', data);
+  renderMobile(res, 'work-orders', data, req);
 });
 
-// Work Order Detail
+// Work Order Detail - operators and supervisors only
 router.get('/work-orders/:id', requireAuth, (req, res) => {
+  // Admins should not access work orders - redirect to admin
+  if (req.user?.role === 'admin') {
+    return res.redirect('/mobile/admin');
+  }
+  
   const workOrderId = req.params.id;
   
   // Simulate workflow state - after inspection, status would be in_progress
@@ -198,7 +216,7 @@ router.get('/work-orders/:id', requireAuth, (req, res) => {
       result: 'no_findings'
     }
   };
-  renderMobile(res, 'work-order-detail', data);
+  renderMobile(res, 'work-order-detail', data, req);
 });
 
 // Complete Work Order
@@ -268,7 +286,7 @@ router.get('/inspection/:workOrderId', requireAuth, (req, res) => {
     item: currentItem,
     workOrderId: workOrderId
   };
-  renderMobile(res, 'inspection', data);
+  renderMobile(res, 'inspection', data, req);
 });
 
 // Helper to block admin inspections
@@ -348,7 +366,7 @@ router.get('/inspection/adhoc', requireAuth, blockAdminInspection, (req, res) =>
     item: currentItem,
     workOrderId: 'ADHOC-' + Date.now()
   };
-  renderMobile(res, 'inspection', data);
+  renderMobile(res, 'inspection', data, req);
 });
 
 /**
@@ -372,7 +390,7 @@ router.get('/asset', requireAuth, async (req, res) => {
         activeNav: '',
         qrCode: qrCode,
         message: 'No asset found with this QR code'
-      });
+      }, req);
     }
     
     const data = {
@@ -401,7 +419,7 @@ router.get('/asset', requireAuth, async (req, res) => {
         findingsCount: 0
       }
     };
-    renderMobile(res, 'asset-context', data);
+    renderMobile(res, 'asset-context', data, req);
   } catch (error) {
     console.error('Asset lookup error:', error);
     renderMobile(res, 'qr-error', {
@@ -411,7 +429,7 @@ router.get('/asset', requireAuth, async (req, res) => {
       activeNav: '',
       qrCode: req.query.code,
       message: 'Failed to lookup asset'
-    });
+    }, req);
   }
 });
 
@@ -450,7 +468,7 @@ router.get('/equipment', requireAuth, async (req, res) => {
       activeNav: 'equipment',
       equipment: formattedEquipment
     };
-    renderMobile(res, 'equipment-list', data);
+    renderMobile(res, 'equipment-list', data, req);
   } catch (error) {
     console.error('Equipment list error:', error);
     // Fallback to empty list on error
@@ -461,7 +479,7 @@ router.get('/equipment', requireAuth, async (req, res) => {
       activeNav: 'equipment',
       equipment: []
     };
-    renderMobile(res, 'equipment-list', data);
+    renderMobile(res, 'equipment-list', data, req);
   }
 });
 
@@ -496,7 +514,7 @@ router.get('/asset/:assetId/history', requireAuth, (req, res) => {
       }
     ]
   };
-  renderMobile(res, 'asset-history', data);
+  renderMobile(res, 'asset-history', data, req);
 });
 
 /**
@@ -508,7 +526,7 @@ router.get('/reports', requireAuth, requirePermission('REPORTS', 'VIEW'), (req, 
     showBack: false,
     showNav: true,
     activeNav: 'reports'
-  });
+  }, req);
 });
 
 // Work Order Summary Report
@@ -518,7 +536,7 @@ router.get('/reports/work-order-summary', requireAuth, requirePermission('REPORT
     showBack: true,
     showNav: false,
     activeNav: ''
-  });
+  }, req);
 });
 
 // Equipment Maintenance Report
@@ -528,7 +546,7 @@ router.get('/reports/equipment-report', requireAuth, requirePermission('REPORTS'
     showBack: true,
     showNav: false,
     activeNav: ''
-  });
+  }, req);
 });
 
 // Technician Performance Report (Placeholder)
@@ -539,7 +557,7 @@ router.get('/reports/technician-report', requireAuth, requirePermission('REPORTS
     showNav: false,
     activeNav: '',
     reportTitle: 'Technician Performance'
-  });
+  }, req);
 });
 
 // Schedule Compliance Report (Placeholder)
@@ -550,7 +568,7 @@ router.get('/reports/schedule-compliance', requireAuth, requirePermission('REPOR
     showNav: false,
     activeNav: '',
     reportTitle: 'Schedule Compliance'
-  });
+  }, req);
 });
 
 // Work Order Trends Report (Placeholder)
@@ -561,7 +579,7 @@ router.get('/reports/trends', requireAuth, requirePermission('REPORTS', 'VIEW'),
     showNav: false,
     activeNav: '',
     reportTitle: 'Work Order Trends'
-  });
+  }, req);
 });
 
 /**
@@ -574,14 +592,29 @@ router.get('/profile', requireAuth, async (req, res) => {
   const user = req.user;
   const isAdmin = user.role === 'admin' || user.role === 'supervisor';
   
-  // Get organization name
+  // Get organization name and subscription
   let orgName = 'Unknown Organization';
+  let planCode = 'free';
+  let isPaid = false;
+  let currentOrg = null;
+  
   try {
     const { Organization } = require('../models');
-    const org = await Organization.findById(user.organization_id);
-    if (org) orgName = org.organization_name;
+    currentOrg = await Organization.findById(user.organization_id);
+    if (currentOrg) {
+      orgName = currentOrg.organization_name;
+    }
+    
+    // Get subscription info
+    const subscriptionService = require('../services/subscription.service');
+    const billingInfo = await subscriptionService.getBillingInfo(user.organization_id);
+    if (billingInfo?.plan?.code) {
+      planCode = billingInfo.plan.code;
+      // Check if paid (not free)
+      isPaid = !['free'].includes(planCode);
+    }
   } catch (err) {
-    console.error('Failed to get org name:', err);
+    console.error('Failed to get org/subscription:', err);
   }
   
   const data = {
@@ -596,7 +629,10 @@ router.get('/profile', requireAuth, async (req, res) => {
       initials: (user.full_name || user.username).split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
       role: user.role,
       organization: orgName,
-      isAdmin: isAdmin
+      isAdmin: isAdmin,
+      plan: planCode,
+      isPaid: isPaid,
+      logoUrl: isPaid ? (currentOrg?.logo_url || null) : null
     },
     stats: {
       completedThisMonth: 42,
@@ -608,7 +644,7 @@ router.get('/profile', requireAuth, async (req, res) => {
       isOnline: true
     }
   };
-  renderMobile(res, 'profile', data);
+  renderMobile(res, 'profile', data, req);
 });
 
 // Logout
@@ -633,7 +669,7 @@ router.get('/dashboard', requireAuth, (req, res) => {
       { label: 'Findings', href: '/mobile/dashboard/findings', icon: 'alert' }
     ]
   };
-  renderMobile(res, 'dashboard/index', data);
+  renderMobile(res, 'dashboard/index', data, req);
 });
 
 // Work Order Dashboard
@@ -658,7 +694,7 @@ router.get('/dashboard/work-orders', requireAuth, (req, res) => {
       ]
     }
   };
-  renderMobile(res, 'dashboard/work-orders', data);
+  renderMobile(res, 'dashboard/work-orders', data, req);
 });
 
 // Findings Dashboard
@@ -685,7 +721,7 @@ router.get('/dashboard/findings', requireAuth, (req, res) => {
       { label: 'Heat Exchanger', count: 4 }
     ]
   };
-  renderMobile(res, 'dashboard/findings', data);
+  renderMobile(res, 'dashboard/findings', data, req);
 });
 
 // Calendar View
@@ -706,7 +742,7 @@ router.get('/calendar', requireAuth, (req, res) => {
       ]}
     ]
   };
-  renderMobile(res, 'calendar', data);
+  renderMobile(res, 'calendar', data, req);
 });
 
 // Maintenance Plans List
@@ -748,7 +784,7 @@ router.get('/maintenance-plans', requireAuth, requireAdminUI, async (req, res) =
         start_date: p.start_date
       }))
     };
-    renderMobile(res, 'maintenance-plans', data);
+    renderMobile(res, 'maintenance-plans', data, req);
   } catch (error) {
     console.error('[MOBILE] Error loading maintenance plans:', error);
     res.status(500).render('error', { 
@@ -810,7 +846,7 @@ router.get('/maintenance-plans/new', requireAuth, requireAdminUI, async (req, re
       templates,
       equipment
     };
-    renderMobile(res, 'maintenance-plan-editor', data);
+    renderMobile(res, 'maintenance-plan-editor', data, req);
   } catch (error) {
     console.error('[MOBILE] Error loading plan form:', error);
     res.status(500).render('error', { 
@@ -890,7 +926,7 @@ router.get('/maintenance-plans/:id/edit', requireAuth, requireAdminUI, async (re
       templates,
       equipment
     };
-    renderMobile(res, 'maintenance-plan-editor', data);
+    renderMobile(res, 'maintenance-plan-editor', data, req);
   } catch (error) {
     console.error('[MOBILE] Error loading plan for edit:', error);
     res.status(500).render('error', { 
@@ -913,11 +949,13 @@ router.get('/admin', requireAuth, requireAdminUI, async (req, res) => {
   const sections = [
     { label: 'Onboarding', href: '/mobile/onboarding', icon: 'rocket' },
     { label: 'Users', href: '/mobile/admin/users', icon: 'users' },
+    { label: 'Invitations', href: '/mobile/admin/invitations', icon: 'envelope' },
     { label: 'Organization', href: '/mobile/admin/organization', icon: 'settings' },
     { label: 'Subscription', href: '/mobile/admin/subscription', icon: 'credit' },
     { label: 'Facilities', href: '/mobile/admin/facilities', icon: 'building' },
     { label: 'Assets', href: '/mobile/admin/assets', icon: 'box' },
     { label: 'Templates', href: '/mobile/admin/templates', icon: 'file' },
+    { label: 'Coverage', href: '/mobile/admin/coverage', icon: 'shield' },
     { label: 'Scheduler', href: '/mobile/calendar', icon: 'calendar' },
     { label: 'QR Labels', href: '/mobile/qr-labels', icon: 'qr' }
   ];
@@ -941,7 +979,7 @@ router.get('/admin', requireAuth, requireAdminUI, async (req, res) => {
     sections,
     planCode
   };
-  renderMobile(res, 'admin/index', data);
+  renderMobile(res, 'admin/index', data, req);
 });
 
 // Facilities Management - admin only
@@ -957,7 +995,7 @@ router.get('/admin/facilities', requireAuth, requireAdminOnly, (req, res) => {
       { id: 'FAC-003', name: 'East Plant' }
     ]
   };
-  renderMobile(res, 'admin/facilities', data);
+  renderMobile(res, 'admin/facilities', data, req);
 });
 
 // Asset Registration - admin only
@@ -975,7 +1013,7 @@ router.get('/admin/assets', requireAuth, requireAdminOnly, (req, res) => {
       { id: 'FAC-001', name: 'North Plant' }
     ]
   };
-  renderMobile(res, 'admin/assets', data);
+  renderMobile(res, 'admin/assets', data, req);
 });
 
 // Template Management - admin and supervisor
@@ -1030,7 +1068,7 @@ router.get('/admin/templates', requireAuth, requireAdminUI, async (req, res) => 
       templatesByCategory,
       totalTemplates: templates.length
     };
-    renderMobile(res, 'admin/templates', data);
+    renderMobile(res, 'admin/templates', data, req);
   } catch (error) {
     console.error('[MOBILE] Error loading admin templates:', error);
     res.status(500).render('error', { 
@@ -1048,7 +1086,18 @@ router.get('/admin/users', requireAuth, requireAdminUI, (req, res) => {
     showNav: true,
     activeNav: 'admin'
   };
-  renderMobile(res, 'admin/users', data);
+  renderMobile(res, 'admin/users', data, req);
+});
+
+// Invitations Management - admin only
+router.get('/admin/invitations', requireAuth, requireAdminOnly, (req, res) => {
+  const data = {
+    title: 'Invitations',
+    showBack: true,
+    showNav: false,
+    activeNav: ''
+  };
+  renderMobile(res, 'admin/invitations', data, req);
 });
 
 // Organization Settings - admin only
@@ -1059,7 +1108,7 @@ router.get('/admin/organization', requireAuth, requireAdminOnly, (req, res) => {
     showNav: true,
     activeNav: 'admin'
   };
-  renderMobile(res, 'admin/organization', data);
+  renderMobile(res, 'admin/organization', data, req);
 });
 
 // Subscription Management - admin only
@@ -1070,7 +1119,7 @@ router.get('/admin/subscription', requireAuth, requireAdminOnly, (req, res) => {
     showNav: true,
     activeNav: 'admin'
   };
-  renderMobile(res, 'admin/subscription', data);
+  renderMobile(res, 'admin/subscription', data, req);
 });
 
 // Custom Fields - admin only, requires Professional+
@@ -1081,7 +1130,7 @@ router.get('/admin/custom-fields', requireAuth, requireAdminOnly, (req, res) => 
     showNav: true,
     activeNav: 'admin'
   };
-  renderMobile(res, 'admin/custom-fields', data);
+  renderMobile(res, 'admin/custom-fields', data, req);
 });
 
 // API Keys - admin only, requires Professional+
@@ -1092,7 +1141,7 @@ router.get('/admin/api-keys', requireAuth, requireAdminOnly, (req, res) => {
     showNav: true,
     activeNav: 'admin'
   };
-  renderMobile(res, 'admin/api-keys', data);
+  renderMobile(res, 'admin/api-keys', data, req);
 });
 
 // SSO Configuration - admin only, requires Enterprise
@@ -1103,7 +1152,7 @@ router.get('/admin/sso', requireAuth, requireAdminOnly, (req, res) => {
     showNav: true,
     activeNav: 'admin'
   };
-  renderMobile(res, 'admin/sso', data);
+  renderMobile(res, 'admin/sso', data, req);
 });
 
 // Audit Logs - admin only, requires Enterprise
@@ -1114,7 +1163,77 @@ router.get('/admin/audit-logs', requireAuth, requireAdminOnly, (req, res) => {
     showNav: true,
     activeNav: 'admin'
   };
-  renderMobile(res, 'admin/audit-logs', data);
+  renderMobile(res, 'admin/audit-logs', data, req);
+});
+
+// ========================================
+// STEP 5B: Coverage Management Admin UI
+// ========================================
+
+// Coverage Dashboard
+router.get('/admin/coverage', requireAuth, requireAdminOnly, (req, res) => {
+  const data = {
+    title: 'Coverage Management',
+    showBack: true,
+    showNav: false,
+    activeNav: ''
+  };
+  renderMobile(res, 'admin/coverage-dashboard', data, req);
+});
+
+// Equipment Mapping Browser
+router.get('/admin/coverage/equipment', requireAuth, requireAdminOnly, (req, res) => {
+  const data = {
+    title: 'Equipment Mapping',
+    showBack: true,
+    showNav: false,
+    activeNav: ''
+  };
+  renderMobile(res, 'admin/coverage-equipment', data, req);
+});
+
+// Gap Resolution
+router.get('/admin/coverage/gaps', requireAuth, requireAdminOnly, (req, res) => {
+  const data = {
+    title: 'Gap Resolution',
+    showBack: true,
+    showNav: false,
+    activeNav: ''
+  };
+  renderMobile(res, 'admin/coverage-gaps', data, req);
+});
+
+// Template Browser
+router.get('/admin/coverage/templates', requireAuth, requireAdminOnly, (req, res) => {
+  const data = {
+    title: 'Template Browser',
+    showBack: true,
+    showNav: false,
+    activeNav: ''
+  };
+  renderMobile(res, 'admin/coverage-templates', data, req);
+});
+
+// Coverage Audit Log
+router.get('/admin/coverage/audit', requireAuth, requireAdminOnly, (req, res) => {
+  const data = {
+    title: 'Coverage Audit',
+    showBack: true,
+    showNav: false,
+    activeNav: ''
+  };
+  renderMobile(res, 'admin/coverage-audit', data, req);
+});
+
+// Coverage Validation
+router.get('/admin/coverage/validate', requireAuth, requireAdminOnly, (req, res) => {
+  const data = {
+    title: 'Coverage Validation',
+    showBack: true,
+    showNav: false,
+    activeNav: ''
+  };
+  renderMobile(res, 'admin/coverage-validate', data, req);
 });
 
 // API Endpoints for mobile app
@@ -1221,7 +1340,7 @@ router.get('/templates', requireAuth, async (req, res) => {
       templatesByCategory,
       totalTemplates: templates.length
     };
-    renderMobile(res, 'template-list', data);
+    renderMobile(res, 'template-list', data, req);
   } catch (error) {
     console.error('[MOBILE] Error loading templates:', error);
     res.status(500).render('error', { 
@@ -1269,7 +1388,7 @@ router.get('/templates/new', requireAuth, async (req, res) => {
       subunits: [],
       maintainableItems: []
     };
-    renderMobile(res, 'template-editor', data);
+    renderMobile(res, 'template-editor', data, req);
   } catch (error) {
     console.error('[MOBILE] Error loading equipment types:', error);
     res.status(500).send('Error loading equipment types');
@@ -1341,7 +1460,7 @@ router.get('/templates/:id/edit', requireAuth, async (req, res) => {
       subunits: [],
       maintainableItems: []
     };
-    renderMobile(res, 'template-editor', data);
+    renderMobile(res, 'template-editor', data, req);
   } catch (error) {
     console.error('[MOBILE] Error loading template for edit:', error);
     res.status(500).render('error', { 

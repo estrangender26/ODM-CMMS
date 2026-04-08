@@ -17,7 +17,7 @@
   <% sections.forEach(function(section, index) { %>
     <div class="card admin-section-card" onclick="location.href='<%= section.href %>'" style="padding: 14px 16px; display: flex; flex-direction: row; align-items: center; gap: 16px; cursor: pointer; border-radius: 0; <%= index === 0 ? 'border-radius: 12px 12px 0 0;' : index === sections.length - 1 ? 'border-radius: 0 0 12px 12px;' : 'border-radius: 0;' %> <%= index < sections.length - 1 ? 'border-bottom: 1px solid var(--gray-200);' : '' %>">
       <div class="admin-section-icon" style="font-size: 22px; width: 28px; text-align: center; flex-shrink: 0;">
-        <%= section.icon === 'rocket' ? '🚀' : section.icon === 'building' ? '🏭' : section.icon === 'box' ? '📦' : section.icon === 'file' ? '📋' : section.icon === 'calendar' ? '📅' : section.icon === 'qr' ? '🏷️' : section.icon === 'users' ? '👥' : section.icon === 'settings' ? '⚙️' : section.icon === 'credit' ? '💳' : section.icon === 'form' ? '📝' : section.icon === 'key' ? '🔑' : section.icon === 'lock' ? '🔐' : section.icon === 'shield' ? '🛡️' : '⚙️' %>
+        <%= section.icon === 'rocket' ? '🚀' : section.icon === 'building' ? '🏭' : section.icon === 'box' ? '📦' : section.icon === 'file' ? '📋' : section.icon === 'calendar' ? '📅' : section.icon === 'qr' ? '🏷️' : section.icon === 'users' ? '👥' : section.icon === 'envelope' ? '✉️' : section.icon === 'settings' ? '⚙️' : section.icon === 'credit' ? '💳' : section.icon === 'form' ? '📝' : section.icon === 'key' ? '🔑' : section.icon === 'lock' ? '🔐' : section.icon === 'shield' ? '🛡️' : '⚙️' %>
       </div>
       <div class="admin-section-title" style="flex: 1; font-size: 16px; font-weight: 500; color: var(--gray-900);"><%= section.label %></div>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0; color: var(--gray-400);">
@@ -34,7 +34,7 @@
       <% sections.forEach(function(section, index) { %>
         <a href="<%= section.href %>" class="admin-sidebar-item <%= index === 0 ? 'active' : '' %>">
           <span class="admin-sidebar-icon">
-            <%= section.icon === 'rocket' ? '🚀' : section.icon === 'building' ? '🏭' : section.icon === 'box' ? '📦' : section.icon === 'file' ? '📋' : section.icon === 'calendar' ? '📅' : section.icon === 'qr' ? '🏷️' : section.icon === 'users' ? '👥' : section.icon === 'settings' ? '⚙️' : section.icon === 'credit' ? '💳' : section.icon === 'form' ? '📝' : section.icon === 'key' ? '🔑' : section.icon === 'lock' ? '🔐' : section.icon === 'shield' ? '🛡️' : '⚙️' %>
+            <%= section.icon === 'rocket' ? '🚀' : section.icon === 'building' ? '🏭' : section.icon === 'box' ? '📦' : section.icon === 'file' ? '📋' : section.icon === 'calendar' ? '📅' : section.icon === 'qr' ? '🏷️' : section.icon === 'users' ? '👥' : section.icon === 'envelope' ? '✉️' : section.icon === 'settings' ? '⚙️' : section.icon === 'credit' ? '💳' : section.icon === 'form' ? '📝' : section.icon === 'key' ? '🔑' : section.icon === 'lock' ? '🔐' : section.icon === 'shield' ? '🛡️' : '⚙️' %>
           </span>
           <span class="admin-sidebar-label"><%= section.label %></span>
         </a>
@@ -100,6 +100,15 @@
           <h3>Templates</h3>
           <p class="admin-dash-count" id="templateCount">-</p>
           <a href="/mobile/admin/templates" class="admin-dash-link">Manage →</a>
+        </div>
+      </div>
+      
+      <div class="admin-dash-card">
+        <div class="admin-dash-icon">📊</div>
+        <div class="admin-dash-info">
+          <h3>Coverage</h3>
+          <p class="admin-dash-count" style="font-size: 14px;">Industry/Family</p>
+          <a href="/mobile/admin/coverage" class="admin-dash-link">Manage →</a>
         </div>
       </div>
     </div>

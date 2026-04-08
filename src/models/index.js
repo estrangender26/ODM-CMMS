@@ -31,5 +31,7 @@ module.exports = {
   CustomField: require('./custom-field.model'),
   SSOConfig: require('./sso-config.model'),
   AuditLog: require('./audit-log.model'),
-  ApiKey: require('./api-key.model')
+  ApiKey: require('./api-key.model'),
+  // Industry Layer (Step 2)
+  Industry: require('./industry.model')
 };

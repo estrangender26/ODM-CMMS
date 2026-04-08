@@ -40,6 +40,15 @@ class OrganizationModel extends BaseModel {
   }
 
   /**
+   * Update organization logo
+   * @param {number} id
+   * @param {string} logoUrl
+   */
+  async updateLogo(id, logoUrl) {
+    return this.update(id, { logo_url: logoUrl });
+  }
+
+  /**
    * Get organization subscription info
    * @param {number} id
    * @returns {Promise<Object|null>}

@@ -36,6 +36,22 @@
         <span class="form-error hidden" id="organization_name-error">Please enter your organization name</span>
       </div>
       
+      <!-- Industry Selection (only for Create Organization mode) -->
+      <div class="form-group hidden" id="industry-group">
+        <label for="industry">Industry <span class="required">*</span></label>
+        <select id="industry" name="industry" required>
+          <option value="">Select your industry</option>
+          <option value="water_ww">Water & Wastewater</option>
+          <option value="oil_gas">Oil & Gas</option>
+          <option value="power_gen">Power Generation</option>
+          <option value="manufacturing">Manufacturing</option>
+          <option value="mining">Mining</option>
+          <option value="other">Other</option>
+        </select>
+        <span class="form-error hidden" id="industry-error">Please select your industry</span>
+        <small class="form-hint">This helps us configure the right templates for your equipment</small>
+      </div>
+      
       <!-- Organization Selector (only for Join Organization mode) -->
       <div class="form-group" id="org-selector-group">
         <label for="organization_id">Organization <span class="required">*</span></label>
@@ -283,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   // Clear errors on input
-  ['full_name', 'username', 'email', 'password', 'role', 'organization_name'].forEach(field => {
+  ['full_name', 'username', 'email', 'password', 'role', 'organization_name', 'industry'].forEach(field => {
     const input = document.getElementById(field);
     if (input) {
       input.addEventListener('input', function() {
@@ -387,6 +403,7 @@ function setSignupMode(mode) {
   const btnJoin = document.getElementById('btn-join-org');
   const btnCreate = document.getElementById('btn-create-org');
   const orgNameGroup = document.getElementById('org-name-group');
+  const industryGroup = document.getElementById('industry-group');
   const orgSelectorGroup = document.getElementById('org-selector-group');
   const roleGroup = document.getElementById('role-group');
   const adminBadgeGroup = document.getElementById('admin-badge-group');
@@ -403,9 +420,13 @@ function setSignupMode(mode) {
     btnCreate.style.color = 'var(--text-secondary)';
     
     orgNameGroup.classList.add('hidden');
+    industryGroup.classList.add('hidden');
     orgSelectorGroup.classList.remove('hidden');
     roleGroup.classList.remove('hidden');
     adminBadgeGroup.classList.add('hidden');
+    
+    // Make industry not required in join mode
+    document.getElementById('industry').removeAttribute('required');
     
     subtitle.textContent = 'Join an existing ODM-CMMS organization';
     submitBtn.querySelector('.btn-text').textContent = 'Create Account';
@@ -423,9 +444,13 @@ function setSignupMode(mode) {
     btnJoin.style.color = 'var(--text-secondary)';
     
     orgNameGroup.classList.remove('hidden');
+    industryGroup.classList.remove('hidden');
     orgSelectorGroup.classList.add('hidden');
     roleGroup.classList.add('hidden');
     adminBadgeGroup.classList.remove('hidden');
+    
+    // Make industry required in create mode
+    document.getElementById('industry').setAttribute('required', '');
     
     subtitle.textContent = 'Create your own ODM-CMMS organization';
     submitBtn.querySelector('.btn-text').textContent = 'Create Organization & Account';
@@ -455,6 +480,7 @@ async function handleSignup(e) {
   const phone = document.getElementById('phone').value.trim();
   const password = document.getElementById('password').value;
   const organizationName = document.getElementById('organization_name').value.trim();
+  const industry = document.getElementById('industry').value;
   const organizationId = document.getElementById('organization_id').value;
   const role = document.getElementById('role').value;
   const invitationToken = document.getElementById('invitation_token').value;
@@ -498,6 +524,11 @@ async function handleSignup(e) {
   
   if (signupMode === 'create' && !organizationName) {
     showFieldError('organization_name', 'Please enter your organization name');
+    hasError = true;
+  }
+  
+  if (signupMode === 'create' && !industry) {
+    showFieldError('industry', 'Please select your industry');
     hasError = true;
   }
   
@@ -554,6 +585,7 @@ async function handleSignup(e) {
     endpoint = '/api/auth/organization-signup';
     payload = {
       organization_name: organizationName,
+      industry,
       username,
       email: email || null,
       password,

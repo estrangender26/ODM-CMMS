@@ -399,6 +399,7 @@ const organizationSignup = async (req, res, next) => {
   try {
     let { 
       organization_name,
+      industry,
       username, 
       email, 
       password, 
@@ -415,6 +416,14 @@ const organizationSignup = async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: 'Organization name, username, password, and full name are required'
+      });
+    }
+    
+    // Validate industry selection
+    if (!industry) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please select an industry for your organization'
       });
     }
 
@@ -477,6 +486,7 @@ const organizationSignup = async (req, res, next) => {
     // Create organization
     const organization = await Organization.create({
       organization_name,
+      industry: industry || 'other',
       billing_email: email || null
     });
 
@@ -540,7 +550,8 @@ const organizationSignup = async (req, res, next) => {
       data: { 
         organization: {
           id: organization.id,
-          organization_name: organization.organization_name
+          organization_name: organization.organization_name,
+          industry: industry || 'other'
         },
         user: sanitizeUser(adminWithOrg),
         token

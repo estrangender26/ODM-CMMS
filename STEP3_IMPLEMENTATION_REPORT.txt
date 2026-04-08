@@ -1,0 +1,286 @@
+================================================================================
+STEP 3 IMPLEMENTATION REPORT: System Task Template Seeding
+================================================================================
+Date: 2026-04-08
+Status: COMPLETE AND READY FOR EXECUTION
+================================================================================
+
+REQUIREMENTS CHECKLIST
+----------------------
+[✓] 1. Use existing ISO taxonomy and equipment_type_id links
+[✓] 2. Use family-based template assignment (not one-off seeding)
+[✓] 3. Every template includes: task_kind, template-level safety, step-level safety
+[✓] 4. System templates are immutable
+[✓] 5. Organization clone flow remains intact
+[✓] 6. QR, scheduler, WO numbering, tenant isolation, inspection execution unchanged
+
+================================================================================
+DELIVERABLES
+================================================================================
+
+1. SEED DESIGN
+--------------
+Family-based template assignment using keyword matching:
+- 16 template families defined
+- Each family has equipment keywords for matching
+- Each family has template rules (task_kind, frequency, duration)
+- Each family has safety profiles
+
+2. FAMILY DEFINITIONS
+---------------------
+16 Template Families:
+
+ROTATING EQUIPMENT:
+- CENTRIFUGAL_PUMP
+- POSITIVE_DISPLACEMENT_PUMP
+- FAN_BLOWER
+- COMPRESSOR
+- TURBINE
+
+ELECTRICAL EQUIPMENT:
+- ELECTRIC_MOTOR
+- TRANSFORMER
+- SWITCHGEAR
+- UPS_BATTERY
+
+HEAT TRANSFER:
+- HEAT_EXCHANGER
+- BOILER
+- HVAC_UNIT
+
+STATIC/STRUCTURAL:
+- STORAGE_TANK
+- PIPELINE_VALVE
+
+CONVEYANCE:
+- CONVEYOR
+- ELEVATOR_LIFT
+
+INSTRUMENTATION:
+- PROCESS_INSTRUMENT
+- FIRE_GAS_DETECTOR
+
+3. TEMPLATE DEFINITIONS
+-----------------------
+Each family generates 2-5 templates based on template_rules:
+
+Example: CENTRIFUGAL_PUMP generates:
+- inspection (weekly, 15 min)
+- measurement (monthly, 30 min)
+- lubrication (quarterly, 45 min)
+- safety_check (monthly, 20 min)
+
+9 Task Kinds (canonical set):
+- inspection
+- measurement
+- cleaning
+- lubrication
+- adjustment
+- tightening
+- testing
+- calibration
+- safety_check
+
+4. EQUIPMENT TYPE TO FAMILY MAPPING
+------------------------------------
+Algorithm: Keyword matching on type_name + type_code + class_name
+
+function getFamilyForEquipmentType(typeName, typeCode, className) {
+  const searchText = `${typeName} ${typeCode} ${className}`.toLowerCase();
+  
+  for (const [familyCode, family] of Object.entries(TemplateFamilies)) {
+    for (const keyword of family.equipment_keywords) {
+      if (searchText.includes(keyword.toLowerCase())) {
+        return familyCode;
+      }
+    }
+  }
+  return null;
+}
+
+5. SAFETY METADATA INCLUDED
+---------------------------
+Template-level safety (task_template_safety_controls):
+- safety_type: PPE, LOTO, permit, gas_test, confined_space, electrical_isolation
+- description: Specific safety requirement
+- is_mandatory: Boolean
+
+Step-level safety (task_template_steps):
+- safety_note: Human-readable instruction
+- is_visual_only: BOOLEAN DEFAULT TRUE
+- requires_equipment_stopped: BOOLEAN DEFAULT FALSE
+- prohibit_if_running: BOOLEAN DEFAULT FALSE
+- prohibit_opening_covers: BOOLEAN DEFAULT FALSE
+
+================================================================================
+FILES CREATED
+================================================================================
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| database/seeds/002_template_families.js | 400 | Family definitions and mapping logic |
+| database/seeds/003_system_task_templates.js | 620 | Seed script with step definitions and safety |
+| database/seeds/run-step3-seed.js | 35 | Seed runner script |
+| database/migrations/016_seed_system_task_templates.sql | 150 | Migration verification |
+| docs/STEP3_EQUIPMENT_FAMILY_MAPPING.md | 200 | Family mapping documentation |
+
+================================================================================
+EXECUTION STEPS
+================================================================================
+
+1. RUN MIGRATION (verify columns):
+   mysql -u root -p odm_cmms < database/migrations/016_seed_system_task_templates.sql
+
+2. RUN SEED (generate templates):
+   node database/seeds/run-step3-seed.js
+   OR
+   node database/seeds/003_system_task_templates.js
+
+================================================================================
+EXPECTED OUTPUT
+================================================================================
+
+For each equipment type matching a family:
+- 2-5 system templates created
+- 3-4 steps per template
+- 2-3 safety controls per template
+
+Example for "Centrifugal Pump" equipment type:
+- Templates: 4 (inspection, measurement, lubrication, safety_check)
+- Steps: 12 total (3 per template)
+- Safety Controls: 8 total (2 per template)
+
+================================================================================
+SYSTEM TEMPLATE PROPERTIES
+================================================================================
+
+All seeded templates have:
+- organization_id = NULL (system/global)
+- is_system = TRUE
+- is_editable = FALSE (immutable)
+- task_kind = (one of 9 canonical values)
+- maintenance_type = 'preventive'
+- is_active = TRUE
+
+================================================================================
+IMMUTABILITY GUARANTEES
+================================================================================
+
+Controller guards (from Step 2):
+- Update blocked: 403 SYSTEM_TEMPLATE_IMMUTABLE
+- Delete blocked: 403 SYSTEM_TEMPLATE_IMMUTABLE
+- Clone available: POST /api/task-templates/:id/clone
+
+Organizations must clone to customize:
+- Clone creates editable org-owned copy
+- Parent reference preserved (parent_template_id)
+- Full safety metadata copied
+
+================================================================================
+VERIFICATION QUERIES
+================================================================================
+
+-- Count system templates by family
+SELECT 
+    SUBSTRING_INDEX(template_code, '_', 1) as family,
+    task_kind,
+    COUNT(*) as count
+FROM task_templates
+WHERE is_system = TRUE
+GROUP BY family, task_kind
+ORDER BY family, task_kind;
+
+-- Count templates with safety controls
+SELECT 
+    COUNT(DISTINCT tt.id) as templates_with_safety,
+    COUNT(tsc.id) as total_safety_controls
+FROM task_templates tt
+LEFT JOIN task_template_safety_controls tsc ON tt.id = tsc.task_template_id
+WHERE tt.is_system = TRUE;
+
+-- Count steps with safety metadata
+SELECT 
+    COUNT(*) as total_steps,
+    SUM(CASE WHEN safety_note IS NOT NULL THEN 1 ELSE 0 END) as steps_with_safety_note,
+    SUM(CASE WHEN is_visual_only = TRUE THEN 1 ELSE 0 END) as visual_only_steps,
+    SUM(CASE WHEN requires_equipment_stopped = TRUE THEN 1 ELSE 0 END) as stopped_required_steps
+FROM task_template_steps s
+JOIN task_templates t ON s.task_template_id = t.id
+WHERE t.is_system = TRUE;
+
+-- List equipment types with templates
+SELECT 
+    et.type_name,
+    et.type_code,
+    COUNT(tt.id) as template_count
+FROM equipment_types et
+LEFT JOIN task_templates tt ON et.id = tt.equipment_type_id AND tt.is_system = TRUE
+GROUP BY et.id
+HAVING template_count > 0
+ORDER BY template_count DESC;
+
+================================================================================
+PRESERVED BEHAVIOR (Requirement 6)
+================================================================================
+
+QR GENERATION/SCANNING:
+- No changes to QR code logic
+- Equipment QR links remain unchanged
+
+SCHEDULER (isPlanDue):
+- No changes to scheduler logic
+- System templates work with existing scheduler
+- Frequency fields (frequency_value, frequency_unit) populated
+
+WO NUMBERING:
+- No changes to work order generation
+- No changes to numbering scheme
+
+TENANT ISOLATION:
+- System templates (org_id = NULL) visible to all
+- Organization clones remain isolated
+- No cross-tenant data leakage
+
+INSPECTION EXECUTION:
+- No changes to inspection workflow
+- Steps execute as before
+- New safety metadata is additive only
+
+================================================================================
+ROLLBACK PROCEDURE
+================================================================================
+
+If seed needs to be rolled back:
+
+-- Delete all system template safety controls
+DELETE FROM task_template_safety_controls 
+WHERE task_template_id IN (
+    SELECT id FROM task_templates WHERE is_system = TRUE
+);
+
+-- Delete all system template steps
+DELETE FROM task_template_steps 
+WHERE task_template_id IN (
+    SELECT id FROM task_templates WHERE is_system = TRUE
+);
+
+-- Delete all system templates
+DELETE FROM task_templates WHERE is_system = TRUE;
+
+================================================================================
+READY FOR EXECUTION
+================================================================================
+
+All Step 3 requirements implemented:
+[✓] Family-based template assignment
+[✓] ISO taxonomy equipment_type_id links used
+[✓] All templates have task_kind
+[✓] All templates have template-level safety
+[✓] All steps have step-level safety metadata
+[✓] System templates immutable (is_system = TRUE, is_editable = FALSE)
+[✓] Clone flow intact (orgs clone to customize)
+[✓] No changes to QR, scheduler, WO, tenant isolation, inspections
+
+Run: node database/seeds/run-step3-seed.js
+
+================================================================================

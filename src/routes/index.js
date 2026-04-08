@@ -28,12 +28,21 @@ router.use('/reports', require('./report.routes'));
 // ISO 14224 Equipment Classification
 router.use('/iso-equipment', require('./iso-equipment.routes'));
 
+// Industry Layer (Step 2)
+router.use('/industries', require('./industry.routes'));
+
 // ISO 14224 Levels 4-5 (Subunits and Maintainable Items)
 router.use('/subunits', require('./subunit.routes'));
 
 // Task Templates (ISO 14224 aligned)
 router.use('/task-templates', require('./task-template.routes'));
 router.use('/templates', require('./task-template.routes'));
+
+// Step 4: Coverage Validation (Admin only)
+router.use('/admin/coverage', require('./coverage-validation.routes'));
+
+// Step 5: Admin Coverage UI
+router.use('/admin/coverage-ui', require('./admin-coverage-ui.routes'));
 
 // Maintenance Plans (Schedules - separates WHEN from WHAT)
 router.use('/maintenance-plans', require('./maintenance-plan.routes'));

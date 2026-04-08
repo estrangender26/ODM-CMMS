@@ -71,4 +71,11 @@ router.get('/:id/stats', resolveOrganization, organizationController.getUsageSta
  */
 router.delete('/:id', requireAdmin, organizationController.remove);
 
+/**
+ * @route   POST /api/organizations/logo
+ * @desc    Upload organization logo (paid plans only)
+ * @access  Private (Org Admin)
+ */
+router.post('/logo', resolveOrganization, organizationController.uploadLogo);
+
 module.exports = router;

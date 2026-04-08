@@ -4,11 +4,43 @@
 <div class="card" style="margin-bottom: 20px;">
   <div class="card-title">Organization Information</div>
   
+  <!-- Logo Upload Section (Paid only) -->
+  <div id="logoSection" style="display: none; margin-bottom: 20px; padding: 20px; background: var(--gray-100); border-radius: 8px; text-align: center;">
+    <div style="font-size: 14px; font-weight: 500; margin-bottom: 12px; color: var(--gray-700);">Organization Logo</div>
+    <div id="logoPreview" style="width: 100px; height: 100px; margin: 0 auto 12px; background: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px dashed var(--gray-300);">
+      <img id="orgLogoImg" src="" alt="Logo" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+      <span id="logoPlaceholder" style="font-size: 40px;">🏭</span>
+    </div>
+    <input type="file" id="logoInput" accept="image/*" style="display: none;" onchange="handleLogoUpload(event)">
+    <button type="button" class="btn btn-outline" onclick="document.getElementById('logoInput').click()">
+      📷 Upload Logo
+    </button>
+    <div style="font-size: 12px; color: var(--gray-500); margin-top: 8px;">Max 2MB (JPG, PNG)</div>
+  </div>
+  
+  <!-- Free Plan Logo Notice -->
+  <div id="logoFreeNotice" style="margin-bottom: 20px; padding: 16px; background: var(--gray-100); border-radius: 8px; text-align: center;">
+    <div style="font-size: 14px; color: var(--gray-600);">
+      🏭 <strong>Free Plan:</strong> Upgrade to Professional or Enterprise to upload your organization logo
+    </div>
+    <a href="/mobile/admin/subscription" class="btn btn-primary btn-full" style="margin-top: 12px;">
+      View Plans
+    </a>
+  </div>
+  
   <div id="orgForm">
     <div style="margin-bottom: 16px;">
       <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Organization Name</label>
       <input type="text" id="orgName" 
              style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+    </div>
+    
+    <div style="margin-bottom: 16px;">
+      <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Industry</label>
+      <select id="industryCode" 
+              style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px; background: white;">
+        <option value="">Select Industry</option>
+      </select>
     </div>
     
     <div style="margin-bottom: 16px;">
@@ -138,10 +170,30 @@ let currentOrg = null;
 let currentSubscription = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+  await loadIndustries();
   await loadOrganization();
   await loadUsageStats();
   await loadSubscription();
 });
+
+async function loadIndustries() {
+  try {
+    const response = await fetch('/api/industries?is_active=true', { credentials: 'same-origin' });
+    const data = await response.json();
+    
+    if (data.success) {
+      const select = document.getElementById('industryCode');
+      data.data.industries.forEach(industry => {
+        const option = document.createElement('option');
+        option.value = industry.code;
+        option.textContent = industry.name;
+        select.appendChild(option);
+      });
+    }
+  } catch (err) {
+    console.error('Failed to load industries:', err);
+  }
+}
 
 async function loadOrganization() {
   try {
@@ -153,6 +205,16 @@ async function loadOrganization() {
       document.getElementById('orgName').value = currentOrg.organization_name || '';
       document.getElementById('billingEmail').value = currentOrg.billing_email || '';
       document.getElementById('orgPhone').value = currentOrg.phone || '';
+      if (currentOrg.industry) {
+        document.getElementById('industryCode').value = currentOrg.industry;
+      }
+      
+      // Load logo if exists
+      if (currentOrg.logo_url) {
+        document.getElementById('orgLogoImg').src = currentOrg.logo_url;
+        document.getElementById('orgLogoImg').style.display = 'block';
+        document.getElementById('logoPlaceholder').style.display = 'none';
+      }
     } else {
       showError('orgError', data.message);
     }
@@ -272,6 +334,20 @@ async function loadSubscription() {
     if (data.success) {
       const subscription = data.data.subscription;
       const plan = subscription.plan;
+      currentSubscription = subscription;
+      
+      // Show/hide logo section based on plan
+      const isPaid = !['free'].includes(plan.code);
+      const logoSection = document.getElementById('logoSection');
+      const logoFreeNotice = document.getElementById('logoFreeNotice');
+      
+      if (isPaid) {
+        logoSection.style.display = 'block';
+        logoFreeNotice.style.display = 'none';
+      } else {
+        logoSection.style.display = 'none';
+        logoFreeNotice.style.display = 'block';
+      }
       
       const planClass = `plan-${plan.code || 'free'}`;
       const statusClass = `status-${subscription.status}`;
@@ -349,6 +425,7 @@ async function saveOrganization() {
   try {
     const payload = {
       organization_name: document.getElementById('orgName').value,
+      industry: document.getElementById('industryCode').value || null,
       billing_email: document.getElementById('billingEmail').value,
       phone: document.getElementById('orgPhone').value
     };
@@ -412,5 +489,56 @@ function showSuccess(id, msg) {
 
 function hideSuccess(id) {
   document.getElementById(id).style.display = 'none';
+}
+
+// Logo Upload Handler
+async function handleLogoUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  // Validate file
+  if (file.size > 2 * 1024 * 1024) {
+    showError('orgError', 'Logo must be less than 2MB');
+    return;
+  }
+  
+  if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
+    showError('orgError', 'Logo must be JPG, PNG or GIF');
+    return;
+  }
+  
+  // Preview
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('orgLogoImg').src = e.target.result;
+    document.getElementById('orgLogoImg').style.display = 'block';
+    document.getElementById('logoPlaceholder').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+  
+  // Upload
+  const formData = new FormData();
+  formData.append('logo', file);
+  
+  try {
+    const response = await fetch('/api/organizations/logo', {
+      method: 'POST',
+      credentials: 'same-origin',
+      body: formData
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showSuccess('orgSuccess', 'Logo uploaded successfully!');
+      hideError('orgError');
+    } else {
+      showError('orgError', data.message || 'Failed to upload logo');
+      hideSuccess('orgSuccess');
+    }
+  } catch (err) {
+    console.error('Upload error:', err);
+    showError('orgError', 'Failed to upload logo. Please try again.');
+  }
 }
 </script>

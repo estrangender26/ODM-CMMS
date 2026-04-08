@@ -1,0 +1,329 @@
+================================================================================
+STEP 3 PATCH REPORT: System Task Template Seeding
+================================================================================
+Date: 2026-04-08
+Status: PATCHED AND READY FOR APPROVAL
+================================================================================
+
+REQUIRED FIXES APPLIED
+----------------------
+[✓] 1. Explicit deterministic mapping (replaced keyword-based)
+[✓] 2. Canonical family model (13 families)
+[✓] 3. Explicit industry assignment in templates
+[✓] 4. Safe rollback with seed batch tracking
+[✓] 5. Increased inspection depth (4-8 steps)
+[✓] 6. Safety controls remain guidance only
+
+================================================================================
+FIX 1: EXPLICIT DETERMINISTIC MAPPING
+================================================================================
+
+BEFORE: Runtime keyword matching
+function getFamilyForEquipmentType(typeName, typeCode, className) {
+  const searchText = `${typeName} ${typeCode} ${className}`.toLowerCase();
+  // Runtime keyword matching...
+}
+
+AFTER: Persistent mapping table
+table: equipment_type_family_mappings
+  - equipment_type_id (FK)
+  - family_code (FK)
+  - mapping_source ('seed', 'manual', 'import')
+  - created_at
+
+Mapping Seed File: database/seeds/004_explicit_equipment_family_mappings.js
+- 51 explicit type_code to family_code mappings
+- No runtime keyword matching
+- Deterministic and auditable
+
+================================================================================
+FIX 2: CANONICAL FAMILY MODEL (13 FAMILIES)
+================================================================================
+
+BEFORE: 16 families (equipment-specific)
+- CENTRIFUGAL_PUMP, POSITIVE_DISPLACEMENT_PUMP, FAN_BLOWER, etc.
+
+AFTER: 13 canonical families (function-based)
+- PUMP_FAMILY
+- AIR_SYSTEM_FAMILY
+- MIXER_FAMILY
+- VALVE_FAMILY
+- PIPELINE_FAMILY
+- PIPING_COMPONENT_FAMILY
+- STATIC_CONTAINMENT_FAMILY
+- TREATMENT_UNIT_FAMILY
+- INSTRUMENT_FAMILY
+- ELECTRICAL_FAMILY
+- STRUCTURE_FAMILY
+- SAFETY_EQUIPMENT_FAMILY
+- MECHANICAL_HANDLING_FAMILY
+
+Table: template_families
+  - family_code (PK)
+  - family_name
+  - description
+  - applicable_industries (JSON)
+  - is_active
+
+Table: template_family_rules
+  - family_code (FK)
+  - task_kind
+  - frequency_value
+  - frequency_unit
+  - estimated_duration_minutes
+  - sort_order
+
+================================================================================
+FIX 3: EXPLICIT INDUSTRY ASSIGNMENT
+================================================================================
+
+BEFORE: Templates had equipment_type_id only
+  INSERT INTO task_templates (equipment_type_id, ...) VALUES (?, ...)
+
+AFTER: Templates have EXPLICIT industry_id
+  INSERT INTO task_templates (equipment_type_id, industry_id, ...) 
+  VALUES (?, ?, ...)
+
+Industry Assignment Logic (per family):
+  PUMP_FAMILY                -> WATER_WASTEWATER_UTILITIES
+  AIR_SYSTEM_FAMILY          -> WATER_WASTEWATER_UTILITIES
+  MIXER_FAMILY               -> WATER_WASTEWATER_UTILITIES
+  VALVE_FAMILY               -> WATER_WASTEWATER_UTILITIES
+  PIPELINE_FAMILY            -> WATER_WASTEWATER_UTILITIES
+  PIPING_COMPONENT_FAMILY    -> WATER_WASTEWATER_UTILITIES
+  STATIC_CONTAINMENT_FAMILY  -> WATER_WASTEWATER_UTILITIES
+  TREATMENT_UNIT_FAMILY      -> WATER_WASTEWATER_UTILITIES
+  INSTRUMENT_FAMILY          -> WATER_WASTEWATER_UTILITIES
+  ELECTRICAL_FAMILY          -> POWER_UTILITIES
+  STRUCTURE_FAMILY           -> BUILDINGS_FACILITIES
+  SAFETY_EQUIPMENT_FAMILY    -> WATER_WASTEWATER_UTILITIES
+  MECHANICAL_HANDLING_FAMILY -> MANUFACTURING
+
+================================================================================
+FIX 4: SAFE ROLLBACK
+================================================================================
+
+BEFORE: Dangerous - would delete ALL system templates
+  DELETE FROM task_templates WHERE is_system = TRUE;
+
+AFTER: Safe - only deletes templates from specific seed batch
+  DELETE FROM task_templates 
+  WHERE id IN (SELECT entity_id FROM seed_batch_entities WHERE batch_id = ?)
+  AND seed_batch_id = ?;
+
+New Tables for Tracking:
+- seed_batches: Tracks each seed operation
+  - batch_id (PK)
+  - batch_name
+  - batch_version
+  - entity_type
+  - entity_count
+  - metadata (JSON)
+  - created_at
+
+- seed_batch_entities: Links entities to batches
+  - batch_id (FK)
+  - entity_type
+  - entity_id
+  - created_at
+
+Column Added to task_templates:
+- seed_batch_id VARCHAR(100) NULL
+
+Rollback Script: database/seeds/rollback-step3.js
+  Usage: node rollback-step3.js [batch_id]
+  Usage: node rollback-step3.js --preview [batch_id]
+
+================================================================================
+FIX 5: INCREASED INSPECTION DEPTH
+================================================================================
+
+BEFORE: 3 steps per template
+AFTER: 4-8 steps per template
+
+Step Counts by Task Kind:
+- inspection:    6 steps (visual, noise/vibration, guards, indicators, foundation, seals)
+- measurement:   5 steps (temperature, pressure, vibration, current, flow)
+- cleaning:      5 steps (LOTO, external, filters, heat exchange, post-inspection)
+- lubrication:   5 steps (LOTO, oil level, add/change, grease, leak check)
+- adjustment:    5 steps (LOTO, measure, adjust, verify, test)
+- tightening:    4 steps (LOTO, inspect, torque, check missing)
+- testing:       4 steps (coordinate, functional, record, interlocks)
+- calibration:   6 steps (isolate, low ref, mid ref, high ref, adjust, return)
+- safety_check:  4 steps (guards, E-stop, labels, hazards)
+
+Total Steps Created: ~50+ unique step definitions
+
+================================================================================
+FIX 6: SAFETY CONTROLS (GUIDANCE ONLY)
+================================================================================
+
+CONFIRMED: Safety controls remain guidance/metadata only
+
+NO workflow dependencies:
+- NO permit-to-work workflow integration
+- NO automatic LOTO workflow creation
+- NO safety system enforcement
+
+Safety control types used:
+- 'PPE' - Personal protective equipment (guidance)
+- 'guidance' - Informational safety notes
+
+Examples:
+  { safety_type: 'PPE', description: 'Safety glasses required', is_mandatory: true }
+  { safety_type: 'guidance', description: 'LOTO required - verify zero energy', is_mandatory: false }
+
+Step-level safety fields (metadata only):
+- safety_note: Human-readable instruction
+- is_visual_only: BOOLEAN
+- requires_equipment_stopped: BOOLEAN (guidance)
+- prohibit_if_running: BOOLEAN (guidance)
+- prohibit_opening_covers: BOOLEAN (guidance)
+
+================================================================================
+FILES CREATED/CHANGED
+================================================================================
+
+NEW FILES:
+-----------
+1. database/migrations/017_create_template_family_mapping.sql (350 lines)
+   - Creates template_families table
+   - Creates equipment_type_family_mappings table
+   - Creates template_family_rules table
+   - Creates seed_batches table
+   - Creates seed_batch_entities table
+   - Adds seed_batch_id to task_templates
+   - Inserts 13 canonical families
+   - Inserts 50+ family rules
+
+2. database/seeds/004_explicit_equipment_family_mappings.js (250 lines)
+   - Explicit type_code to family_code mappings (51 mappings)
+   - No runtime keyword matching
+   - SEED_BATCH_ID: step3_family_mappings_v1
+
+3. database/seeds/005_system_task_templates_v2.js (850 lines)
+   - Deep step definitions (4-8 steps per task kind)
+   - Explicit industry_id assignment
+   - Safety controls (guidance only)
+   - SEED_BATCH_ID: step3_system_templates_v1
+
+4. database/seeds/rollback-step3.js (200 lines)
+   - Safe rollback by batch_id
+   - Preview mode available
+   - Only deletes entities from specified batch
+
+5. database/seeds/run-step3-seed-v2.js (50 lines)
+   - Runner for patched seed process
+
+UPDATED FILES:
+--------------
+None (all new files for clean patch)
+
+================================================================================
+EXECUTION STEPS
+================================================================================
+
+1. RUN MIGRATION (create family tables):
+   mysql -u root -p odm_cmms < database/migrations/017_create_template_family_mapping.sql
+
+2. RUN SEED (create mappings and templates):
+   node database/seeds/run-step3-seed-v2.js
+
+3. VERIFY:
+   -- Count templates by batch
+   SELECT seed_batch_id, COUNT(*) 
+   FROM task_templates 
+   WHERE is_system = TRUE 
+   GROUP BY seed_batch_id;
+
+   -- Verify industry assignment
+   SELECT tt.template_code, i.name as industry
+   FROM task_templates tt
+   JOIN industries i ON tt.industry_id = i.id
+   WHERE tt.is_system = TRUE
+   LIMIT 10;
+
+================================================================================
+ROLLBACK PROCEDURE (SAFE)
+================================================================================
+
+Preview what would be deleted:
+  node database/seeds/rollback-step3.js --preview step3_system_templates_v1
+
+Execute rollback:
+  node database/seeds/rollback-step3.js step3_system_templates_v1
+
+Rollback family mappings separately:
+  node database/seeds/rollback-step3.js step3_family_mappings_v1
+
+================================================================================
+VERIFICATION QUERIES
+================================================================================
+
+-- Count templates per family
+SELECT 
+    SUBSTRING_INDEX(tt.template_code, '_', 2) as family_code,
+    COUNT(*) as template_count
+FROM task_templates tt
+WHERE tt.is_system = TRUE
+GROUP BY family_code;
+
+-- Count steps per template type
+SELECT 
+    tt.task_kind,
+    COUNT(s.id) as total_steps,
+    AVG(step_count.steps) as avg_steps_per_template
+FROM task_templates tt
+JOIN task_template_steps s ON tt.id = s.task_template_id
+JOIN (
+    SELECT task_template_id, COUNT(*) as steps 
+    FROM task_template_steps 
+    GROUP BY task_template_id
+) step_count ON tt.id = step_count.task_template_id
+WHERE tt.is_system = TRUE
+GROUP BY tt.task_kind;
+
+-- Verify industry assignment
+SELECT 
+    i.name as industry,
+    COUNT(*) as template_count
+FROM task_templates tt
+JOIN industries i ON tt.industry_id = i.id
+WHERE tt.is_system = TRUE
+GROUP BY i.name;
+
+-- Verify safety controls are guidance only
+SELECT 
+    safety_type,
+    COUNT(*) as count
+FROM task_template_safety_controls tsc
+JOIN task_templates tt ON tsc.task_template_id = tt.id
+WHERE tt.is_system = TRUE
+GROUP BY safety_type;
+
+================================================================================
+PRESERVED BEHAVIOR (REQUIREMENT 6)
+================================================================================
+
+QR GENERATION/SCANNING:  Unchanged
+SCHEDULER (isPlanDue):   Unchanged - frequency fields populated
+WO NUMBERING:            Unchanged
+TENANT ISOLATION:        Unchanged
+INSPECTION EXECUTION:    Unchanged - new fields are additive only
+CLONE FLOW:              Unchanged - orgs clone system templates
+
+================================================================================
+READY FOR APPROVAL
+================================================================================
+
+All 6 required fixes applied:
+[✓] 1. Explicit deterministic mapping (equipment_type_family_mappings table)
+[✓] 2. Canonical 13 family model (template_families table)
+[✓] 3. Explicit industry_id in every template
+[✓] 4. Safe rollback (seed_batches, seed_batch_entities tables)
+[✓] 5. Deep inspection (4-8 steps per template)
+[✓] 6. Safety controls are guidance only (no workflow deps)
+
+Run: node database/seeds/run-step3-seed-v2.js
+
+================================================================================

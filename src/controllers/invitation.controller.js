@@ -6,6 +6,7 @@
 const { Invitation, User, Organization, OrganizationSubscription } = require('../models');
 const { hashPassword } = require('../utils/helpers');
 const subscriptionService = require('../services/subscription.service');
+const emailService = require('../services/email.service');
 
 class InvitationController {
   /**
@@ -24,7 +25,20 @@ class InvitationController {
       }
 
       const invitations = await Invitation.getByOrganization(organizationId);
-      const stats = await Invitation.getStats(organizationId);
+      const rawStats = await Invitation.getStats(organizationId);
+      
+      // Get seat availability
+      const subscriptionService = require('../services/subscription.service');
+      const seatUsage = await subscriptionService.getSeatUsage(organizationId);
+      
+      // Format stats for UI
+      const stats = {
+        total: invitations.length,
+        pending: rawStats.pending_count || 0,
+        accepted: rawStats.accepted_count || 0,
+        expired: rawStats.expired_count || 0,
+        availableSeats: seatUsage?.availableSeats || 0
+      };
 
       res.json({
         success: true,
@@ -101,10 +115,33 @@ class InvitationController {
         invited_by: invitedBy
       });
 
+      // Get organization name for email
+      const organization = await Organization.findById(organizationId);
+      const inviter = await User.findById(invitedBy);
+
+      // Send invitation email
+      try {
+        await emailService.sendInvitation({
+          to: email,
+          organizationName: organization?.organization_name || 'Your Organization',
+          role: role || 'operator',
+          token: invitation.token,
+          invitedBy: inviter?.full_name || 'Admin'
+        });
+      } catch (emailError) {
+        console.error('Failed to send invitation email:', emailError);
+        // Don't fail the request if email fails - user can still see invitation in UI
+      }
+
       res.status(201).json({
         success: true,
         message: 'Invitation sent successfully',
-        data: { invitation }
+        data: { 
+          invitation: {
+            ...invitation,
+            invitationLink: `${process.env.APP_URL || `http://${process.env.HOST || 'localhost'}:${process.env.PORT || 3000}`}/signup?token=${invitation.token}`
+          }
+        }
       });
     } catch (error) {
       next(error);

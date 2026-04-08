@@ -384,6 +384,59 @@ const getUsageStats = async (req, res, next) => {
   }
 };
 
+/**
+ * Upload organization logo
+ * Only for paid plans
+ */
+const uploadLogo = async (req, res, next) => {
+  try {
+    const organizationId = req.user.organization_id;
+    
+    // Check if paid plan
+    const billingInfo = await subscriptionService.getBillingInfo(organizationId);
+    const planCode = billingInfo?.plan?.code || 'free';
+    
+    if (planCode === 'free') {
+      return res.status(403).json({
+        success: false,
+        message: 'Logo upload requires a paid subscription'
+      });
+    }
+    
+    // For now, just store the base64 data URL in the database
+    // In production, you'd upload to S3/cloud storage
+    if (!req.body.logo && !req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No logo provided'
+      });
+    }
+    
+    // If using multer, req.file would exist
+    // For now, we expect base64 from the client
+    let logoUrl = req.body.logo;
+    
+    // Limit size (2MB)
+    if (logoUrl && logoUrl.length > 2 * 1024 * 1024) {
+      return res.status(400).json({
+        success: false,
+        message: 'Logo must be less than 2MB'
+      });
+    }
+    
+    // Update organization with logo URL
+    await Organization.update(organizationId, { logo_url: logoUrl });
+    
+    res.json({
+      success: true,
+      message: 'Logo uploaded successfully',
+      data: { logo_url: logoUrl }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAll,
   getPublicOrganizations,
@@ -393,5 +446,6 @@ module.exports = {
   update,
   updateSubscription,
   remove,
-  getUsageStats
+  getUsageStats,
+  uploadLogo
 };

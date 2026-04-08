@@ -1,0 +1,353 @@
+<!-- Invitations Management - Enterprise Feature -->
+<% title = 'Invitations' %>
+<% showBack = true %>
+<% showNav = false %>
+<% activeNav = '' %>
+
+<div class="invitations-page">
+  <!-- Header -->
+  <div class="page-header" style="margin-bottom: 20px;">
+    <h1 style="font-size: 24px; font-weight: 600; margin: 0;">Manage Invitations</h1>
+    <p style="color: var(--gray-500); margin: 4px 0 0 0; font-size: 14px;">
+      Invite users to join your organization
+    </p>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px;">
+    <div class="stat-card card" style="padding: 12px 8px; text-align: center;">
+      <div class="stat-value" id="totalInvitations" style="font-size: 24px; font-weight: 700; color: var(--primary);">-</div>
+      <div class="stat-label" style="font-size: 11px; color: var(--gray-500);">Total</div>
+    </div>
+    <div class="stat-card card" style="padding: 12px 8px; text-align: center;">
+      <div class="stat-value" id="pendingInvitations" style="font-size: 24px; font-weight: 700; color: var(--warning);">-</div>
+      <div class="stat-label" style="font-size: 11px; color: var(--gray-500);">Pending</div>
+    </div>
+    <div class="stat-card card" style="padding: 12px 8px; text-align: center;">
+      <div class="stat-value" id="acceptedInvitations" style="font-size: 24px; font-weight: 700; color: var(--success);">-</div>
+      <div class="stat-label" style="font-size: 11px; color: var(--gray-500);">Accepted</div>
+    </div>
+    <div class="stat-card card" style="padding: 12px 8px; text-align: center;">
+      <div class="stat-value" id="availableSeats" style="font-size: 24px; font-weight: 700; color: var(--info);">-</div>
+      <div class="stat-label" style="font-size: 11px; color: var(--gray-500);">Seats Left</div>
+    </div>
+  </div>
+
+  <!-- Add Invitation Button -->
+  <button class="btn btn-primary btn-full" style="margin-bottom: 20px;" onclick="showInviteModal()">
+    <span>+</span> Invite New User
+  </button>
+
+  <!-- Invitations List -->
+  <div id="invitationsList" class="invitations-list">
+    <div class="loading" style="text-align: center; padding: 40px; color: var(--gray-400);">
+      Loading invitations...
+    </div>
+  </div>
+</div>
+
+<!-- Invite Modal -->
+<div id="inviteModal" class="modal" style="display: none;">
+  <div class="modal-content" style="max-width: 400px; margin: 20px auto; background: white; border-radius: 12px; padding: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h3 style="margin: 0; font-size: 18px;">Invite User</h3>
+      <button onclick="closeInviteModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+    </div>
+    
+    <form id="inviteForm" onsubmit="handleInvite(event)">
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label for="inviteEmail" style="display: block; margin-bottom: 6px; font-size: 14px; font-weight: 500;">Email Address *</label>
+        <input 
+          type="email" 
+          id="inviteEmail" 
+          required
+          placeholder="user@company.com"
+          style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 14px;"
+        >
+      </div>
+      
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label for="inviteRole" style="display: block; margin-bottom: 6px; font-size: 14px; font-weight: 500;">Role *</label>
+        <select 
+          id="inviteRole" 
+          required
+          style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 14px;"
+        >
+          <option value="operator">Operator</option>
+          <option value="supervisor">Supervisor</option>
+        </select>
+      </div>
+      
+      <div id="inviteError" class="error-message" style="display: none; color: var(--danger); margin-bottom: 16px; font-size: 14px;"></div>
+      
+      <button type="submit" class="btn btn-primary btn-full" id="inviteSubmitBtn">
+        Send Invitation
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Invitation Link Modal -->
+<div id="linkModal" class="modal" style="display: none;">
+  <div class="modal-content" style="max-width: 400px; margin: 20px auto; background: white; border-radius: 12px; padding: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h3 style="margin: 0; font-size: 18px;">Invitation Link</h3>
+      <button onclick="closeLinkModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+    </div>
+    
+    <p style="color: var(--gray-600); font-size: 14px; margin-bottom: 16px;">
+      Share this link with the invited user. They can use it to create their account and join your organization.
+    </p>
+    
+    <div style="background: var(--gray-100); padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+      <code id="invitationLink" style="word-break: break-all; font-size: 13px;"></code>
+    </div>
+    
+    <button class="btn btn-primary btn-full" onclick="copyInvitationLink()">
+      Copy Link
+    </button>
+  </div>
+</div>
+
+<script>
+let currentInvitations = [];
+let currentLink = '';
+
+// Load invitations on page load
+document.addEventListener('DOMContentLoaded', loadInvitations);
+
+async function loadInvitations() {
+  try {
+    const response = await fetch('/api/invitations', {
+      credentials: 'same-origin'
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      currentInvitations = data.data.invitations || [];
+      const stats = data.data.stats || {};
+      
+      // Update stats
+      document.getElementById('totalInvitations').textContent = stats.total || 0;
+      document.getElementById('pendingInvitations').textContent = stats.pending || 0;
+      document.getElementById('acceptedInvitations').textContent = stats.accepted || 0;
+      document.getElementById('availableSeats').textContent = stats.availableSeats !== undefined ? stats.availableSeats : '-';
+      
+      // Render list
+      renderInvitations(currentInvitations);
+    } else {
+      showError('Failed to load invitations');
+    }
+  } catch (error) {
+    console.error('Error loading invitations:', error);
+    showError('Failed to load invitations');
+  }
+}
+
+function renderInvitations(invitations) {
+  const container = document.getElementById('invitationsList');
+  
+  if (invitations.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="text-align: center; padding: 60px 20px; color: var(--gray-500);">
+        <div style="font-size: 48px; margin-bottom: 16px;">📧</div>
+        <h3 style="margin: 0 0 8px 0; font-size: 16px;">No Invitations Yet</h3>
+        <p style="margin: 0; font-size: 14px;">Invite users to join your organization</p>
+      </div>
+    `;
+    return;
+  }
+  
+  const statusColors = {
+    'pending': { bg: '#fef3c7', text: '#92400e', label: 'Pending' },
+    'accepted': { bg: '#dcfce7', text: '#166534', label: 'Accepted' },
+    'expired': { bg: '#f3f4f6', text: '#6b7280', label: 'Expired' },
+    'cancelled': { bg: '#fee2e2', text: '#991b1b', label: 'Cancelled' }
+  };
+  
+  container.innerHTML = invitations.map(inv => {
+    const statusStyle = statusColors[inv.status] || statusColors['pending'];
+    const isPending = inv.status === 'pending';
+    
+    return `
+    <div class="invitation-card card" style="padding: 16px; margin-bottom: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-weight: 600; margin-bottom: 4px; word-break: break-all;">${inv.email}</div>
+          <div style="font-size: 13px; color: var(--gray-500);">
+            Role: <span style="text-transform: capitalize;">${inv.role}</span> • 
+            Sent: ${formatDate(inv.created_at)}
+          </div>
+          <div style="margin-top: 8px;">
+            <span style="background: ${statusStyle.bg}; color: ${statusStyle.text}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; text-transform: capitalize;">
+              ${statusStyle.label}
+            </span>
+          </div>
+        </div>
+      </div>
+      
+      ${isPending ? `
+      <div style="display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--gray-100);">
+        <button class="btn btn-sm btn-outline" onclick="showLinkModal('${inv.token}')" style="flex: 1;">
+          📋 Copy Link
+        </button>
+        <button class="btn btn-sm btn-outline" onclick="resendInvitation(${inv.id})" style="flex: 1;">
+          🔄 Resend
+        </button>
+        <button class="btn btn-sm btn-danger" onclick="cancelInvitation(${inv.id})" style="flex: 1;">
+          ❌ Cancel
+        </button>
+      </div>
+      ` : ''}
+    </div>
+  `}).join('');
+}
+
+function showInviteModal() {
+  document.getElementById('inviteModal').style.display = 'block';
+  document.getElementById('inviteEmail').focus();
+}
+
+function closeInviteModal() {
+  document.getElementById('inviteModal').style.display = 'none';
+  document.getElementById('inviteForm').reset();
+  document.getElementById('inviteError').style.display = 'none';
+}
+
+function showLinkModal(token) {
+  currentLink = `${window.location.origin}/signup?token=${token}`;
+  document.getElementById('invitationLink').textContent = currentLink;
+  document.getElementById('linkModal').style.display = 'block';
+}
+
+function closeLinkModal() {
+  document.getElementById('linkModal').style.display = 'none';
+}
+
+function copyInvitationLink() {
+  navigator.clipboard.writeText(currentLink).then(() => {
+    showToast('Link copied to clipboard!', 'success');
+  }).catch(() => {
+    showToast('Failed to copy link', 'error');
+  });
+}
+
+async function handleInvite(event) {
+  event.preventDefault();
+  
+  const email = document.getElementById('inviteEmail').value.trim();
+  const role = document.getElementById('inviteRole').value;
+  const errorEl = document.getElementById('inviteError');
+  const submitBtn = document.getElementById('inviteSubmitBtn');
+  
+  errorEl.style.display = 'none';
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Sending...';
+  
+  try {
+    const response = await fetch('/api/invitations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ email, role })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showToast('Invitation sent successfully!', 'success');
+      closeInviteModal();
+      loadInvitations(); // Refresh list
+      
+      // Show the invitation link
+      if (data.data?.invitation?.invitationLink) {
+        setTimeout(() => {
+          const token = data.data.invitation.token;
+          showLinkModal(token);
+        }, 300);
+      }
+    } else {
+      errorEl.textContent = data.message || 'Failed to send invitation';
+      errorEl.style.display = 'block';
+    }
+  } catch (error) {
+    console.error('Error sending invitation:', error);
+    errorEl.textContent = 'Network error. Please try again.';
+    errorEl.style.display = 'block';
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Send Invitation';
+  }
+}
+
+async function resendInvitation(id) {
+  if (!confirm('Resend this invitation?')) return;
+  
+  try {
+    const response = await fetch(`/api/invitations/${id}/resend`, {
+      method: 'POST',
+      credentials: 'same-origin'
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showToast('Invitation resent!', 'success');
+      loadInvitations();
+    } else {
+      showToast(data.message || 'Failed to resend', 'error');
+    }
+  } catch (error) {
+    showToast('Network error', 'error');
+  }
+}
+
+async function cancelInvitation(id) {
+  if (!confirm('Cancel this invitation? The user will not be able to join.')) return;
+  
+  try {
+    const response = await fetch(`/api/invitations/${id}`, {
+      method: 'DELETE',
+      credentials: 'same-origin'
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showToast('Invitation cancelled', 'success');
+      loadInvitations();
+    } else {
+      showToast(data.message || 'Failed to cancel', 'error');
+    }
+  } catch (error) {
+    showToast('Network error', 'error');
+  }
+}
+
+function formatDate(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function showToast(message, type = 'info') {
+  // Simple toast - you can enhance this
+  alert(message);
+}
+
+function showError(message) {
+  document.getElementById('invitationsList').innerHTML = `
+    <div style="text-align: center; padding: 40px; color: var(--danger);">
+      ${message}
+    </div>
+  `;
+}
+
+// Close modals when clicking outside
+window.onclick = function(event) {
+  if (event.target.classList.contains('modal')) {
+    event.target.style.display = 'none';
+  }
+};
+</script>

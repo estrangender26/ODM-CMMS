@@ -165,7 +165,9 @@ class InvitationModel extends BaseModel {
       SELECT 
         COUNT(CASE WHEN status = 'pending' AND expires_at > NOW() THEN 1 END) as pending_count,
         COUNT(CASE WHEN status = 'accepted' THEN 1 END) as accepted_count,
-        COUNT(CASE WHEN status = 'expired' OR (status = 'pending' AND expires_at <= NOW()) THEN 1 END) as expired_count
+        COUNT(CASE WHEN status = 'expired' OR (status = 'pending' AND expires_at <= NOW()) THEN 1 END) as expired_count,
+        COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_count,
+        COUNT(*) as total_count
       FROM ${this.tableName}
       WHERE organization_id = ?
     `;

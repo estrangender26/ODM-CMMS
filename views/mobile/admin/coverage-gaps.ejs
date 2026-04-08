@@ -1,0 +1,306 @@
+<!-- Gap Resolution View - Step 5B -->
+<!-- Actionable gap list with quick resolution actions -->
+
+<div class="coverage-gaps">
+  
+  <!-- Header -->
+  <div class="page-header" style="margin-bottom: 16px;">
+    <h1 style="font-size: 24px; font-weight: 600; margin: 0;">Gap Resolution</h1>
+    <p style="color: var(--gray-500); margin: 4px 0 0 0; font-size: 14px;">
+      Resolve coverage gaps and incomplete mappings
+    </p>
+  </div>
+
+  <!-- Gap Type Tabs -->
+  <div class="gap-tabs" style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px;">
+    <button onclick="filterByType('all')" class="tab-btn active" data-type="all" style="padding: 10px 16px; border: none; border-radius: 20px; font-weight: 500; white-space: nowrap; background: var(--primary); color: white;">
+      All Gaps
+    </button>
+    <button onclick="filterByType('unmapped')" class="tab-btn" data-type="unmapped" style="padding: 10px 16px; border: none; border-radius: 20px; font-weight: 500; white-space: nowrap; background: var(--gray-100); color: var(--gray-700);">
+      ⚠️ Unmapped
+    </button>
+    <button onclick="filterByType('missing_industry')" class="tab-btn" data-type="missing_industry" style="padding: 10px 16px; border: none; border-radius: 20px; font-weight: 500; white-space: nowrap; background: var(--gray-100); color: var(--gray-700);">
+      🏭 No Industry
+    </button>
+    <button onclick="filterByType('missing_templates')" class="tab-btn" data-type="missing_templates" style="padding: 10px 16px; border: none; border-radius: 20px; font-weight: 500; white-space: nowrap; background: var(--gray-100); color: var(--gray-700);">
+      📋 No Templates
+    </button>
+  </div>
+
+  <!-- Summary Stats -->
+  <div id="gapSummary" class="gap-summary card" style="padding: 16px; margin-bottom: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">Total Gaps</div>
+        <div id="totalGaps" style="font-size: 32px; font-weight: 700;">-</div>
+      </div>
+      <div style="text-align: right;">
+        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">Action Required</div>
+        <div id="actionText" style="font-size: 14px; font-weight: 500;">Resolve to improve coverage</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gap List -->
+  <div id="gapList" class="gap-list" style="display: flex; flex-direction: column; gap: 12px;">
+    <div class="loading" style="text-align: center; padding: 40px; color: var(--gray-400);">
+      <div style="font-size: 32px; margin-bottom: 12px;">⏳</div>
+      <div>Loading gaps...</div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div id="emptyState" class="empty-state" style="display: none; text-align: center; padding: 60px 20px;">
+    <div style="font-size: 64px; margin-bottom: 16px;">✅</div>
+    <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 8px;">All Gaps Resolved!</h3>
+    <p style="color: var(--gray-500); margin-bottom: 24px;">All equipment types have complete coverage.</p>
+    <a href="/mobile/admin/coverage" style="display: inline-block; padding: 12px 24px; background: var(--primary); color: white; text-decoration: none; border-radius: 12px; font-weight: 500;">
+      View Coverage Dashboard
+    </a>
+  </div>
+
+</div>
+
+<!-- Quick Action Modal -->
+<div id="actionModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: flex-end;">
+  <div class="modal-content" style="background: white; border-radius: 20px 20px 0 0; width: 100%; max-height: 90vh; overflow-y: auto;">
+    <div style="padding: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin: 0; font-size: 20px;">Quick Action</h2>
+        <button onclick="closeActionModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">×</button>
+      </div>
+      
+      <div id="actionModalContent">
+        <!-- Dynamic content -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentGapType = 'all';
+let gaps = [];
+
+async function loadGaps() {
+  try {
+    const response = await fetch(`/api/admin/coverage-ui/gap-resolution?gap_type=${currentGapType}`, {
+      credentials: 'same-origin',
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      gaps = result.data.gaps;
+      renderGaps(gaps);
+      updateSummary(result.data.summary);
+    }
+  } catch (err) {
+    console.error('Failed to load gaps:', err);
+    document.getElementById('gapList').innerHTML = 
+      '<div style="text-align: center; padding: 40px; color: var(--danger);">Failed to load gaps</div>';
+  }
+}
+
+function renderGaps(gaps) {
+  const container = document.getElementById('gapList');
+  const emptyState = document.getElementById('emptyState');
+  
+  if (gaps.length === 0) {
+    container.style.display = 'none';
+    emptyState.style.display = 'block';
+    return;
+  }
+  
+  container.style.display = 'flex';
+  emptyState.style.display = 'none';
+  
+  const gapIcons = {
+    'unmapped': '⚠️',
+    'missing_industry': '🏭',
+    'missing_templates': '📋'
+  };
+  
+  const gapColors = {
+    'unmapped': { bg: '#fee2e2', border: '#ef4444', text: '#991b1b' },
+    'missing_industry': { bg: '#ffedd5', border: '#f97316', text: '#9a3412' },
+    'missing_templates': { bg: '#e0f2fe', border: '#0ea5e9', text: '#075985' }
+  };
+  
+  container.innerHTML = gaps.map((gap, index) => {
+    const colors = gapColors[gap.gap_type] || gapColors['unmapped'];
+    const icon = gapIcons[gap.gap_type] || '⚠️';
+    
+    return `
+      <div class="gap-card card" style="padding: 16px; border-left: 4px solid ${colors.border}; background: ${colors.bg}20;">
+        <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px;">
+          <div style="font-size: 24px;">${icon}</div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 600; font-size: 16px; color: var(--gray-900); margin-bottom: 4px;">
+              ${gap.type_name}
+            </div>
+            <div style="font-size: 13px; color: var(--gray-500);">
+              ${gap.type_code} • ${gap.class_name}
+            </div>
+          </div>
+          <span style="background: ${colors.bg}; color: ${colors.text}; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; text-transform: uppercase;">
+            ${gap.gap_type.replace(/_/g, ' ')}
+          </span>
+        </div>
+        
+        <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+          <div style="font-size: 12px; color: var(--gray-500); margin-bottom: 4px;">Action Required</div>
+          <div style="font-weight: 500; color: var(--gray-900);">${gap.action_required}</div>
+        </div>
+        
+        <div style="display: flex; gap: 8px;">
+          ${getActionButton(gap)}
+          <a href="/mobile/admin/coverage/equipment?search=${encodeURIComponent(gap.type_code)}" 
+            style="flex: 1; padding: 10px; background: var(--gray-100); color: var(--gray-700); text-decoration: none; border-radius: 8px; font-weight: 500; font-size: 14px; text-align: center;">
+            View Details
+          </a>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function getActionButton(gap) {
+  switch (gap.gap_type) {
+    case 'unmapped':
+      return `<button onclick="openMappingModal(${gap.id}, '${gap.type_name}', '${gap.type_code}')" 
+        style="flex: 1; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 500; font-size: 14px;">
+        Assign Family
+      </button>`;
+    case 'missing_industry':
+      return `<button onclick="openIndustryModal(${gap.id}, '${gap.type_name}', '${gap.family_code}')" 
+        style="flex: 1; padding: 10px; background: var(--warning); color: white; border: none; border-radius: 8px; font-weight: 500; font-size: 14px;">
+        Add Industry
+      </button>`;
+    case 'missing_templates':
+      return `<button onclick="showGenerateInfo('${gap.type_name}')" 
+        style="flex: 1; padding: 10px; background: var(--info); color: white; border: none; border-radius: 8px; font-weight: 500; font-size: 14px;">
+        Generate Templates
+      </button>`;
+    default:
+      return '';
+  }
+}
+
+function updateSummary(summary) {
+  const total = currentGapType === 'all' 
+    ? summary.unmapped + summary.missing_industry + summary.missing_templates
+    : gaps.length;
+  
+  document.getElementById('totalGaps').textContent = total;
+  
+  const actionTexts = {
+    'all': 'Resolve to improve coverage',
+    'unmapped': 'Assign family mappings',
+    'missing_industry': 'Add industry mappings',
+    'missing_templates': 'Generate system templates'
+  };
+  document.getElementById('actionText').textContent = actionTexts[currentGapType];
+}
+
+function filterByType(type) {
+  currentGapType = type;
+  
+  // Update tab styles
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    if (btn.dataset.type === type) {
+      btn.style.background = 'var(--primary)';
+      btn.style.color = 'white';
+      btn.classList.add('active');
+    } else {
+      btn.style.background = 'var(--gray-100)';
+      btn.style.color = 'var(--gray-700)';
+      btn.classList.remove('active');
+    }
+  });
+  
+  loadGaps();
+}
+
+// Modal functions
+function openMappingModal(id, name, code) {
+  const content = document.getElementById('actionModalContent');
+  content.innerHTML = `
+    <div style="margin-bottom: 20px;">
+      <div style="font-weight: 600; font-size: 18px; margin-bottom: 4px;">${name}</div>
+      <div style="color: var(--gray-500); font-size: 14px;">${code}</div>
+    </div>
+    <p style="color: var(--gray-600); margin-bottom: 20px;">
+      This equipment type needs a template family assigned. Select the appropriate family below.
+    </p>
+    <div style="background: var(--warning-light); padding: 12px; border-radius: 8px; margin-bottom: 20px;">
+      <div style="font-size: 13px; color: var(--warning);">
+        <strong>Invariant:</strong> Each equipment type must have exactly one family.
+      </div>
+    </div>
+    <a href="/mobile/admin/coverage/equipment?search=${encodeURIComponent(code)}" 
+      style="display: block; width: 100%; padding: 14px; background: var(--primary); color: white; text-decoration: none; border-radius: 12px; font-weight: 500; text-align: center;">
+      Open Mapping Editor
+    </a>
+  `;
+  document.getElementById('actionModal').style.display = 'flex';
+}
+
+function openIndustryModal(id, name, familyCode) {
+  const content = document.getElementById('actionModalContent');
+  content.innerHTML = `
+    <div style="margin-bottom: 20px;">
+      <div style="font-weight: 600; font-size: 18px; margin-bottom: 4px;">${name}</div>
+      <div style="color: var(--gray-500); font-size: 14px;">Family: ${familyCode}</div>
+    </div>
+    <p style="color: var(--gray-600); margin-bottom: 20px;">
+      This equipment type needs at least one industry assigned.
+    </p>
+    <div style="background: var(--warning-light); padding: 12px; border-radius: 8px; margin-bottom: 20px;">
+      <div style="font-size: 13px; color: var(--warning);">
+        <strong>Invariant:</strong> At least one industry required per equipment type.
+      </div>
+    </div>
+    <a href="/mobile/admin/coverage/equipment?search=${encodeURIComponent(name)}" 
+      style="display: block; width: 100%; padding: 14px; background: var(--primary); color: white; text-decoration: none; border-radius: 12px; font-weight: 500; text-align: center;">
+      Open Mapping Editor
+    </a>
+  `;
+  document.getElementById('actionModal').style.display = 'flex';
+}
+
+function showGenerateInfo(name) {
+  const content = document.getElementById('actionModalContent');
+  content.innerHTML = `
+    <div style="margin-bottom: 20px;">
+      <div style="font-weight: 600; font-size: 18px; margin-bottom: 4px;">${name}</div>
+    </div>
+    <p style="color: var(--gray-600); margin-bottom: 20px;">
+      System templates need to be generated for this equipment type.
+    </p>
+    <div style="background: var(--info-light); padding: 12px; border-radius: 8px; margin-bottom: 20px;">
+      <div style="font-size: 13px; color: var(--info);">
+        <strong>Invariant:</strong> Templates required for each (equipment, industry) pair.
+      </div>
+    </div>
+    <div style="background: var(--gray-50); padding: 16px; border-radius: 12px; margin-bottom: 20px;">
+      <div style="font-weight: 500; margin-bottom: 8px;">Run this command:</div>
+      <code style="display: block; background: var(--gray-900); color: var(--gray-100); padding: 12px; border-radius: 8px; font-size: 12px; overflow-x: auto;">
+        node database/seeds/run-step3-seed-v2.js
+      </code>
+    </div>
+    <button onclick="closeActionModal()" 
+      style="width: 100%; padding: 14px; background: var(--gray-100); border: none; border-radius: 12px; font-weight: 500;">
+      Close
+    </button>
+  `;
+  document.getElementById('actionModal').style.display = 'flex';
+}
+
+function closeActionModal() {
+  document.getElementById('actionModal').style.display = 'none';
+}
+
+// Load on page load
+loadGaps();
+</script>

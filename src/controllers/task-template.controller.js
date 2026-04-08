@@ -2,9 +2,11 @@
  * Task Template Controller
  * ISO 14224-aligned maintenance task templates
  * Linked to equipment types (not SMP Families)
+ * 
+ * Step 2: Added cloning, industry support, task kinds, immutability
  */
 
-const { TaskTemplate, EquipmentType } = require('../models');
+const { TaskTemplate, EquipmentType, Industry, TASK_KINDS } = require('../models');
 
 /**
  * Get all task templates (with optional filters)
@@ -12,15 +14,20 @@ const { TaskTemplate, EquipmentType } = require('../models');
 const getAll = async (req, res, next) => {
   try {
     const organizationId = req.user.organization_id;
-    const { scheduled, is_active } = req.query;
+    const { scheduled, is_active, task_kind, industry_id, is_system } = req.query;
     
     let sql = `
       SELECT 
         tt.*,
         et.type_name,
-        et.type_code
+        et.type_code,
+        i.name as industry_name,
+        i.code as industry_code,
+        pt.template_name as parent_template_name
       FROM task_templates tt
       JOIN equipment_types et ON tt.equipment_type_id = et.id
+      LEFT JOIN industries i ON tt.industry_id = i.id
+      LEFT JOIN task_templates pt ON tt.parent_template_id = pt.id
       WHERE (
         tt.organization_id IS NULL 
         OR tt.organization_id = ?
@@ -38,6 +45,24 @@ const getAll = async (req, res, next) => {
     if (is_active !== undefined) {
       sql += ' AND tt.is_active = ?';
       params.push(is_active === 'true');
+    }
+
+    // Filter by task kind
+    if (task_kind) {
+      sql += ' AND tt.task_kind = ?';
+      params.push(task_kind);
+    }
+
+    // Filter by industry
+    if (industry_id) {
+      sql += ' AND tt.industry_id = ?';
+      params.push(industry_id);
+    }
+
+    // Filter by system template flag
+    if (is_system !== undefined) {
+      sql += ' AND tt.is_system = ?';
+      params.push(is_system === 'true');
     }
     
     sql += ' ORDER BY tt.template_name';
@@ -60,11 +85,13 @@ const getByEquipmentType = async (req, res, next) => {
   try {
     const { equipmentTypeId } = req.params;
     const organizationId = req.user.organization_id;
-    const { maintenance_type, is_active } = req.query;
+    const { maintenance_type, is_active, task_kind, industry_id } = req.query;
     
     const filters = {};
     if (maintenance_type) filters.maintenance_type = maintenance_type;
     if (is_active !== undefined) filters.is_active = is_active === 'true';
+    if (task_kind) filters.task_kind = task_kind;
+    if (industry_id) filters.industry_id = industry_id;
     
     const templates = await TaskTemplate.findByEquipmentType(
       equipmentTypeId, 
@@ -88,6 +115,7 @@ const getForAsset = async (req, res, next) => {
   try {
     const { assetId } = req.params;
     const organizationId = req.user.organization_id;
+    const { task_kind } = req.query;
     
     // Get asset's equipment type
     const { Equipment } = require('../models');
@@ -107,9 +135,13 @@ const getForAsset = async (req, res, next) => {
       });
     }
     
+    const filters = {};
+    if (task_kind) filters.task_kind = task_kind;
+    
     const templates = await TaskTemplate.getTemplatesForAsset(
       asset.equipment_type_id,
-      organizationId
+      organizationId,
+      filters
     );
     
     res.json({
@@ -173,9 +205,11 @@ const create = async (req, res, next) => {
     
     const {
       equipment_type_id,
+      industry_id,
       template_code,
       template_name,
       maintenance_type,
+      task_kind,
       task_scope,
       description,
       frequency_value,
@@ -195,6 +229,14 @@ const create = async (req, res, next) => {
       });
     }
     
+    // Validate task_kind if provided
+    if (task_kind && !Object.values(TASK_KINDS).includes(task_kind)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid task_kind. Must be one of: ${Object.values(TASK_KINDS).join(', ')}`
+      });
+    }
+    
     // Verify equipment type exists
     const equipType = await EquipmentType.findById(equipment_type_id);
     if (!equipType) {
@@ -204,13 +246,26 @@ const create = async (req, res, next) => {
       });
     }
     
+    // Verify industry if provided
+    if (industry_id) {
+      const industry = await Industry.findById(industry_id);
+      if (!industry) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid industry'
+        });
+      }
+    }
+    
     const template = await TaskTemplate.createWithDetails(
       {
         organization_id: organizationId,
         equipment_type_id,
+        industry_id,
         template_code,
         template_name,
         maintenance_type,
+        task_kind,
         task_scope,
         description,
         frequency_value,
@@ -218,6 +273,8 @@ const create = async (req, res, next) => {
         estimated_duration_minutes,
         required_skills,
         required_tools,
+        is_system: false,
+        is_editable: true,
         created_by: userId
       },
       steps || [],
@@ -235,11 +292,63 @@ const create = async (req, res, next) => {
 };
 
 /**
+ * Clone a system template to organization
+ * RESTRICTION: Only system templates can be cloned (Step 2)
+ */
+const clone = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const organizationId = req.user.organization_id;
+    const userId = req.user.id;
+    
+    const {
+      template_name,
+      template_code,
+      description
+    } = req.body;
+    
+    // Get source template
+    const source = await TaskTemplate.getWithDetails(id);
+    if (!source) {
+      return res.status(404).json({
+        success: false,
+        message: 'Source template not found'
+      });
+    }
+    
+    // RESTRICTION: Only system templates can be cloned (Step 2)
+    if (!source.is_system) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only system templates can be cloned',
+        code: 'CLONE_RESTRICTION_SYSTEM_ONLY'
+      });
+    }
+    
+    // Clone the template
+    const cloned = await TaskTemplate.cloneTemplate(
+      id,
+      organizationId,
+      userId,
+      { template_name, template_code, description }
+    );
+    
+    res.status(201).json({
+      success: true,
+      message: 'Template cloned successfully',
+      data: { template: cloned }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Search task templates
  */
 const search = async (req, res, next) => {
   try {
-    const { q } = req.query;
+    const { q, task_kind, industry_id, is_system } = req.query;
     const organizationId = req.user.organization_id;
     
     if (!q || q.length < 2) {
@@ -249,7 +358,12 @@ const search = async (req, res, next) => {
       });
     }
     
-    const templates = await TaskTemplate.search(q, organizationId);
+    const filters = {};
+    if (task_kind) filters.task_kind = task_kind;
+    if (industry_id) filters.industry_id = industry_id;
+    if (is_system !== undefined) filters.is_system = is_system === 'true';
+    
+    const templates = await TaskTemplate.search(q, organizationId, filters);
     
     res.json({
       success: true,
@@ -271,7 +385,21 @@ const getStats = async (req, res, next) => {
     
     res.json({
       success: true,
-      data: { stats }
+      data: { stats, task_kinds: TASK_KINDS }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get available task kinds
+ */
+const getTaskKinds = async (req, res, next) => {
+  try {
+    res.json({
+      success: true,
+      data: { task_kinds: TASK_KINDS }
     });
   } catch (error) {
     next(error);
@@ -280,13 +408,14 @@ const getStats = async (req, res, next) => {
 
 /**
  * Update task template
+ * Uses new immutability check
  */
 const update = async (req, res, next) => {
   try {
     const { id } = req.params;
     const organizationId = req.user.organization_id;
     
-    // Check template exists and belongs to organization
+    // Check template exists
     const existing = await TaskTemplate.findById(id);
     if (!existing) {
       return res.status(404).json({
@@ -295,15 +424,20 @@ const update = async (req, res, next) => {
       });
     }
     
-    // Only organization-specific templates can be updated
-    // Global templates (organization_id IS NULL) cannot be modified
-    if (existing.organization_id === null) {
+    // Check if editable (system templates cannot be modified)
+    const isEditable = await TaskTemplate.isEditable(id);
+    if (!isEditable) {
       return res.status(403).json({
         success: false,
-        message: 'Global system templates cannot be modified. Create a custom template instead.'
+        message: 'System templates cannot be modified. Clone the template to make changes.',
+        code: 'SYSTEM_TEMPLATE_IMMUTABLE',
+        data: {
+          clone_url: `/api/task-templates/${id}/clone`
+        }
       });
     }
     
+    // Verify organization ownership
     if (existing.organization_id !== organizationId) {
       return res.status(403).json({
         success: false,
@@ -311,34 +445,52 @@ const update = async (req, res, next) => {
       });
     }
     
-    const updateData = { ...req.body };
-    delete updateData.id;
-    delete updateData.created_by;
-    delete updateData.created_at;
+    // Validate task_kind if provided
+    if (req.body.task_kind && !Object.values(TASK_KINDS).includes(req.body.task_kind)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid task_kind. Must be one of: ${Object.values(TASK_KINDS).join(', ')}`
+      });
+    }
     
-    await TaskTemplate.update(id, updateData);
+    const updated = await TaskTemplate.updateIfEditable(id, req.body);
     
-    const updated = await TaskTemplate.getWithDetails(id);
+    if (!updated) {
+      return res.status(400).json({
+        success: false,
+        message: 'No valid fields to update'
+      });
+    }
+    
+    const template = await TaskTemplate.getWithDetails(id);
     
     res.json({
       success: true,
       message: 'Task template updated successfully',
-      data: { template: updated }
+      data: { template }
     });
   } catch (error) {
+    if (error.message.includes('System templates cannot be modified')) {
+      return res.status(403).json({
+        success: false,
+        message: error.message,
+        code: 'SYSTEM_TEMPLATE_IMMUTABLE'
+      });
+    }
     next(error);
   }
 };
 
 /**
  * Delete task template
+ * Uses new immutability check
  */
 const remove = async (req, res, next) => {
   try {
     const { id } = req.params;
     const organizationId = req.user.organization_id;
     
-    // Check template exists and belongs to organization
+    // Check template exists
     const existing = await TaskTemplate.findById(id);
     if (!existing) {
       return res.status(404).json({
@@ -347,14 +499,17 @@ const remove = async (req, res, next) => {
       });
     }
     
-    // Cannot delete global templates
-    if (existing.organization_id === null) {
+    // Check if system template
+    const isSystem = await TaskTemplate.isSystemTemplate(id);
+    if (isSystem) {
       return res.status(403).json({
         success: false,
-        message: 'Global system templates cannot be deleted'
+        message: 'System templates cannot be deleted',
+        code: 'SYSTEM_TEMPLATE_IMMUTABLE'
       });
     }
     
+    // Verify organization ownership
     if (existing.organization_id !== organizationId) {
       return res.status(403).json({
         success: false,
@@ -362,13 +517,20 @@ const remove = async (req, res, next) => {
       });
     }
     
-    await TaskTemplate.delete(id);
+    await TaskTemplate.deleteIfEditable(id);
     
     res.json({
       success: true,
       message: 'Task template deleted successfully'
     });
   } catch (error) {
+    if (error.message.includes('System templates cannot be deleted')) {
+      return res.status(403).json({
+        success: false,
+        message: error.message,
+        code: 'SYSTEM_TEMPLATE_IMMUTABLE'
+      });
+    }
     next(error);
   }
 };
@@ -379,8 +541,10 @@ module.exports = {
   getForAsset,
   getById,
   create,
+  clone,
   search,
   getStats,
+  getTaskKinds,
   update,
   remove
 };

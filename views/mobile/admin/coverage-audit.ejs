@@ -1,0 +1,224 @@
+<!-- Audit Log View - Step 5B -->
+<!-- View all coverage mapping changes -->
+
+<div class="coverage-audit">
+  
+  <!-- Header -->
+  <div class="page-header" style="margin-bottom: 16px;">
+    <h1 style="font-size: 24px; font-weight: 600; margin: 0;">Audit Log</h1>
+    <p style="color: var(--gray-500); margin: 4px 0 0 0; font-size: 14px;">
+      Track all coverage and mapping changes
+    </p>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters card" style="padding: 16px; margin-bottom: 16px;">
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div>
+        <label style="font-size: 12px; font-weight: 500; color: var(--gray-600); display: block; margin-bottom: 6px;">Change Type</label>
+        <select id="changeTypeFilter" onchange="loadAuditLog()" style="width: 100%; padding: 10px; border: 1px solid var(--gray-200); border-radius: 8px; font-size: 14px;">
+          <option value="">All Types</option>
+        </select>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+        <div>
+          <label style="font-size: 12px; font-weight: 500; color: var(--gray-600); display: block; margin-bottom: 6px;">From Date</label>
+          <input type="date" id="startDateFilter" onchange="loadAuditLog()" style="width: 100%; padding: 10px; border: 1px solid var(--gray-200); border-radius: 8px; font-size: 14px;">
+        </div>
+        <div>
+          <label style="font-size: 12px; font-weight: 500; color: var(--gray-600); display: block; margin-bottom: 6px;">To Date</label>
+          <input type="date" id="endDateFilter" onchange="loadAuditLog()" style="width: 100%; padding: 10px; border: 1px solid var(--gray-200); border-radius: 8px; font-size: 14px;">
+        </div>
+      </div>
+      <button onclick="clearFilters()" style="padding: 10px; background: var(--gray-100); border: none; border-radius: 8px; font-weight: 500;">
+        Clear Filters
+      </button>
+    </div>
+  </div>
+
+  <!-- Audit Log List -->
+  <div id="auditList" class="audit-list" style="display: flex; flex-direction: column; gap: 8px;">
+    <div class="loading" style="text-align: center; padding: 40px; color: var(--gray-400);">
+      <div style="font-size: 32px; margin-bottom: 12px;">⏳</div>
+      <div>Loading audit log...</div>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div id="pagination" style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 20px; padding: 16px;"></div>
+
+</div>
+
+<script>
+let currentPage = 1;
+
+const changeTypeLabels = {
+  'family_assigned': { icon: '🔧', label: 'Family Assigned', color: '#dbeafe' },
+  'family_changed': { icon: '🔧', label: 'Family Changed', color: '#fef3c7' },
+  'family_removed': { icon: '❌', label: 'Family Removed', color: '#fee2e2' },
+  'industry_added': { icon: '🏭', label: 'Industry Added', color: '#dcfce7' },
+  'industry_removed': { icon: '🏭', label: 'Industry Removed', color: '#ffedd5' }
+};
+
+async function init() {
+  await loadFilterOptions();
+  await loadAuditLog();
+}
+
+async function loadFilterOptions() {
+  try {
+    const response = await fetch('/api/admin/coverage-ui/audit-log?limit=1', {
+      credentials: 'same-origin',
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    const result = await response.json();
+    
+    if (result.success && result.data.change_types) {
+      const select = document.getElementById('changeTypeFilter');
+      result.data.change_types.forEach(type => {
+        const option = document.createElement('option');
+        option.value = type;
+        option.textContent = type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        select.appendChild(option);
+      });
+    }
+  } catch (err) {
+    console.error('Failed to load filter options:', err);
+  }
+}
+
+async function loadAuditLog(page = 1) {
+  currentPage = page;
+  
+  const params = new URLSearchParams();
+  params.append('page', page);
+  params.append('limit', 25);
+  
+  const changeType = document.getElementById('changeTypeFilter').value;
+  if (changeType) params.append('change_type', changeType);
+  
+  const startDate = document.getElementById('startDateFilter').value;
+  if (startDate) params.append('start_date', startDate);
+  
+  const endDate = document.getElementById('endDateFilter').value;
+  if (endDate) params.append('end_date', endDate);
+  
+  try {
+    const response = await fetch(`/api/admin/coverage-ui/audit-log?${params}`, {
+      credentials: 'same-origin',
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      renderAuditLog(result.data.logs);
+      renderPagination(result.data.pagination);
+    }
+  } catch (err) {
+    console.error('Failed to load audit log:', err);
+    document.getElementById('auditList').innerHTML = 
+      '<div style="text-align: center; padding: 40px; color: var(--danger);">Failed to load audit log</div>';
+  }
+}
+
+function renderAuditLog(logs) {
+  const container = document.getElementById('auditList');
+  
+  if (logs.length === 0) {
+    container.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--gray-400);">No audit entries found</div>';
+    return;
+  }
+  
+  container.innerHTML = logs.map(log => {
+    const typeInfo = changeTypeLabels[log.change_type] || { icon: '📝', label: log.change_type, color: '#f3f4f6' };
+    
+    return `
+      <div class="audit-entry card" style="padding: 16px; border-left: 4px solid ${typeInfo.color};">
+        <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px;">
+          <div style="font-size: 20px; background: ${typeInfo.color}; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            ${typeInfo.icon}
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 600; font-size: 14px; color: var(--gray-900); margin-bottom: 2px;">
+              ${typeInfo.label}
+            </div>
+            <div style="font-size: 13px; color: var(--gray-600);">
+              ${log.type_name} <span style="color: var(--gray-400);">(${log.type_code})</span>
+            </div>
+          </div>
+          <div style="font-size: 12px; color: var(--gray-400); white-space: nowrap;">
+            ${formatTime(log.changed_at)}
+          </div>
+        </div>
+        
+        <div style="background: var(--gray-50); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+          ${log.old_value ? `
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <span style="font-size: 12px; color: var(--gray-500); width: 40px;">From:</span>
+              <span style="font-weight: 500; color: var(--gray-700);">${log.old_value}</span>
+            </div>
+          ` : ''}
+          ${log.new_value ? `
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 12px; color: var(--gray-500); width: 40px;">To:</span>
+              <span style="font-weight: 500; color: var(--success);">${log.new_value}</span>
+            </div>
+          ` : ''}
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--gray-500);">
+          <span>👤 ${log.changed_by_name || 'System'}</span>
+          ${log.change_reason ? `<span style="color: var(--gray-400);">💬 ${log.change_reason}</span>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderPagination(pagination) {
+  const container = document.getElementById('pagination');
+  
+  if (!pagination.total_pages || pagination.total_pages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+  
+  container.innerHTML = `
+    <button onclick="loadAuditLog(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} 
+      style="padding: 8px 16px; background: var(--gray-100); border: none; border-radius: 8px; font-weight: 500;">
+      Previous
+    </button>
+    <span style="font-size: 14px; color: var(--gray-600);">
+      Page ${currentPage}
+    </span>
+    <button onclick="loadAuditLog(${currentPage + 1})" ${currentPage === pagination.total_pages ? 'disabled' : ''} 
+      style="padding: 8px 16px; background: var(--gray-100); border: none; border-radius: 8px; font-weight: 500;">
+      Next
+    </button>
+  `;
+}
+
+function clearFilters() {
+  document.getElementById('changeTypeFilter').value = '';
+  document.getElementById('startDateFilter').value = '';
+  document.getElementById('endDateFilter').value = '';
+  loadAuditLog(1);
+}
+
+function formatTime(time) {
+  const date = new Date(time);
+  const now = new Date();
+  const diff = (now - date) / 1000;
+  
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+  if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+  return date.toLocaleDateString();
+}
+
+// Initialize
+init();
+</script>

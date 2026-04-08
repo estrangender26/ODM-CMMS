@@ -1,0 +1,318 @@
+================================================================================
+STEP 4 PATCH REPORT: Industry-Aware Coverage Validation
+================================================================================
+Date: 2026-04-08
+Status: PATCHED AND READY FOR APPROVAL
+================================================================================
+
+REQUIRED FIXES APPLIED
+----------------------
+[✓] 1. Changed --fix behavior: Generate proposals for review, no silent auto-mapping
+[✓] 2. Enforced exactly one family mapping per equipment type (DB + service level)
+[✓] 3. Made template coverage validation industry-aware
+[✓] 4. Hardened admin mapping endpoints (duplicates, validation, audit logging)
+[✓] 5. Validation mode fully read-only, writes are explicit and auditable
+
+================================================================================
+FIX 1: CHANGED --fix BEHAVIOR
+================================================================================
+
+BEFORE: Auto-assigned final mappings from type_code patterns
+  node validate-coverage.js --fix
+  -> Automatically created mappings silently
+
+AFTER: Generates proposals for admin review
+  node validate-coverage.js --propose
+  -> Creates records in equipment_type_family_proposals table
+  -> Status: 'pending' (requires admin review)
+
+Proposals Table:
+  equipment_type_family_proposals
+    - equipment_type_id (FK)
+    - proposed_family_code
+    - proposal_source ('heuristic', 'manual', 'import')
+    - proposal_reason (explanation)
+    - confidence_score (0.00-1.00)
+    - review_status ('pending', 'approved', 'rejected')
+    - reviewed_by, reviewed_at, review_notes
+    - applied_at
+
+Review Process:
+  1. Generate proposals: node validate-coverage.js --propose
+  2. Admin reviews: SELECT * FROM equipment_type_family_proposals WHERE review_status = 'pending'
+  3. Admin approves: UPDATE ... SET review_status = 'approved', reviewed_by = ?, reviewed_at = NOW()
+  4. Apply mappings: Use admin API or separate apply script
+
+NO silent heuristic final mappings.
+
+================================================================================
+FIX 2: ENFORCE EXACTLY ONE FAMILY MAPPING
+================================================================================
+
+DATABASE LEVEL:
+- Added UNIQUE INDEX on equipment_type_family_mappings.equipment_type_id
+- Removes any existing duplicates before applying constraint
+- Prevents INSERT if mapping already exists
+
+TRIGGER LEVEL:
+- trg_prevent_duplicate_family_mapping
+  Before INSERT: Checks for existing mapping
+  If exists: SIGNAL SQLSTATE '45000' with error message
+
+SERVICE LEVEL:
+- Controller checks for existing mapping before INSERT
+- Returns 409 CONFLICT if mapping exists
+- Error code: 'FAMILY_MAPPING_EXISTS'
+
+AUDIT LEVEL:
+- All changes logged to equipment_mapping_change_log
+- Tracks: family_assigned, family_changed, family_removed
+
+================================================================================
+FIX 3: INDUSTRY-AWARE COVERAGE VALIDATION
+================================================================================
+
+BEFORE: Validated templates per equipment_type_id only
+  coverage = templates exist for equipment_type_id
+
+AFTER: Validates templates per (equipment_type_id, industry_id) combination
+  coverage = templates exist for each (equipment, industry) pair
+
+New View: v_industry_aware_template_coverage
+  - Shows coverage status per (equipment_type, industry) combination
+  - Considers template.industry_id matching
+
+Validation Query:
+  SELECT 
+    et.id as equipment_type_id,
+    eti.industry_id,
+    COUNT(tt.id) as template_count
+  FROM equipment_types et
+  JOIN equipment_type_industries eti ON et.id = eti.equipment_type_id
+  LEFT JOIN task_templates tt ON et.id = tt.equipment_type_id 
+    AND tt.is_system = TRUE 
+    AND (tt.industry_id = eti.industry_id OR tt.industry_id IS NULL)
+  GROUP BY et.id, eti.industry_id
+  HAVING template_count = 0
+
+Report Structure:
+  total_combinations: N (equipment_type × industry pairs)
+  covered_combinations: N
+  coverage_percentage: N%
+
+================================================================================
+FIX 4: HARDENED ADMIN MAPPING ENDPOINTS
+================================================================================
+
+DUPLICATE PREVENTION:
+- Check for existing mapping before INSERT
+- Return 409 CONFLICT with descriptive message
+- DB unique constraint as final safeguard
+
+FAMILY UNIQUENESS ENFORCEMENT:
+- Exactly one family per equipment type enforced
+- Separate update endpoint for changing families
+- Update warns if existing templates present
+
+INDUSTRY VALIDATION:
+- Verify industry exists and is_active = TRUE
+- Prevent duplicate industry mappings
+- Return 404 if industry not found
+
+AUDIT LOGGING:
+Table: equipment_mapping_change_log
+  - equipment_type_id
+  - change_type: family_assigned, family_changed, family_removed, industry_added, industry_removed
+  - old_value, new_value
+  - changed_by (user ID)
+  - changed_at
+  - change_reason
+  - batch_id
+
+WARNINGS FOR REMAPPING:
+- Check if equipment has existing seeded templates
+- Return warning in response if templates exist
+- Recommendation to review/regenerate templates
+
+TRANSACTION SAFETY:
+- All write operations in transactions
+- Rollback on any error
+- Consistent error handling
+
+================================================================================
+FIX 5: VALIDATION MODE FULLY READ-ONLY
+================================================================================
+
+DEFAULT MODE (no flags):
+  node validate-coverage.js
+  - Queries only
+  - No database modifications
+  - Safe for CI/CD
+
+PROPOSE MODE (--propose):
+  node validate-coverage.js --propose
+  - Creates PROPOSAL records only
+  - Does NOT create final mappings
+  - Proposals have status 'pending'
+  - Requires admin review before application
+
+NO AUTO-APPLY:
+  --fix flag removed/disabled
+  No silent application of mappings
+  All writes are explicit, reviewable, auditable
+
+================================================================================
+UPDATED INVARIANT DEFINITION
+================================================================================
+
+INVARIANT 1: Family Mapping
+- Every equipment_type has ZERO or ONE family mapping
+- Exactly one after completion
+- Enforced by: UNIQUE INDEX + trigger + service validation
+
+INVARIANT 2: Industry Mapping
+- Every equipment_type with family mapping has AT LEAST ONE industry
+- Can have multiple industries
+- No duplicate (equipment_type, industry) pairs
+
+INVARIANT 3: Industry-Aware Templates
+- Every (equipment_type_id, industry_id) combination has required templates
+- Template count >= required task kinds for family
+- Template.industry_id must match or be NULL (global)
+
+INVARIANT 4: Data Integrity
+- No duplicate family mappings per equipment type
+- All mappings reference valid/active records
+- All changes are audited
+
+================================================================================
+FILES CREATED/CHANGED
+================================================================================
+
+NEW FILES:
+-----------
+1. database/migrations/018_enforce_family_mapping_uniqueness.sql (200 lines)
+   - Unique index on equipment_type_family_mappings
+   - equipment_type_family_proposals table
+   - equipment_mapping_change_log table
+   - v_industry_aware_template_coverage view
+   - Triggers for duplicate prevention and audit logging
+
+UPDATED FILES:
+--------------
+1. database/validate-coverage.js (750 lines)
+   - Changed --fix to --propose
+   - Generates proposals for review
+   - Industry-aware validation
+   - Read-only by default
+
+2. src/controllers/coverage-validation.controller.js (900 lines)
+   - Hardened mapEquipmentToFamily()
+   - Hardened mapEquipmentToIndustry()
+   - Added updateFamilyMapping()
+   - Industry-aware validation
+   - Audit logging
+   - Duplicate prevention
+   - Warning for remapping with templates
+
+3. src/routes/coverage-validation.routes.js (90 lines)
+   - Added PUT /update-family-mapping endpoint
+
+================================================================================
+API ENDPOINTS SUMMARY (10 endpoints)
+================================================================================
+
+VALIDATION (READ-ONLY):
+GET  /api/admin/coverage/validate              Full validation report
+GET  /api/admin/coverage/unmapped-equipment    Equipment without family
+GET  /api/admin/coverage/missing-industry-mappings  Without industry
+GET  /api/admin/coverage/missing-templates     Without templates (industry-aware)
+GET  /api/admin/coverage/by-industry           Coverage per industry
+GET  /api/admin/coverage/by-family             Coverage per family
+
+EQUIPMENT MAPPINGS:
+GET  /api/admin/coverage/equipment-mappings    Paginated list
+
+ADMIN ACTIONS (AUDITED):
+POST /api/admin/coverage/map-equipment-to-family     Create mapping
+PUT  /api/admin/coverage/update-family-mapping       Change mapping
+POST /api/admin/coverage/map-equipment-to-industry   Add industry
+
+================================================================================
+EXECUTION STEPS
+================================================================================
+
+1. RUN MIGRATION:
+   mysql -u root -p odm_cmms < database/migrations/018_enforce_family_mapping_uniqueness.sql
+
+2. GENERATE PROPOSALS:
+   node database/validate-coverage.js --propose
+
+3. REVIEW PROPOSALS:
+   SELECT * FROM equipment_type_family_proposals WHERE review_status = 'pending';
+
+4. APPROVE/APPLY (via API):
+   POST /api/admin/coverage/map-equipment-to-family
+   { "equipment_type_id": 1, "family_code": "PUMP_FAMILY", "change_reason": "Approved from proposal" }
+
+================================================================================
+VERIFICATION QUERIES
+================================================================================
+
+-- Check unique constraint enforcement
+SELECT equipment_type_id, COUNT(*) as cnt
+FROM equipment_type_family_mappings
+GROUP BY equipment_type_id
+HAVING COUNT(*) > 1;
+-- Should return 0 rows
+
+-- View pending proposals
+SELECT et.type_code, pfp.proposed_family_code, pfp.confidence_score, pfp.proposal_reason
+FROM equipment_type_family_proposals pfp
+JOIN equipment_types et ON pfp.equipment_type_id = et.id
+WHERE pfp.review_status = 'pending';
+
+-- View industry-aware coverage
+SELECT * FROM v_industry_aware_template_coverage
+WHERE coverage_status != 'covered';
+
+-- View audit log
+SELECT * FROM equipment_mapping_change_log
+ORDER BY changed_at DESC
+LIMIT 20;
+
+-- Check for duplicates (should be 0)
+SELECT COUNT(*) as duplicate_count FROM (
+  SELECT equipment_type_id FROM equipment_type_family_mappings
+  GROUP BY equipment_type_id HAVING COUNT(*) > 1
+) d;
+
+================================================================================
+PRESERVED FUNCTIONALITY
+================================================================================
+
+QR GENERATION/SCANNING:  Unchanged
+SCHEDULER:               Unchanged
+WO NUMBERING:            Unchanged
+TENANT ISOLATION:        Unchanged
+INSPECTION EXECUTION:    Unchanged
+TAXONOMY:                Unchanged
+
+================================================================================
+READY FOR APPROVAL
+================================================================================
+
+All 5 required fixes applied:
+[✓] 1. --fix generates proposals, no silent auto-mapping
+[✓] 2. Exactly one family mapping enforced (DB + service)
+[✓] 3. Industry-aware coverage validation
+[✓] 4. Hardened admin endpoints (validation, audit, warnings)
+[✓] 5. Validation read-only, writes explicit and auditable
+
+Files: 1 migration created, 3 files updated
+APIs: 10 endpoints
+Validation: Read-only + proposal-based
+
+Step 4 patched and ready.
+
+================================================================================

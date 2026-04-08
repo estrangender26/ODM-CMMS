@@ -1,0 +1,323 @@
+================================================================================
+STEP 2 FINAL REPORT: Industry Layer & Template Architecture
+================================================================================
+Date: 2026-04-08
+Status: PATCHED & READY FOR APPROVAL
+================================================================================
+
+REQUIREMENTS CHECKLIST
+----------------------
+[✓] 1. task_kind uses canonical set (9 values)
+[✓] 2. is_visual_only defaults to TRUE
+[✓] 3. Organization industry invariants enforced
+[✓] 4. System template guards enforced in controller
+[✓] 5. UI behavior documented
+[✓] 6. Backfill policy documented with fallback
+[✓] 7. Clone restricted to system templates only
+
+================================================================================
+VERIFICATION: REQUIREMENT 1 - task_kind Canonical Set
+================================================================================
+
+Location: src/models/task-template.model.js (lines 20-30)
+
+static TASK_KINDS = {
+  INSPECTION: 'inspection',       ✓
+  MEASUREMENT: 'measurement',     ✓
+  CLEANING: 'cleaning',           ✓
+  LUBRICATION: 'lubrication',     ✓
+  ADJUSTMENT: 'adjustment',       ✓
+  TIGHTENING: 'tightening',       ✓
+  TESTING: 'testing',             ✓
+  CALIBRATION: 'calibration',     ✓
+  SAFETY_CHECK: 'safety_check'    ✓
+};
+
+Excluded (as required):
+  - operation  ✗
+  - safety     ✗
+
+================================================================================
+VERIFICATION: REQUIREMENT 2 - is_visual_only Default
+================================================================================
+
+Location: database/migrations/014_add_industry_layer.sql (line 222)
+
+ALTER TABLE task_template_steps 
+ADD COLUMN is_visual_only BOOLEAN DEFAULT TRUE;
+                                               ↑
+                                               Correct: TRUE (not FALSE)
+
+================================================================================
+PATCH: REQUIREMENT 3 - Organization Industry Invariants
+================================================================================
+
+File: src/controllers/industry.controller.js
+
+INVARIANT 1: At least one industry required
+--------------------------------------------
+const removeFromOrganization = async (req, res, next) => {
+  ...
+  const industries = await Industry.getByOrganization(organizationId);
+  
+  if (industries.length <= 1) {
+    return res.status(403).json({
+      message: 'Cannot remove the last industry. Organization must have at least one industry assigned.',
+      code: 'INDUSTRY_INVARIANT_VIOLATION'
+    });
+  }
+  ...
+};
+
+INVARIANT 2: Cannot remove default industry
+--------------------------------------------
+const targetIndustry = industries.find(i => i.id === parseInt(industry_id));
+if (targetIndustry && targetIndustry.is_default) {
+  return res.status(403).json({
+    message: 'Cannot remove the default industry. Set another industry as default first.',
+    code: 'DEFAULT_INDUSTRY_PROTECTED'
+  });
+}
+
+INVARIANT 3: First industry auto-defaults
+------------------------------------------
+const assignToOrganization = async (req, res, next) => {
+  ...
+  const currentIndustries = await Industry.getByOrganization(organizationId);
+  const isFirstIndustry = currentIndustries.length === 0;
+  
+  // First industry automatically becomes default
+  const shouldBeDefault = isFirstIndustry || is_default;
+  
+  await Industry.assignToOrganization(organizationId, industry_id, shouldBeDefault);
+  ...
+};
+
+INVARIANT 4: Exactly one default enforced
+------------------------------------------
+// src/models/industry.model.js
+async setDefaultForOrganization(organizationId, industryId) {
+  // First, unset all defaults
+  await this.query(
+    'UPDATE organization_industries SET is_default = FALSE WHERE organization_id = ?',
+    [organizationId]
+  );
+  
+  // Set the new default
+  await this.query(
+    'UPDATE organization_industries SET is_default = TRUE WHERE organization_id = ? AND industry_id = ?',
+    [organizationId, industryId]
+  );
+}
+
+NEW ROUTE ADDED:
+POST /api/industries/my-organization/set-default
+  → Calls setDefaultForOrganization()
+  → Enforces exactly one default
+
+================================================================================
+VERIFICATION: REQUIREMENT 4 - System Template Guards
+================================================================================
+
+Location: src/controllers/task-template.controller.js
+
+UPDATE GUARD (lines 425-436):
+-----------------------------
+const update = async (req, res, next) => {
+  ...
+  const isEditable = await TaskTemplate.isEditable(id);
+  if (!isEditable) {
+    return res.status(403).json({
+      success: false,
+      message: 'System templates cannot be modified. Clone the template to make changes.',
+      code: 'SYSTEM_TEMPLATE_IMMUTABLE',
+      data: { clone_url: `/api/task-templates/${id}/clone` }
+    });
+  }
+  ...
+};
+
+DELETE GUARD (lines 500-508):
+-----------------------------
+const remove = async (req, res, next) => {
+  ...
+  const isSystem = await TaskTemplate.isSystemTemplate(id);
+  if (isSystem) {
+    return res.status(403).json({
+      success: false,
+      message: 'System templates cannot be deleted',
+      code: 'SYSTEM_TEMPLATE_IMMUTABLE'
+    });
+  }
+  ...
+};
+
+VERIFIED: Guards are in controller layer (not just model helpers)
+
+================================================================================
+DOCUMENTATION: REQUIREMENT 5 - UI Behavior
+================================================================================
+
+File: docs/STEP2_UI_BEHAVIOR.md
+
+System Template Display:
+- Show "System" or "Global" badge
+- Tooltip: "This is a system template. Clone to customize."
+- Show "Clone" button as PRIMARY action
+- HIDE Edit button
+- HIDE Delete button
+- Disable inline editing
+
+Organization Template Display:
+- Show "Organization Template" badge
+- If parent_template_id exists, show "Clone of: [Parent]"
+- Show Edit button
+- Show Delete button
+- Hide Clone button (or show as secondary "Duplicate")
+
+Clone Dialog:
+- Title: "Clone System Template"
+- Fields: Name (pre-filled "{Original} (Copy)"), Code, Description
+- Validation: Name required, Code unique
+- Post-clone: Navigate to cloned template, show success toast
+
+Industry Selection:
+- Multi-select with checkboxes
+- Radio/star for default indicator
+- Block unchecking last industry
+- Auto-select first as default if only one
+
+================================================================================
+DOCUMENTATION: REQUIREMENT 6 - Backfill Policy
+================================================================================
+
+File: docs/STEP2_BACKFILL_POLICY.md
+
+FALLBACK DEFAULT:
+- WATER_WASTEWATER_UTILITIES (for all ambiguous cases)
+
+HEURISTIC MAPPING (Equipment Type → Industry):
+- pump, blower, aerator, clarifier, filter → WATER_WASTEWATER_UTILITIES
+- turbine, generator, transformer, switchgear → POWER_UTILITIES
+- cnc, lathe, mill, robot, conveyor → MANUFACTURING
+- compressor, separator, heat_exchanger → OIL_GAS
+- hvac, elevator, ups → BUILDINGS_FACILITIES
+
+CONFIDENCE LEVELS:
+- High: Clear keyword match → Auto-assign
+- Low: No match → WATER_WASTEWATER_UTILITIES fallback
+- Multiple: Assign all, first as default
+
+ADMIN CORRECTION:
+- Post-migration review interface
+- Bulk reassign API
+- Audit trail logged
+
+================================================================================
+PATCH: REQUIREMENT 7 - Clone Restriction
+================================================================================
+
+Location: src/controllers/task-template.controller.js (lines 297-342)
+
+const clone = async (req, res, next) => {
+  ...
+  // Get source template
+  const source = await TaskTemplate.getWithDetails(id);
+  
+  // RESTRICTION: Only system templates can be cloned (Step 2)
+  if (!source.is_system) {
+    return res.status(403).json({
+      success: false,
+      message: 'Only system templates can be cloned',
+      code: 'CLONE_RESTRICTION_SYSTEM_ONLY'
+    });
+  }
+  
+  // Clone the template
+  const cloned = await TaskTemplate.cloneTemplate(...);
+  ...
+};
+
+VERIFIED: Clone is restricted to is_system = TRUE templates only.
+
+================================================================================
+FILES MODIFIED SUMMARY
+================================================================================
+
+| File                                         | Change Type     |
+|----------------------------------------------|-----------------|
+| src/controllers/industry.controller.js       | Patched         |
+| src/models/industry.model.js                 | Added method    |
+| src/routes/industry.routes.js                | Added route     |
+| src/controllers/task-template.controller.js  | Patched         |
+| docs/STEP2_UI_BEHAVIOR.md                    | Created (new)   |
+| docs/STEP2_BACKFILL_POLICY.md                | Created (new)   |
+
+DETAILED CHANGES:
+- src/controllers/industry.controller.js: +45 lines, -10 lines
+  * assignToOrganization(): Auto-default first industry
+  * removeFromOrganization(): Block last/default removal
+  * setDefault(): New endpoint
+
+- src/models/industry.model.js: +15 lines
+  * setDefaultForOrganization(): Unset all, set new default
+
+- src/routes/industry.routes.js: +1 line
+  * POST /my-organization/set-default
+
+- src/controllers/task-template.controller.js: +8 lines, -5 lines
+  * clone(): Added system-only restriction
+
+- docs/STEP2_UI_BEHAVIOR.md: 130 lines (new)
+- docs/STEP2_BACKFILL_POLICY.md: 165 lines (new)
+
+================================================================================
+API ENDPOINTS SUMMARY
+================================================================================
+
+INDUSTRY ENDPOINTS:
+GET    /api/industries                                    List all active
+GET    /api/industries/my-organization                    Get org industries
+GET    /api/industries/my-organization/default            Get default
+POST   /api/industries/my-organization/assign             Assign industry
+POST   /api/industries/my-organization/set-default        Set default (NEW)
+DELETE /api/industries/my-organization/:industry_id       Remove industry
+GET    /api/industries/:id/equipment-types                Get equipment types
+
+TASK TEMPLATE ENDPOINTS:
+POST   /api/task-templates/:id/clone                      Clone (system only)
+
+================================================================================
+INVARIANT ERROR CODES
+================================================================================
+
+INDUSTRY_INVARIANT_VIOLATION  - Cannot remove last industry
+DEFAULT_INDUSTRY_PROTECTED    - Cannot remove default industry
+SYSTEM_TEMPLATE_IMMUTABLE     - Cannot edit/delete system template
+CLONE_RESTRICTION_SYSTEM_ONLY - Only system templates can be cloned
+
+================================================================================
+BACKFILL FALLBACK
+================================================================================
+
+Default industry for ambiguous mappings:
+→ WATER_WASTEWATER_UTILITIES
+
+Admin can correct post-migration via review interface.
+
+================================================================================
+READY FOR APPROVAL
+================================================================================
+
+All 7 requirements verified and patched:
+[✓] 1. task_kind: 9 canonical values, no operation/safety
+[✓] 2. is_visual_only: DEFAULT TRUE
+[✓] 3. Industry invariants: Enforced in controller
+[✓] 4. System template guards: Enforced in controller
+[✓] 5. UI behavior: Documented
+[✓] 6. Backfill policy: Documented with fallback
+[✓] 7. Clone restriction: System templates only
+
+Step 2 is complete and ready for deployment.
+
+================================================================================

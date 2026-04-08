@@ -1,0 +1,219 @@
+<!-- Coverage Validation - Step 5B -->
+<!-- Run validation and view results -->
+
+<div class="coverage-validate">
+  
+  <!-- Header -->
+  <div class="page-header" style="margin-bottom: 16px;">
+    <h1 style="font-size: 24px; font-weight: 600; margin: 0;">Validate Coverage</h1>
+    <p style="color: var(--gray-500); margin: 4px 0 0 0; font-size: 14px;">
+      Check coverage invariants and identify gaps
+    </p>
+  </div>
+
+  <!-- Run Validation Button -->
+  <button onclick="runValidation()" id="validateBtn" style="width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+    <span>✓</span>
+    <span>Run Validation</span>
+  </button>
+
+  <!-- Loading State -->
+  <div id="loadingState" style="display: none; text-align: center; padding: 40px;">
+    <div style="font-size: 48px; margin-bottom: 16px;">⏳</div>
+    <div style="color: var(--gray-600);">Validating coverage...</div>
+  </div>
+
+  <!-- Results Container -->
+  <div id="resultsContainer" style="display: none;">
+    
+    <!-- Overall Status -->
+    <div id="overallStatus" class="card" style="padding: 20px; margin-bottom: 16px; text-align: center;">
+      <!-- Dynamic content -->
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px;">
+      <div class="stat-card card" style="padding: 16px; text-align: center;">
+        <div id="statTotal" style="font-size: 28px; font-weight: 700; color: var(--gray-900);">-</div>
+        <div style="font-size: 12px; color: var(--gray-500); margin-top: 4px;">Total Equipment</div>
+      </div>
+      <div class="stat-card card" style="padding: 16px; text-align: center;">
+        <div id="statCoverage" style="font-size: 28px; font-weight: 700; color: var(--success);">-%</div>
+        <div style="font-size: 12px; color: var(--gray-500); margin-top: 4px;">Coverage</div>
+      </div>
+      <div class="stat-card card" style="padding: 16px; text-align: center;">
+        <div id="statFamily" style="font-size: 28px; font-weight: 700; color: var(--primary);">-</div>
+        <div style="font-size: 12px; color: var(--gray-500); margin-top: 4px;">With Family</div>
+      </div>
+      <div class="stat-card card" style="padding: 16px; text-align: center;">
+        <div id="statIndustry" style="font-size: 28px; font-weight: 700; color: var(--primary);">-</div>
+        <div style="font-size: 12px; color: var(--gray-500); margin-top: 4px;">With Industry</div>
+      </div>
+    </div>
+
+    <!-- Gaps Summary -->
+    <h2 style="font-size: 16px; font-weight: 600; margin: 24px 0 12px 0;">Gaps Found</h2>
+    <div id="gapsSummary" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
+      <!-- Dynamic content -->
+    </div>
+
+    <!-- Invariants Status -->
+    <h2 style="font-size: 16px; font-weight: 600; margin: 24px 0 12px 0;">Invariant Checks</h2>
+    <div class="invariants-list card" style="padding: 16px;">
+      <div class="invariant-item" style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--gray-100);">
+        <div id="inv1Icon" style="font-size: 20px;">⏳</div>
+        <div style="flex: 1;">
+          <div style="font-weight: 500;">Exactly One Family</div>
+          <div style="font-size: 13px; color: var(--gray-500);">Each equipment type has exactly one family mapping</div>
+        </div>
+        <div id="inv1Status" style="font-size: 12px; font-weight: 500; padding: 4px 12px; border-radius: 20px; background: var(--gray-100);">Checking...</div>
+      </div>
+      <div class="invariant-item" style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--gray-100);">
+        <div id="inv2Icon" style="font-size: 20px;">⏳</div>
+        <div style="flex: 1;">
+          <div style="font-weight: 500;">At Least One Industry</div>
+          <div style="font-size: 13px; color: var(--gray-500);">Each equipment type has at least one industry</div>
+        </div>
+        <div id="inv2Status" style="font-size: 12px; font-weight: 500; padding: 4px 12px; border-radius: 20px; background: var(--gray-100);">Checking...</div>
+      </div>
+      <div class="invariant-item" style="display: flex; align-items: center; gap: 12px; padding: 12px 0;">
+        <div id="inv3Icon" style="font-size: 20px;">⏳</div>
+        <div style="flex: 1;">
+          <div style="font-weight: 500;">Industry-Aware Templates</div>
+          <div style="font-size: 13px; color: var(--gray-500);">Each (equipment, industry) has templates</div>
+        </div>
+        <div id="inv3Status" style="font-size: 12px; font-weight: 500; padding: 4px 12px; border-radius: 20px; background: var(--gray-100);">Checking...</div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div style="display: flex; gap: 12px; margin-top: 24px;">
+      <a href="/mobile/admin/coverage/gaps" style="flex: 1; padding: 14px; background: var(--warning); color: white; text-decoration: none; border-radius: 12px; font-weight: 500; text-align: center;">
+        View Gaps
+      </a>
+      <a href="/mobile/admin/coverage/equipment" style="flex: 1; padding: 14px; background: var(--primary); color: white; text-decoration: none; border-radius: 12px; font-weight: 500; text-align: center;">
+        Fix Mappings
+      </a>
+    </div>
+
+  </div>
+
+  <!-- Error State -->
+  <div id="errorState" style="display: none; text-align: center; padding: 40px;">
+    <div style="font-size: 48px; margin-bottom: 16px;">❌</div>
+    <div style="color: var(--danger); font-weight: 500; margin-bottom: 8px;">Validation Failed</div>
+    <div id="errorMessage" style="color: var(--gray-500);"></div>
+  </div>
+
+</div>
+
+<script>
+async function runValidation() {
+  // Show loading
+  document.getElementById('validateBtn').disabled = true;
+  document.getElementById('loadingState').style.display = 'block';
+  document.getElementById('resultsContainer').style.display = 'none';
+  document.getElementById('errorState').style.display = 'none';
+  
+  try {
+    const response = await fetch('/api/admin/coverage/validate', {
+      credentials: 'same-origin',
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      renderResults(result.data);
+    } else {
+      showError(result.message || 'Validation failed');
+    }
+  } catch (err) {
+    showError('Network error: ' + err.message);
+  } finally {
+    document.getElementById('validateBtn').disabled = false;
+    document.getElementById('loadingState').style.display = 'none';
+  }
+}
+
+function renderResults(data) {
+  const { summary, gaps, status } = data;
+  
+  // Overall status
+  const statusEl = document.getElementById('overallStatus');
+  if (status === 'complete') {
+    statusEl.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+    statusEl.style.color = 'white';
+    statusEl.innerHTML = `
+      <div style="font-size: 48px; margin-bottom: 8px;">✅</div>
+      <div style="font-size: 20px; font-weight: 600;">All Invariants Passed</div>
+      <div style="font-size: 14px; opacity: 0.9; margin-top: 4px;">Coverage is complete</div>
+    `;
+  } else {
+    statusEl.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+    statusEl.style.color = 'white';
+    statusEl.innerHTML = `
+      <div style="font-size: 48px; margin-bottom: 8px;">⚠️</div>
+      <div style="font-size: 20px; font-weight: 600;">Gaps Found</div>
+      <div style="font-size: 14px; opacity: 0.9; margin-top: 4px;">${gaps.missing_family_mapping + gaps.missing_industry_mapping + gaps.missing_templates} issues need attention</div>
+    `;
+  }
+  
+  // Stats
+  document.getElementById('statTotal').textContent = summary.total_equipment_types;
+  document.getElementById('statCoverage').textContent = summary.coverage_percentage + '%';
+  document.getElementById('statFamily').textContent = summary.with_family;
+  document.getElementById('statIndustry').textContent = summary.with_industry;
+  
+  // Gaps summary
+  const gapsContainer = document.getElementById('gapsSummary');
+  const gapItems = [
+    { key: 'missing_family_mapping', label: 'Missing Family Mapping', icon: '🔧', color: 'var(--danger)' },
+    { key: 'missing_industry_mapping', label: 'Missing Industry Mapping', icon: '🏭', color: 'var(--warning)' },
+    { key: 'missing_templates', label: 'Missing Templates', icon: '📋', color: 'var(--info)' }
+  ];
+  
+  gapsContainer.innerHTML = gapItems.map(item => {
+    const count = gaps[item.key];
+    return count > 0 ? `
+      <div class="gap-item card" style="padding: 14px 16px; display: flex; align-items: center; gap: 12px;">
+        <div style="font-size: 20px;">${item.icon}</div>
+        <div style="flex: 1;">
+          <div style="font-weight: 500; color: var(--gray-900);">${item.label}</div>
+        </div>
+        <div style="font-size: 20px; font-weight: 700; color: ${item.color};">${count}</div>
+      </div>
+    ` : '';
+  }).join('') || '<div style="text-align: center; padding: 20px; color: var(--gray-400);">No gaps found! 🎉</div>';
+  
+  // Invariants
+  updateInvariant('inv1', summary.duplicate_mappings === 0 && gaps.missing_family_mapping === 0);
+  updateInvariant('inv2', gaps.missing_industry_mapping === 0);
+  updateInvariant('inv3', gaps.missing_templates === 0);
+  
+  // Show results
+  document.getElementById('resultsContainer').style.display = 'block';
+}
+
+function updateInvariant(id, passed) {
+  const icon = document.getElementById(id + 'Icon');
+  const status = document.getElementById(id + 'Status');
+  
+  if (passed) {
+    icon.textContent = '✅';
+    status.textContent = 'Passed';
+    status.style.background = '#dcfce7';
+    status.style.color = '#166534';
+  } else {
+    icon.textContent = '❌';
+    status.textContent = 'Failed';
+    status.style.background = '#fee2e2';
+    status.style.color = '#991b1b';
+  }
+}
+
+function showError(message) {
+  document.getElementById('errorMessage').textContent = message;
+  document.getElementById('errorState').style.display = 'block';
+}
+</script>

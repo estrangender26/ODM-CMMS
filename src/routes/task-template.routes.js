@@ -33,6 +33,13 @@ router.get('/stats', requireAdmin, taskTemplateController.getStats);
 router.get('/search', taskTemplateController.search);
 
 /**
+ * @route   GET /api/task-templates/task-kinds
+ * @desc    Get available task kinds
+ * @access  Private
+ */
+router.get('/task-kinds', taskTemplateController.getTaskKinds);
+
+/**
  * @route   GET /api/task-templates/equipment-type/:equipmentTypeId
  * @desc    Get templates by equipment type
  * @access  Private
@@ -52,6 +59,13 @@ router.get('/for-asset/:assetId', taskTemplateController.getForAsset);
  * @access  Private
  */
 router.get('/:id', taskTemplateController.getById);
+
+/**
+ * @route   POST /api/task-templates/:id/clone
+ * @desc    Clone a system template to organization
+ * @access  Private (Admin/Supervisor)
+ */
+router.post('/:id/clone', requireAdmin, taskTemplateController.clone);
 
 /**
  * @route   POST /api/task-templates

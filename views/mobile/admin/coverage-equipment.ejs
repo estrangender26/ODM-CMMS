@@ -1,0 +1,485 @@
+<!-- Equipment Coverage Browser - Step 5B -->
+<!-- Filterable, searchable equipment mapping management -->
+
+<div class="coverage-equipment">
+  
+  <!-- Header -->
+  <div class="page-header" style="margin-bottom: 16px;">
+    <h1 style="font-size: 24px; font-weight: 600; margin: 0;">Equipment Mapping</h1>
+    <p style="color: var(--gray-500); margin: 4px 0 0 0; font-size: 14px;">
+      Manage family and industry mappings
+    </p>
+  </div>
+
+  <!-- Search Bar -->
+  <div class="search-bar" style="margin-bottom: 16px;">
+    <div style="position: relative;">
+      <input 
+        type="text" 
+        id="searchInput"
+        placeholder="Search equipment..." 
+        style="width: 100%; padding: 12px 16px 12px 44px; border: 1px solid var(--gray-200); border-radius: 12px; font-size: 16px;"
+      >
+      <span style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 18px;">🔍</span>
+    </div>
+  </div>
+
+  <!-- Filter Toggle -->
+  <button onclick="toggleFilters()" class="filter-toggle" style="width: 100%; padding: 12px; background: var(--gray-100); border: none; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 16px; font-weight: 500;">
+    <span>⚙️</span>
+    <span>Filters</span>
+    <span id="activeFilterCount" style="background: var(--primary); color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; display: none;">0</span>
+  </button>
+
+  <!-- Filters Panel -->
+  <div id="filtersPanel" class="filters-panel card" style="padding: 16px; margin-bottom: 16px; display: none;">
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      
+      <!-- Status Filter -->
+      <div>
+        <label style="font-size: 13px; font-weight: 500; color: var(--gray-600); display: block; margin-bottom: 6px;">Status</label>
+        <select id="statusFilter" onchange="applyFilters()" style="width: 100%; padding: 10px; border: 1px solid var(--gray-200); border-radius: 8px; font-size: 14px;">
+          <option value="">All Statuses</option>
+          <option value="complete">✓ Complete</option>
+          <option value="unmapped">⚠️ Unmapped</option>
+          <option value="missing_industry">🏭 Missing Industry</option>
+          <option value="missing_templates">📋 Missing Templates</option>
+        </select>
+      </div>
+
+      <!-- Family Filter -->
+      <div>
+        <label style="font-size: 13px; font-weight: 500; color: var(--gray-600); display: block; margin-bottom: 6px;">Family</label>
+        <select id="familyFilter" onchange="applyFilters()" style="width: 100%; padding: 10px; border: 1px solid var(--gray-200); border-radius: 8px; font-size: 14px;">
+          <option value="">All Families</option>
+          <option value="none">❌ No Family</option>
+        </select>
+      </div>
+
+      <!-- Industry Filter -->
+      <div>
+        <label style="font-size: 13px; font-weight: 500; color: var(--gray-600); display: block; margin-bottom: 6px;">Industry</label>
+        <select id="industryFilter" onchange="applyFilters()" style="width: 100%; padding: 10px; border: 1px solid var(--gray-200); border-radius: 8px; font-size: 14px;">
+          <option value="">All Industries</option>
+          <option value="none">❌ No Industry</option>
+        </select>
+      </div>
+
+      <!-- Clear Filters -->
+      <button onclick="clearFilters()" style="padding: 10px; background: var(--gray-200); border: none; border-radius: 8px; font-weight: 500; margin-top: 8px;">
+        Clear All Filters
+      </button>
+    </div>
+  </div>
+
+  <!-- Results Count -->
+  <div class="results-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+    <span id="resultsCount" style="font-size: 14px; color: var(--gray-500);">Loading...</span>
+    <select id="sortOrder" onchange="loadEquipment()" style="padding: 6px 12px; border: 1px solid var(--gray-200); border-radius: 8px; font-size: 13px;">
+      <option value="type_name_asc">Name A-Z</option>
+      <option value="type_name_desc">Name Z-A</option>
+    </select>
+  </div>
+
+  <!-- Equipment List -->
+  <div id="equipmentList" class="equipment-list" style="display: flex; flex-direction: column; gap: 8px;">
+    <div class="loading" style="text-align: center; padding: 40px; color: var(--gray-400);">
+      <div style="font-size: 32px; margin-bottom: 12px;">⏳</div>
+      <div>Loading equipment...</div>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div id="pagination" class="pagination" style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 20px; padding: 16px;">
+    <!-- Pagination buttons injected here -->
+  </div>
+
+</div>
+
+<!-- Mapping Editor Modal -->
+<div id="mappingModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: flex-end;">
+  <div class="modal-content" style="background: white; border-radius: 20px 20px 0 0; width: 100%; max-height: 80vh; overflow-y: auto;">
+    <div style="padding: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin: 0; font-size: 20px;">Edit Mapping</h2>
+        <button onclick="closeModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">×</button>
+      </div>
+      
+      <div id="modalEquipmentInfo" style="background: var(--gray-50); padding: 12px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="font-weight: 600;" id="modalTypeName">-</div>
+        <div style="font-size: 13px; color: var(--gray-500);" id="modalTypeCode">-</div>
+      </div>
+
+      <form id="mappingForm" onsubmit="saveMapping(event)">
+        <input type="hidden" id="modalEquipmentId">
+        
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 13px; font-weight: 500; color: var(--gray-600); margin-bottom: 6px;">
+            Template Family <span style="color: var(--danger);">*</span>
+          </label>
+          <select id="modalFamily" required style="width: 100%; padding: 12px; border: 1px solid var(--gray-200); border-radius: 8px; font-size: 14px;">
+            <option value="">Select Family...</option>
+          </select>
+          <div style="font-size: 12px; color: var(--gray-500); margin-top: 4px;">⚠️ Each equipment type can have exactly one family</div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 13px; font-weight: 500; color: var(--gray-600); margin-bottom: 6px;">
+            Industries <span style="color: var(--danger);">*</span>
+          </label>
+          <div id="modalIndustries" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Checkboxes injected here -->
+          </div>
+          <div style="font-size: 12px; color: var(--gray-500); margin-top: 4px;">At least one industry required</div>
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+          <button type="button" onclick="closeModal()" style="flex: 1; padding: 14px; background: var(--gray-100); border: none; border-radius: 12px; font-weight: 500;">
+            Cancel
+          </button>
+          <button type="submit" style="flex: 1; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 500;">
+            Save Mapping
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentPage = 1;
+let totalPages = 1;
+let filterOptions = {};
+
+// Load filter options and equipment on page load
+async function init() {
+  await loadFilterOptions();
+  await loadEquipment();
+}
+
+async function loadFilterOptions() {
+  try {
+    const response = await fetch('/api/admin/coverage-ui/equipment-with-filters?limit=1', {
+      credentials: 'same-origin',
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    const result = await response.json();
+    
+    if (result.success && result.data.filters) {
+      filterOptions = result.data.filters;
+      
+      // Populate family filter
+      const familySelect = document.getElementById('familyFilter');
+      filterOptions.families.forEach(f => {
+        const option = document.createElement('option');
+        option.value = f.family_code;
+        option.textContent = f.family_name;
+        familySelect.appendChild(option);
+      });
+      
+      // Populate industry filter
+      const industrySelect = document.getElementById('industryFilter');
+      filterOptions.industries.forEach(i => {
+        const option = document.createElement('option');
+        option.value = i.id;
+        option.textContent = i.name;
+        industrySelect.appendChild(option);
+      });
+    }
+  } catch (err) {
+    console.error('Failed to load filter options:', err);
+  }
+}
+
+async function loadEquipment(page = 1) {
+  currentPage = page;
+  
+  // Build query params
+  const params = new URLSearchParams();
+  params.append('page', page);
+  params.append('limit', 20);
+  
+  const search = document.getElementById('searchInput').value;
+  if (search) params.append('search', search);
+  
+  const status = document.getElementById('statusFilter').value;
+  if (status) params.append('status', status);
+  
+  const family = document.getElementById('familyFilter').value;
+  if (family) params.append('family_code', family);
+  
+  const industry = document.getElementById('industryFilter').value;
+  if (industry) params.append('industry_id', industry);
+  
+  const sort = document.getElementById('sortOrder').value;
+  const [sortBy, sortOrder] = sort.split('_');
+  params.append('sort_by', sortBy);
+  params.append('sort_order', sortOrder);
+  
+  try {
+    const response = await fetch(`/api/admin/coverage-ui/equipment-with-filters?${params}`, {
+      credentials: 'same-origin',
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      renderEquipment(result.data.equipment);
+      renderPagination(result.data.pagination);
+      document.getElementById('resultsCount').textContent = 
+        `${result.data.pagination.total} equipment types`;
+    }
+  } catch (err) {
+    console.error('Failed to load equipment:', err);
+    document.getElementById('equipmentList').innerHTML = 
+      '<div style="text-align: center; padding: 40px; color: var(--danger);">Failed to load equipment</div>';
+  }
+}
+
+function renderEquipment(equipment) {
+  const container = document.getElementById('equipmentList');
+  
+  if (equipment.length === 0) {
+    container.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--gray-400);">No equipment found</div>';
+    return;
+  }
+  
+  const statusColors = {
+    'complete': { bg: '#dcfce7', text: '#166534', icon: '✓' },
+    'unmapped': { bg: '#fee2e2', text: '#991b1b', icon: '⚠️' },
+    'missing_industry': { bg: '#ffedd5', text: '#9a3412', icon: '🏭' },
+    'missing_templates': { bg: '#e0f2fe', text: '#075985', icon: '📋' }
+  };
+  
+  container.innerHTML = equipment.map(item => {
+    const status = statusColors[item.status] || statusColors['unmapped'];
+    
+    return `
+      <div class="equipment-card card" style="padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 600; font-size: 16px; color: var(--gray-900); margin-bottom: 4px;">${item.type_name}</div>
+            <div style="font-size: 13px; color: var(--gray-500);">${item.type_code} • ${item.class_name}</div>
+          </div>
+          <span style="background: ${status.bg}; color: ${status.text}; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; white-space: nowrap;">
+            ${status.icon} ${formatStatus(item.status)}
+          </span>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: var(--gray-400); width: 60px;">Family:</span>
+            <span style="color: ${item.family_code ? 'var(--gray-900)' : 'var(--danger)'};">
+              ${item.family_name || 'Not assigned'}
+            </span>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <span style="color: var(--gray-400); width: 60px;">Industries:</span>
+            <span style="color: ${item.industries.length > 0 ? 'var(--gray-900)' : 'var(--danger)'};">
+              ${item.industries.length > 0 ? item.industries.map(i => i.name).join(', ') : 'None assigned'}
+            </span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: var(--gray-400); width: 60px;">Templates:</span>
+            <span style="color: ${item.template_count > 0 ? 'var(--success)' : 'var(--warning)'};">
+              ${item.template_count} templates
+            </span>
+          </div>
+        </div>
+        
+        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--gray-100);">
+          <button onclick="openMappingModal(${item.id}, '${item.type_name}', '${item.type_code}', '${item.family_code || ''}', '${JSON.stringify(item.industries).replace(/'/g, "\\'")}')" 
+            style="width: 100%; padding: 10px; background: var(--primary-light); color: var(--primary); border: none; border-radius: 8px; font-weight: 500; font-size: 14px;">
+            Edit Mapping
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function formatStatus(status) {
+  return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function renderPagination(pagination) {
+  totalPages = pagination.total_pages;
+  const container = document.getElementById('pagination');
+  
+  if (totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+  
+  let html = `
+    <button onclick="loadEquipment(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} 
+      style="padding: 8px 16px; background: var(--gray-100); border: none; border-radius: 8px; font-weight: 500;">
+      Previous
+    </button>
+    <span style="font-size: 14px; color: var(--gray-600);">
+      Page ${currentPage} of ${totalPages}
+    </span>
+    <button onclick="loadEquipment(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} 
+      style="padding: 8px 16px; background: var(--gray-100); border: none; border-radius: 8px; font-weight: 500;">
+      Next
+    </button>
+  `;
+  
+  container.innerHTML = html;
+}
+
+function toggleFilters() {
+  const panel = document.getElementById('filtersPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function applyFilters() {
+  currentPage = 1;
+  loadEquipment(1);
+  
+  // Update active filter count
+  const activeFilters = [
+    document.getElementById('statusFilter').value,
+    document.getElementById('familyFilter').value,
+    document.getElementById('industryFilter').value
+  ].filter(v => v !== '').length;
+  
+  const badge = document.getElementById('activeFilterCount');
+  if (activeFilters > 0) {
+    badge.textContent = activeFilters;
+    badge.style.display = 'inline';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function clearFilters() {
+  document.getElementById('statusFilter').value = '';
+  document.getElementById('familyFilter').value = '';
+  document.getElementById('industryFilter').value = '';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('activeFilterCount').style.display = 'none';
+  loadEquipment(1);
+}
+
+// Search debounce
+let searchTimeout;
+document.getElementById('searchInput').addEventListener('input', (e) => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => loadEquipment(1), 300);
+});
+
+// Modal functions
+let currentEditingId = null;
+
+function openMappingModal(id, name, code, familyCode, industries) {
+  currentEditingId = id;
+  document.getElementById('modalEquipmentId').value = id;
+  document.getElementById('modalTypeName').textContent = name;
+  document.getElementById('modalTypeCode').textContent = code;
+  
+  // Populate family dropdown
+  const familySelect = document.getElementById('modalFamily');
+  familySelect.innerHTML = '<option value="">Select Family...</option>';
+  if (filterOptions.families) {
+    filterOptions.families.forEach(f => {
+      if (f.family_code === 'none') return;
+      const option = document.createElement('option');
+      option.value = f.family_code;
+      option.textContent = f.family_name;
+      if (f.family_code === familyCode) option.selected = true;
+      familySelect.appendChild(option);
+    });
+  }
+  
+  // Populate industries checkboxes
+  const industriesContainer = document.getElementById('modalIndustries');
+  const selectedIndustries = JSON.parse(industries || '[]');
+  industriesContainer.innerHTML = '';
+  
+  if (filterOptions.industries) {
+    filterOptions.industries.forEach(i => {
+      if (i.id === 'none') return;
+      const isSelected = selectedIndustries.some(si => si.id === i.id);
+      const label = document.createElement('label');
+      label.style.cssText = 'display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--gray-50); border-radius: 8px; cursor: pointer;';
+      label.innerHTML = `
+        <input type="checkbox" name="industries" value="${i.id}" ${isSelected ? 'checked' : ''}>
+        <span>${i.name}</span>
+      `;
+      industriesContainer.appendChild(label);
+    });
+  }
+  
+  document.getElementById('mappingModal').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('mappingModal').style.display = 'none';
+  currentEditingId = null;
+}
+
+async function saveMapping(event) {
+  event.preventDefault();
+  
+  const equipmentId = document.getElementById('modalEquipmentId').value;
+  const familyCode = document.getElementById('modalFamily').value;
+  const industryCheckboxes = document.querySelectorAll('input[name="industries"]:checked');
+  const industryIds = Array.from(industryCheckboxes).map(cb => parseInt(cb.value));
+  
+  if (!familyCode) {
+    alert('Please select a family');
+    return;
+  }
+  
+  if (industryIds.length === 0) {
+    alert('Please select at least one industry');
+    return;
+  }
+  
+  try {
+    // Save family mapping
+    const familyResponse = await fetch('/api/admin/coverage/map-equipment-to-family', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({
+        equipment_type_id: parseInt(equipmentId),
+        family_code: familyCode,
+        change_reason: 'Updated via admin UI'
+      })
+    });
+    
+    // Save industry mappings (add each selected)
+    for (const industryId of industryIds) {
+      await fetch('/api/admin/coverage/map-equipment-to-industry', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          equipment_type_id: parseInt(equipmentId),
+          industry_id: industryId
+        })
+      });
+    }
+    
+    closeModal();
+    loadEquipment(currentPage);
+    
+  } catch (err) {
+    console.error('Failed to save mapping:', err);
+    alert('Failed to save mapping: ' + err.message);
+  }
+}
+
+// Initialize
+init();
+</script>
