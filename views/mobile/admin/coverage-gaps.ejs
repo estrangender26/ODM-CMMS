@@ -188,9 +188,7 @@ function getActionButton(gap) {
 }
 
 function updateSummary(summary) {
-  const total = currentGapType === 'all' 
-    ? summary.unmapped + summary.missing_industry + summary.missing_templates
-    : gaps.length;
+  const total = summary.total !== undefined ? summary.total : gaps.length;
   
   document.getElementById('totalGaps').textContent = total;
   

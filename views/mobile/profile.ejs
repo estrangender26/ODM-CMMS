@@ -9,14 +9,14 @@
         <%= user.initials %>
     </div>
     <div style="font-size: 20px; font-weight: 600; margin-bottom: 4px;"><%= user.name %></div>
-    <div style="font-size: 14px; color: var(--gray-600); margin-bottom: 8px;"><%= user.email %></div>
+    <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 8px;"><%= user.email %></div>
     <span class="status-badge" style="background: <%= user.role === 'admin' ? '#e3f2fd' : user.role === 'supervisor' ? '#f3e5f5' : '#e8f5e9' %>; color: <%= user.role === 'admin' ? '#1565c0' : user.role === 'supervisor' ? '#7b1fa2' : '#2e7d32' %>; text-transform: uppercase;">
         <%= user.role %>
     </span>
 </div>
 
 <!-- Organization -->
-<div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+<div class="card" style="background: linear-gradient(135deg, #78350f 0%, #92400e 50%, #b45309 100%); color: white;">
     <div style="display: flex; align-items: center; gap: 16px;">
         <% if (user.isPaid) { %>
             <!-- Paid: Show custom logo or upload placeholder -->
@@ -33,8 +33,11 @@
         <div style="flex: 1; min-width: 0;">
             <div style="font-size: 12px; opacity: 0.8; margin-bottom: 2px;">Organization</div>
             <div id="profileOrgName" style="font-size: 20px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><%= user.organization %></div>
-            <div id="profileOrgPlan" style="font-size: 13px; opacity: 0.9; margin-top: 4px;">
-                <span class="plan-badge" style="background: rgba(255,255,255,0.2); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; text-transform: uppercase;"><%= user.plan || 'Free' %></span>
+            <div style="font-size: 13px; opacity: 0.9; margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap;">
+                <span id="profileOrgPlan" class="plan-badge" style="background: rgba(255,255,255,0.2); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; text-transform: uppercase;"><%= user.plan || 'Free' %></span>
+                <% if (user.industry) { %>
+                <span id="profileOrgIndustry" class="plan-badge" style="background: rgba(255,255,255,0.15); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; text-transform: uppercase;"><%= user.industry %></span>
+                <% } %>
             </div>
         </div>
         <a href="/mobile/admin/organization" style="color: white; opacity: 0.8; text-decoration: none;">
@@ -60,7 +63,7 @@
 
 <!-- Admin Link (only for admins/supervisors) -->
 <% if (user.isAdmin) { %>
-<div class="card" style="background: linear-gradient(135deg, var(--primary) 0%, #1565c0 100%); color: white;">
+<div class="card" style="background: linear-gradient(135deg, #92400e 0%, #b45309 50%, var(--amber-500) 100%); color: white;">
     <div style="display: flex; align-items: center; justify-content: space-between;">
         <div>
             <div style="font-weight: 600; margin-bottom: 4px;">Administration</div>
@@ -79,15 +82,15 @@
     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; text-align: center;">
         <div>
             <div style="font-size: 24px; font-weight: 700; color: var(--primary);"><%= stats.completedThisMonth %></div>
-            <div style="font-size: 12px; color: var(--gray-600);">Completed</div>
+            <div style="font-size: 12px; color: var(--text-secondary);">Completed</div>
         </div>
         <div>
             <div style="font-size: 24px; font-weight: 700; color: var(--warning);"><%= stats.findingsThisMonth %></div>
-            <div style="font-size: 12px; color: var(--gray-600);">Findings</div>
+            <div style="font-size: 12px; color: var(--text-secondary);">Findings</div>
         </div>
         <div>
             <div style="font-size: 24px; font-weight: 700; color: var(--success);"><%= stats.onTimeRate %>%</div>
-            <div style="font-size: 12px; color: var(--gray-600);">On Time</div>
+            <div style="font-size: 12px; color: var(--text-secondary);">On Time</div>
         </div>
     </div>
 </div>
@@ -96,19 +99,19 @@
 <div class="card">
     <div class="card-title">Settings</div>
     <div style="margin-top: 12px;">
-        <button onclick="showNotificationSettings()" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--gray-200); text-decoration: none; color: var(--text); width: 100%; background: none; border: none; cursor: pointer; font-size: 16px;">
+        <button onclick="showNotificationSettings()" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border-light); text-decoration: none; color: var(--text-primary); width: 100%; background: none; border: none; cursor: pointer; font-size: 16px;">
             <span>🔔 Notifications</span>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="9 18 15 12 9 6"/>
             </svg>
         </button>
-        <button onclick="showChangePassword()" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--gray-200); text-decoration: none; color: var(--text); width: 100%; background: none; border: none; cursor: pointer; font-size: 16px;">
+        <button onclick="showChangePassword()" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border-light); text-decoration: none; color: var(--text-primary); width: 100%; background: none; border: none; cursor: pointer; font-size: 16px;">
             <span>🔒 Change Password</span>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="9 18 15 12 9 6"/>
             </svg>
         </button>
-        <button onclick="showHelpSupport()" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; text-decoration: none; color: var(--text); width: 100%; background: none; border: none; cursor: pointer; font-size: 16px;">
+        <button onclick="showHelpSupport()" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; text-decoration: none; color: var(--text-primary); width: 100%; background: none; border: none; cursor: pointer; font-size: 16px;">
             <span>❓ Help & Support</span>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="9 18 15 12 9 6"/>
@@ -122,7 +125,7 @@
     <div style="display: flex; align-items: center; justify-content: space-between;">
         <div>
             <div style="font-weight: 500; margin-bottom: 4px;">Sync Status</div>
-            <div style="font-size: 14px; color: var(--gray-600);">Last synced: <%= syncStatus.lastSync %></div>
+            <div style="font-size: 14px; color: var(--text-secondary);">Last synced: <%= syncStatus.lastSync %></div>
         </div>
         <div style="display: flex; align-items: center; gap: 8px; color: <%= syncStatus.isOnline ? 'var(--success)' : 'var(--danger)' %>;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -138,7 +141,7 @@
     Log Out
 </button>
 
-<div style="text-align: center; padding: 24px; font-size: 12px; color: var(--gray-600);">
+<div style="text-align: center; padding: 24px; font-size: 12px; color: var(--text-secondary);">
     ODM-CMMS v2.0.0
 </div>
 
@@ -153,6 +156,22 @@
             const nameEl = document.getElementById('profileOrgName');
             if (nameEl && org.organization_name) {
                 nameEl.textContent = org.organization_name;
+            }
+            
+            // Update industry badge
+            if (org.industry) {
+                let industryEl = document.getElementById('profileOrgIndustry');
+                if (!industryEl) {
+                    industryEl = document.createElement('span');
+                    industryEl.id = 'profileOrgIndustry';
+                    industryEl.className = 'plan-badge';
+                    industryEl.style.cssText = 'background: rgba(255,255,255,0.15); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; text-transform: uppercase;';
+                    const planEl = document.getElementById('profileOrgPlan');
+                    if (planEl && planEl.parentElement) {
+                        planEl.parentElement.appendChild(industryEl);
+                    }
+                }
+                industryEl.textContent = org.industry;
             }
             
             // Load logo for paid users

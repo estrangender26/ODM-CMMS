@@ -8,7 +8,7 @@
   <!-- Header -->
   <div class="page-header" style="margin-bottom: 20px;">
     <h1 style="font-size: 24px; font-weight: 600; margin: 0;">Manage Invitations</h1>
-    <p style="color: var(--gray-500); margin: 4px 0 0 0; font-size: 14px;">
+    <p style="color: var(--text-secondary); margin: 4px 0 0 0; font-size: 14px;">
       Invite users to join your organization
     </p>
   </div>
@@ -17,19 +17,19 @@
   <div class="stats-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px;">
     <div class="stat-card card" style="padding: 12px 8px; text-align: center;">
       <div class="stat-value" id="totalInvitations" style="font-size: 24px; font-weight: 700; color: var(--primary);">-</div>
-      <div class="stat-label" style="font-size: 11px; color: var(--gray-500);">Total</div>
+      <div class="stat-label" style="font-size: 11px; color: var(--text-secondary);">Total</div>
     </div>
     <div class="stat-card card" style="padding: 12px 8px; text-align: center;">
       <div class="stat-value" id="pendingInvitations" style="font-size: 24px; font-weight: 700; color: var(--warning);">-</div>
-      <div class="stat-label" style="font-size: 11px; color: var(--gray-500);">Pending</div>
+      <div class="stat-label" style="font-size: 11px; color: var(--text-secondary);">Pending</div>
     </div>
     <div class="stat-card card" style="padding: 12px 8px; text-align: center;">
       <div class="stat-value" id="acceptedInvitations" style="font-size: 24px; font-weight: 700; color: var(--success);">-</div>
-      <div class="stat-label" style="font-size: 11px; color: var(--gray-500);">Accepted</div>
+      <div class="stat-label" style="font-size: 11px; color: var(--text-secondary);">Accepted</div>
     </div>
     <div class="stat-card card" style="padding: 12px 8px; text-align: center;">
-      <div class="stat-value" id="availableSeats" style="font-size: 24px; font-weight: 700; color: var(--info);">-</div>
-      <div class="stat-label" style="font-size: 11px; color: var(--gray-500);">Seats Left</div>
+      <div class="stat-value" id="availableSeats" style="font-size: 24px; font-weight: 700; color: var(--primary-dark);">-</div>
+      <div class="stat-label" style="font-size: 11px; color: var(--text-secondary);">Seats Left</div>
     </div>
   </div>
 
@@ -40,7 +40,7 @@
 
   <!-- Invitations List -->
   <div id="invitationsList" class="invitations-list">
-    <div class="loading" style="text-align: center; padding: 40px; color: var(--gray-400);">
+    <div class="loading" style="text-align: center; padding: 40px; color: var(--text-muted);">
       Loading invitations...
     </div>
   </div>
@@ -48,7 +48,7 @@
 
 <!-- Invite Modal -->
 <div id="inviteModal" class="modal" style="display: none;">
-  <div class="modal-content" style="max-width: 400px; margin: 20px auto; background: white; border-radius: 12px; padding: 24px;">
+  <div class="modal-content" style="max-width: 400px; margin: 20px auto; background: var(--bg-elevated); border-radius: 12px; padding: 24px;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <h3 style="margin: 0; font-size: 18px;">Invite User</h3>
       <button onclick="closeInviteModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
@@ -62,7 +62,7 @@
           id="inviteEmail" 
           required
           placeholder="user@company.com"
-          style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 14px;"
+          style="width: 100%; padding: 12px; border: 1px solid var(--border-medium); border-radius: 8px; font-size: 14px;"
         >
       </div>
       
@@ -71,7 +71,7 @@
         <select 
           id="inviteRole" 
           required
-          style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 14px;"
+          style="width: 100%; padding: 12px; border: 1px solid var(--border-medium); border-radius: 8px; font-size: 14px;"
         >
           <option value="operator">Operator</option>
           <option value="supervisor">Supervisor</option>
@@ -89,7 +89,7 @@
 
 <!-- Invitation Link Modal -->
 <div id="linkModal" class="modal" style="display: none;">
-  <div class="modal-content" style="max-width: 400px; margin: 20px auto; background: white; border-radius: 12px; padding: 24px;">
+  <div class="modal-content" style="max-width: 400px; margin: 20px auto; background: var(--bg-elevated); border-radius: 12px; padding: 24px;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <h3 style="margin: 0; font-size: 18px;">Invitation Link</h3>
       <button onclick="closeLinkModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
@@ -150,7 +150,7 @@ function renderInvitations(invitations) {
   
   if (invitations.length === 0) {
     container.innerHTML = `
-      <div class="empty-state" style="text-align: center; padding: 60px 20px; color: var(--gray-500);">
+      <div class="empty-state" style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
         <div style="font-size: 48px; margin-bottom: 16px;">📧</div>
         <h3 style="margin: 0 0 8px 0; font-size: 16px;">No Invitations Yet</h3>
         <p style="margin: 0; font-size: 14px;">Invite users to join your organization</p>
@@ -175,7 +175,7 @@ function renderInvitations(invitations) {
       <div style="display: flex; justify-content: space-between; align-items: flex-start;">
         <div style="flex: 1; min-width: 0;">
           <div style="font-weight: 600; margin-bottom: 4px; word-break: break-all;">${inv.email}</div>
-          <div style="font-size: 13px; color: var(--gray-500);">
+          <div style="font-size: 13px; color: var(--text-secondary);">
             Role: <span style="text-transform: capitalize;">${inv.role}</span> • 
             Sent: ${formatDate(inv.created_at)}
           </div>

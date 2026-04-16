@@ -592,8 +592,9 @@ router.get('/profile', requireAuth, async (req, res) => {
   const user = req.user;
   const isAdmin = user.role === 'admin' || user.role === 'supervisor';
   
-  // Get organization name and subscription
+  // Get organization name, industry and subscription
   let orgName = 'Unknown Organization';
+  let orgIndustry = null;
   let planCode = 'free';
   let isPaid = false;
   let currentOrg = null;
@@ -603,6 +604,7 @@ router.get('/profile', requireAuth, async (req, res) => {
     currentOrg = await Organization.findById(user.organization_id);
     if (currentOrg) {
       orgName = currentOrg.organization_name;
+      orgIndustry = currentOrg.industry;
     }
     
     // Get subscription info
@@ -629,6 +631,7 @@ router.get('/profile', requireAuth, async (req, res) => {
       initials: (user.full_name || user.username).split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
       role: user.role,
       organization: orgName,
+      industry: orgIndustry,
       isAdmin: isAdmin,
       plan: planCode,
       isPaid: isPaid,

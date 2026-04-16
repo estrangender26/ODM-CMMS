@@ -27,7 +27,7 @@ const authenticate = async (req, res, next) => {
     
     // Get user from database with organization info
     const sql = `
-      SELECT u.*, o.organization_name
+      SELECT u.*, o.organization_name, o.industry
       FROM users u
       LEFT JOIN organizations o ON u.organization_id = o.id
       WHERE u.id = ?
@@ -60,7 +60,7 @@ const authenticate = async (req, res, next) => {
  * Check if user has admin role
  */
 const requireAdmin = (req, res, next) => {
-  if (!req.user || req.user.role !== 'admin') {
+  if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'supervisor')) {
     return res.status(403).json({ 
       success: false, 
       message: 'Admin access required' 
@@ -111,7 +111,7 @@ const optionalAuth = async (req, res, next) => {
       
       // Get user with organization info
       const sql = `
-        SELECT u.*, o.organization_name
+        SELECT u.*, o.organization_name, o.industry
         FROM users u
         LEFT JOIN organizations o ON u.organization_id = o.id
         WHERE u.id = ?

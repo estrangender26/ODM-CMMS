@@ -52,7 +52,7 @@ DELIMITER ;
 -- =====================================================
 
 INSERT INTO organizations (organization_name, subscription_plan, subscription_status, max_users, max_facilities, max_equipment)
-SELECT 'Default Organization', 'internal', 'active', 100, 20, 1000
+SELECT 'Demo Manufacturing Organization', 'internal', 'active', 100, 20, 1000
 WHERE NOT EXISTS (SELECT 1 FROM organizations LIMIT 1);
 
 -- Get the default organization ID

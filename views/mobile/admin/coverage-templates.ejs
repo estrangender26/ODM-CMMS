@@ -35,7 +35,10 @@
       </div>
       <div>
         <label style="font-size: 12px; font-weight: 500; color: var(--gray-600); display: block; margin-bottom: 6px;">Industry</label>
-        <select id="industryFilter" onchange="loadTemplates()" style="width: 100%; padding: 10px; border: 1px solid var(--gray-200); border-radius: 8px; font-size: 14px;">
+        <div id="industryBadge" style="display: none; width: 100%; padding: 10px; background: var(--primary); color: white; border-radius: 8px; font-size: 14px; font-weight: 500; text-align: center;">
+          All Industries
+        </div>
+        <select id="industryFilter" onchange="loadTemplates()" style="display: none; width: 100%; padding: 10px; border: 1px solid var(--gray-200); border-radius: 8px; font-size: 14px;">
           <option value="">All Industries</option>
         </select>
       </div>
@@ -111,14 +114,24 @@ async function loadFilterOptions() {
         familySelect.appendChild(option);
       });
       
-      // Populate industry filter
-      const industrySelect = document.getElementById('industryFilter');
-      filterOptions.industries.forEach(i => {
-        const option = document.createElement('option');
-        option.value = i.id;
-        option.textContent = i.name;
-        industrySelect.appendChild(option);
-      });
+      // Show industry badge if industry-locked
+      if (result.data.industry && result.data.industry.code) {
+        const badge = document.getElementById('industryBadge');
+        badge.textContent = result.data.industry.name || result.data.industry.code;
+        badge.style.display = 'block';
+        document.getElementById('industryFilter').style.display = 'none';
+      } else {
+        // Fallback: show industry dropdown
+        document.getElementById('industryBadge').style.display = 'none';
+        const industrySelect = document.getElementById('industryFilter');
+        industrySelect.style.display = 'block';
+        filterOptions.industries.forEach(i => {
+          const option = document.createElement('option');
+          option.value = i.id;
+          option.textContent = i.name;
+          industrySelect.appendChild(option);
+        });
+      }
       
       // Populate task kind filter
       const taskKindSelect = document.getElementById('taskKindFilter');
@@ -134,6 +147,23 @@ async function loadFilterOptions() {
   }
 }
 
+function populateEquipmentFilter(templates) {
+  const equipmentSelect = document.getElementById('equipmentFilter');
+  // Keep only the default option
+  equipmentSelect.innerHTML = '<option value="">All Equipment</option>';
+  
+  const seen = new Set();
+  templates.forEach(t => {
+    if (!seen.has(t.equipment_type_id)) {
+      seen.add(t.equipment_type_id);
+      const option = document.createElement('option');
+      option.value = t.equipment_type_id;
+      option.textContent = t.type_name;
+      equipmentSelect.appendChild(option);
+    }
+  });
+}
+
 async function loadTemplates(page = 1) {
   currentPage = page;
   
@@ -147,9 +177,8 @@ async function loadTemplates(page = 1) {
   const family = document.getElementById('familyFilter').value;
   if (family) params.append('family_code', family);
   
-  const industry = document.getElementById('industryFilter').value;
-  if (industry) params.append('industry_id', industry);
-  
+  // Industry is now enforced server-side from req.user.industry
+
   const taskKind = document.getElementById('taskKindFilter').value;
   if (taskKind) params.append('task_kind', taskKind);
   
@@ -163,6 +192,10 @@ async function loadTemplates(page = 1) {
     if (result.success) {
       renderTemplates(result.data.templates);
       renderPagination(result.data.pagination);
+      populateEquipmentFilter(result.data.templates);
+    } else {
+      document.getElementById('templatesList').innerHTML = 
+        '<div style="text-align: center; padding: 40px; color: var(--danger);">Failed to load templates: ' + (result.message || 'Unknown error') + '</div>';
     }
   } catch (err) {
     console.error('Failed to load templates:', err);
@@ -259,17 +292,115 @@ function renderPagination(pagination) {
   `;
 }
 
-function openTemplateModal(id) {
-  // In a real implementation, fetch template details
+async function openTemplateModal(id) {
   const content = document.getElementById('templateModalContent');
   content.innerHTML = `
     <div style="text-align: center; padding: 40px; color: var(--gray-400);">
-      <div style="font-size: 32px; margin-bottom: 12px;">📋</div>
-      <div>Template details would load here</div>
-      <div style="font-size: 13px; margin-top: 8px;">ID: ${id}</div>
+      <div style="font-size: 32px; margin-bottom: 12px;">⏳</div>
+      <div>Loading template details...</div>
     </div>
   `;
   document.getElementById('templateModal').style.display = 'flex';
+  
+  try {
+    const response = await fetch(`/api/task-templates/${id}`, { credentials: 'same-origin' });
+    const result = await response.json();
+    
+    if (!result.success || !result.data || !result.data.template) {
+      content.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: var(--danger);">
+          <div style="font-size: 32px; margin-bottom: 12px;">⚠️</div>
+          <div>Template not found</div>
+        </div>
+      `;
+      return;
+    }
+    
+    const t = result.data.template;
+    const steps = t.steps || [];
+    const safetyControls = t.safety_controls || [];
+    
+    const taskKindColors = {
+      'inspection': { bg: '#dbeafe', text: '#1e40af' },
+      'measurement': { bg: '#dcfce7', text: '#166534' },
+      'cleaning': { bg: '#fef3c7', text: '#92400e' },
+      'lubrication': { bg: '#fce7f3', text: '#9d174d' },
+      'adjustment': { bg: '#f3e8ff', text: '#6b21a8' },
+      'tightening': { bg: '#e0e7ff', text: '#3730a3' },
+      'testing': { bg: '#cffafe', text: '#155e75' },
+      'calibration': { bg: '#ecfccb', text: '#3f6212' },
+      'safety_check': { bg: '#fee2e2', text: '#991b1b' }
+    };
+    const color = taskKindColors[t.task_kind] || { bg: '#f3f4f6', text: '#374151' };
+    
+    const metaItems = [];
+    if (t.type_name) metaItems.push(`<span>📦 ${t.type_name}</span>`);
+    if (t.industry_name) metaItems.push(`<span>🏭 ${t.industry_name}</span>`);
+    if (t.category_name) metaItems.push(`<span>📂 ${t.category_name}</span>`);
+    if (t.estimated_duration_minutes) metaItems.push(`<span>⏱️ ${t.estimated_duration_minutes} min</span>`);
+    if (t.frequency_value && t.frequency_unit) metaItems.push(`<span>🔄 ${t.frequency_value} ${t.frequency_unit}</span>`);
+    
+    content.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+        <div>
+          <div style="font-weight: 600; font-size: 17px; color: var(--gray-900); margin-bottom: 4px;">${t.template_name}</div>
+          <div style="font-size: 12px; color: var(--gray-500);">${t.template_code}</div>
+        </div>
+        <span style="background: ${color.bg}; color: ${color.text}; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; text-transform: uppercase; white-space: nowrap;">
+          ${(t.task_kind || 'unknown').replace(/_/g, ' ')}
+        </span>
+      </div>
+      
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--gray-600); margin-bottom: 20px;">
+        ${metaItems.join('')}
+      </div>
+      
+      ${t.description ? `
+        <div style="background: var(--gray-50); padding: 12px; border-radius: 8px; font-size: 13px; color: var(--gray-700); margin-bottom: 20px;">
+          ${t.description}
+        </div>
+      ` : ''}
+      
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 13px; font-weight: 600; color: var(--gray-800); margin-bottom: 10px;">Steps (${steps.length})</div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          ${steps.length === 0 ? '<div style="font-size: 13px; color: var(--gray-500);">No steps defined</div>' : steps.map((s, idx) => `
+            <div style="background: var(--gray-50); padding: 12px; border-radius: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                <span style="background: var(--primary); color: white; font-size: 11px; font-weight: 600; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">${s.step_no}</span>
+                <span style="font-size: 12px; font-weight: 500; color: var(--gray-700); text-transform: uppercase;">${(s.step_type || 'step').replace(/_/g, ' ')}</span>
+                ${s.is_required ? '<span style="font-size: 11px; color: var(--danger);">*</span>' : ''}
+                ${s.is_visual_only ? '<span style="font-size: 11px; color: var(--gray-500);">👁 Visual</span>' : ''}
+              </div>
+              <div style="font-size: 13px; color: var(--gray-800); margin-left: 28px;">${s.instruction}</div>
+              ${s.safety_note ? `<div style="font-size: 12px; color: var(--warning); margin-left: 28px; margin-top: 6px;">⚠️ ${s.safety_note}</div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      
+      ${safetyControls.length > 0 ? `
+        <div style="margin-top: 16px;">
+          <div style="font-size: 13px; font-weight: 600; color: var(--gray-800); margin-bottom: 10px;">Safety Controls</div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            ${safetyControls.map(sc => `
+              <div style="background: #fff7ed; border: 1px solid #ffedd5; padding: 10px; border-radius: 8px; font-size: 12px; color: #9a3412;">
+                ${sc.control_name || sc.control_description || 'Safety control'}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+    `;
+  } catch (err) {
+    console.error('Failed to load template details:', err);
+    content.innerHTML = `
+      <div style="text-align: center; padding: 40px; color: var(--danger);">
+        <div style="font-size: 32px; margin-bottom: 12px;">⚠️</div>
+        <div>Failed to load template details</div>
+      </div>
+    `;
+  }
 }
 
 function closeTemplateModal() {

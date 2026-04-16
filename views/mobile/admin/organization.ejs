@@ -5,9 +5,9 @@
   <div class="card-title">Organization Information</div>
   
   <!-- Logo Upload Section (Paid only) -->
-  <div id="logoSection" style="display: none; margin-bottom: 20px; padding: 20px; background: var(--gray-100); border-radius: 8px; text-align: center;">
-    <div style="font-size: 14px; font-weight: 500; margin-bottom: 12px; color: var(--gray-700);">Organization Logo</div>
-    <div id="logoPreview" style="width: 100px; height: 100px; margin: 0 auto 12px; background: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px dashed var(--gray-300);">
+  <div id="logoSection" style="display: none; margin-bottom: 20px; padding: 20px; background: var(--bg-secondary); border-radius: 8px; text-align: center;">
+    <div style="font-size: 14px; font-weight: 500; margin-bottom: 12px; color: var(--text-secondary);">Organization Logo</div>
+    <div id="logoPreview" style="width: 100px; height: 100px; margin: 0 auto 12px; background: var(--bg-elevated); border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px dashed var(--border-medium);">
       <img id="orgLogoImg" src="" alt="Logo" style="width: 100%; height: 100%; object-fit: cover; display: none;">
       <span id="logoPlaceholder" style="font-size: 40px;">🏭</span>
     </div>
@@ -15,12 +15,12 @@
     <button type="button" class="btn btn-outline" onclick="document.getElementById('logoInput').click()">
       📷 Upload Logo
     </button>
-    <div style="font-size: 12px; color: var(--gray-500); margin-top: 8px;">Max 2MB (JPG, PNG)</div>
+    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Max 2MB (JPG, PNG)</div>
   </div>
   
   <!-- Free Plan Logo Notice -->
-  <div id="logoFreeNotice" style="margin-bottom: 20px; padding: 16px; background: var(--gray-100); border-radius: 8px; text-align: center;">
-    <div style="font-size: 14px; color: var(--gray-600);">
+  <div id="logoFreeNotice" style="margin-bottom: 20px; padding: 16px; background: var(--bg-secondary); border-radius: 8px; text-align: center;">
+    <div style="font-size: 14px; color: var(--text-secondary);">
       🏭 <strong>Free Plan:</strong> Upgrade to Professional or Enterprise to upload your organization logo
     </div>
     <a href="/mobile/admin/subscription" class="btn btn-primary btn-full" style="margin-top: 12px;">
@@ -30,29 +30,29 @@
   
   <div id="orgForm">
     <div style="margin-bottom: 16px;">
-      <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Organization Name</label>
+      <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary);">Organization Name</label>
       <input type="text" id="orgName" 
-             style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+             style="width: 100%; padding: 12px; border: 1px solid var(--border-medium); border-radius: 8px; font-size: 16px;">
     </div>
     
     <div style="margin-bottom: 16px;">
-      <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Industry</label>
+      <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary);">Industry</label>
       <select id="industryCode" 
-              style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px; background: white;">
+              style="width: 100%; padding: 12px; border: 1px solid var(--border-medium); border-radius: 8px; font-size: 16px; background: var(--bg-elevated);">
         <option value="">Select Industry</option>
       </select>
     </div>
     
     <div style="margin-bottom: 16px;">
-      <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Billing Email</label>
+      <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary);">Billing Email</label>
       <input type="email" id="billingEmail"
-             style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+             style="width: 100%; padding: 12px; border: 1px solid var(--border-medium); border-radius: 8px; font-size: 16px;">
     </div>
     
     <div style="margin-bottom: 20px;">
-      <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--gray-700);">Phone</label>
+      <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary);">Phone</label>
       <input type="tel" id="orgPhone"
-             style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 16px;">
+             style="width: 100%; padding: 12px; border: 1px solid var(--border-medium); border-radius: 8px; font-size: 16px;">
     </div>
     
     <div id="orgError" style="color: var(--danger); margin-bottom: 16px; font-size: 14px; display: none;"></div>
@@ -69,7 +69,7 @@
   <div class="card-title">Usage & Limits</div>
   
   <div id="usageStats" style="display: flex; flex-direction: column; gap: 20px;">
-    <div class="loading-state" style="text-align: center; padding: 20px; color: var(--gray-600);">
+    <div class="loading-state" style="text-align: center; padding: 20px; color: var(--text-secondary);">
       Loading usage stats...
     </div>
   </div>
@@ -80,7 +80,7 @@
   <div class="card-title">Subscription</div>
   
   <div id="subscriptionInfo">
-    <div class="loading-state" style="text-align: center; padding: 20px; color: var(--gray-600);">
+    <div class="loading-state" style="text-align: center; padding: 20px; color: var(--text-secondary);">
       Loading subscription...
     </div>
   </div>
@@ -94,7 +94,7 @@
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <div>
         <div style="font-weight: 500;">Deactivate Organization</div>
-        <div style="font-size: 13px; color: var(--gray-600);">Temporarily disable all access</div>
+        <div style="font-size: 13px; color: var(--text-secondary);">Temporarily disable all access</div>
       </div>
       <button class="btn btn-outline" style="color: var(--danger); border-color: var(--danger);" onclick="deactivateOrg()">
         Deactivate
@@ -121,7 +121,7 @@
 }
 .usage-value {
   font-size: 13px;
-  color: var(--gray-600);
+  color: var(--text-secondary);
   font-weight: 500;
 }
 .usage-bar {
@@ -311,7 +311,7 @@ async function loadUsageStats() {
     } else {
       // Show default empty state
       document.getElementById('usageStats').innerHTML = `
-        <div style="text-align: center; color: var(--gray-600); padding: 20px;">
+        <div style="text-align: center; color: var(--text-secondary); padding: 20px;">
           No usage data available
         </div>
       `;
@@ -319,7 +319,7 @@ async function loadUsageStats() {
   } catch (err) {
     console.error('Failed to load usage stats:', err);
     document.getElementById('usageStats').innerHTML = `
-      <div style="text-align: center; color: var(--gray-600); padding: 20px;">
+      <div style="text-align: center; color: var(--text-secondary); padding: 20px;">
         No usage data available
       </div>
     `;
@@ -355,7 +355,7 @@ async function loadSubscription() {
       document.getElementById('subscriptionInfo').innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <div>
-            <div style="font-size: 13px; color: var(--gray-600); margin-bottom: 4px;">Current Plan</div>
+            <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">Current Plan</div>
             <div style="font-size: 20px; font-weight: 600;">${plan.name}</div>
           </div>
           <span class="plan-badge ${planClass}">${(plan.code || 'FREE').toUpperCase()}</span>
@@ -363,29 +363,29 @@ async function loadSubscription() {
         
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <div>
-            <div style="font-size: 13px; color: var(--gray-600); margin-bottom: 4px;">Status</div>
+            <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">Status</div>
             <span class="status-badge ${statusClass}">${subscription.status}</span>
           </div>
           <div style="text-align: right;">
-            <div style="font-size: 13px; color: var(--gray-600); margin-bottom: 4px;">Renews</div>
+            <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">Renews</div>
             <div>${formatDate(subscription.currentPeriodEnd)}</div>
           </div>
         </div>
         
-        <div style="background: var(--gray-100); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
-          <div style="font-size: 13px; color: var(--gray-600); margin-bottom: 8px;">Plan Includes</div>
+        <div style="background: var(--bg-secondary); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+          <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">Plan Includes</div>
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; text-align: center;">
             <div>
               <div style="font-size: 20px; font-weight: 600;">${plan.max_users || '∞'}</div>
-              <div style="font-size: 12px; color: var(--gray-600);">Users</div>
+              <div style="font-size: 12px; color: var(--text-secondary);">Users</div>
             </div>
             <div>
               <div style="font-size: 20px; font-weight: 600;">${plan.max_facilities || '∞'}</div>
-              <div style="font-size: 12px; color: var(--gray-600);">Facilities</div>
+              <div style="font-size: 12px; color: var(--text-secondary);">Facilities</div>
             </div>
             <div>
               <div style="font-size: 20px; font-weight: 600;">${plan.max_equipment || '∞'}</div>
-              <div style="font-size: 12px; color: var(--gray-600);">Equipment</div>
+              <div style="font-size: 12px; color: var(--text-secondary);">Equipment</div>
             </div>
           </div>
         </div>
@@ -396,7 +396,7 @@ async function loadSubscription() {
       `;
     } else {
       document.getElementById('subscriptionInfo').innerHTML = `
-        <div style="text-align: center; color: var(--gray-600);">
+        <div style="text-align: center; color: var(--text-secondary);">
           <div style="margin-bottom: 12px;">No active subscription</div>
           <a href="/mobile/admin/subscription" class="btn btn-primary btn-full" style="text-align: center; display: block; text-decoration: none;">
             View Plans
@@ -407,7 +407,7 @@ async function loadSubscription() {
   } catch (err) {
     console.error('Failed to load subscription:', err);
     document.getElementById('subscriptionInfo').innerHTML = `
-      <div style="text-align: center; color: var(--gray-600);">
+      <div style="text-align: center; color: var(--text-secondary);">
         <div style="margin-bottom: 12px;">No subscription data available</div>
         <a href="/mobile/admin/subscription" class="btn btn-primary btn-full" style="text-align: center; display: block; text-decoration: none;">
           View Plans

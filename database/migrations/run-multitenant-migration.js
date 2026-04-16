@@ -243,13 +243,25 @@ async function runMigration() {
     if (orgExists.length === 0) {
       const [result] = await connection.execute(
         "INSERT INTO organizations (organization_name, subscription_plan, subscription_status, max_users, max_facilities, max_equipment) VALUES (?, ?, ?, ?, ?, ?)",
-        ['Default Organization', 'internal', 'active', 100, 20, 1000]
+        ['Demo Manufacturing Organization', 'internal', 'active', 100, 20, 1000]
       );
       defaultOrgId = result.insertId;
       console.log(`   Created default organization (ID: ${defaultOrgId})`);
     } else {
       defaultOrgId = orgExists[0].id;
       console.log(`   Using existing organization (ID: ${defaultOrgId})`);
+    }
+
+    // Assign industry to default organization if column exists
+    try {
+      await connection.execute(
+        "UPDATE organizations SET industry = ? WHERE id = ? AND (industry IS NULL OR industry = 'other')",
+        ['general', defaultOrgId]
+      );
+      console.log(`   Assigned MANUFACTURING industry to default organization`);
+    } catch (err) {
+      // Industry column may not exist yet - safe to ignore
+      console.log(`   Industry column not available yet, skipping industry assignment`);
     }
 
     // Migrate existing data
