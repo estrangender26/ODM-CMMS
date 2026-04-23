@@ -128,8 +128,9 @@
                 // Group equipment by type
                 const equipmentByType = {};
                 equipment.forEach(function(e) {
-                    if (!equipmentByType[e.type]) equipmentByType[e.type] = [];
-                    equipmentByType[e.type].push(e);
+                    const typeName = e.type || 'Unknown';
+                    if (!equipmentByType[typeName]) equipmentByType[typeName] = [];
+                    equipmentByType[typeName].push(e);
                 });
                 %>
                 
@@ -139,7 +140,7 @@
                         <%= type %>
                     </div>
                     <% equipmentByType[type].forEach(function(e) { %>
-                    <div class="equipment-item" data-name="<%= e.name.toLowerCase() %>" data-code="<%= e.code.toLowerCase() %>" data-type="<%= e.type.toLowerCase() %>"
+                    <div class="equipment-item" data-name="<%= (e.name || '').toLowerCase() %>" data-code="<%= (e.code || '').toLowerCase() %>" data-type="<%= (e.type || 'unknown').toLowerCase() %>"
                         onclick="selectEquipment('<%= e.id %>', '<%= e.name.replace(/'/g, "\\'") %>', '<%= e.code %>')"
                         style="padding: 12px; border-bottom: 1px solid var(--gray-200); cursor: pointer; <%= plan.equipment_id == e.id ? 'background: #e3f2fd;' : 'background: white;' %> hover: background: var(--gray-100); transition: background 0.2s;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">

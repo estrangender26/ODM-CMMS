@@ -34,6 +34,7 @@ const staticOptions = process.env.NODE_ENV === 'production'
   ? { maxAge: '1d' } 
   : { maxAge: 0, etag: false };
 app.use(express.static(path.join(__dirname, '../public'), staticOptions));
+app.use('/import-templates', express.static(path.join(__dirname, '../import-templates')));
 
 // Disable caching for HTML/EJS views in development
 app.use((req, res, next) => {
@@ -137,6 +138,15 @@ app.get('/admin/schedules', requireAdminWeb, (req, res) => res.redirect('/mobile
 app.get('/admin/reports', requireAdminWeb, (req, res) => res.redirect('/mobile/dashboard'));
 app.get('/admin/facilities', requireAdminWeb, (req, res) => res.redirect('/mobile/admin/facilities'));
 app.get('/admin/users', requireAdminWeb, (req, res) => res.redirect('/mobile/admin'));
+
+// Health check alias (not just under /api)
+app.get('/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'API is running',
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Favicon handler - prevents 404 errors from browser requests
 app.get('/favicon.ico', (req, res) => res.status(204).end());

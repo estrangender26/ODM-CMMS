@@ -1,19 +1,19 @@
 organization_id,facility_name,asset_name,equipment_type_code,asset_description,manufacturer,model,serial_number,commission_date,criticality
-ORG-001,North Plant,Pump P-101,CENTRIFUGAL_PUMP,Process cooling water pump,Grundfos,CR 32-160-2,SN123456,2020-01-15,high
-ORG-001,North Plant,Pump P-102,CENTRIFUGAL_PUMP,Secondary circulation pump,Grundfos,CR 32-160-1,SN123457,2020-01-15,medium
-ORG-001,North Plant,Motor M-201,TEFC_MOTOR,Main drive motor 75kW,ABB,M3BP 160MLA 4,SN789012,2019-06-20,high
-ORG-001,North Plant,Motor M-202,TEFC_MOTOR,Auxiliary motor 15kW,ABB,M3BP 132SMB 4,SN789013,2019-06-20,medium
-ORG-001,North Plant,Compressor C-101,RECIP_COMPRESSOR,Air compressor 75kW,Atlas Copco,GA 75+,SN345678,2021-03-10,high
-ORG-001,North Plant,Heat Exchanger HX-101,SHELL_TUBE_HE,Primary process heater,Alfa Laval,TL10-BFG,SN901234,2018-11-05,high
-ORG-001,North Plant,Pressure Gauge PG-101,BOURDON_GAUGE,Suction pressure gauge,WIKA,232.50.100,SN111222,2022-01-10,low
-ORG-001,North Plant,Control Valve CV-101,GLOBE_VALVE,Steam control valve,Fisher,ED 667,SN333444,2019-08-15,high
-ORG-001,South Plant,Pump P-201,CENTRIFUGAL_PUMP,Transfer pump,Sulzer,APL 32-160,SN555666,2020-05-20,medium
-ORG-001,South Plant,Motor M-301,TEFC_MOTOR,Drive motor 45kW,Siemens,1LE1503-1DA,SN777888,2021-02-14,medium
-ORG-001,South Plant,Fan F-101,AXIAL_FAN,Cooling tower fan,Howden,VARIAX AF-1600,SN999000,2019-09-30,medium
-ORG-001,South Plant,Vibration Sensor VS-101,ACCEL_SENSOR,Bearing monitoring,SKF,CMSS 2200,SN121314,2023-03-15,high
-ORG-001,South Plant,Temperature Switch TS-101,BIMETAL_SWITCH,High temp alarm,ASHCROFT,T4T 100,SN151617,2022-07-22,medium
-ORG-001,East Wing,Centrifuge CF-101,DECANTER_CENTRIFUGE,Sludge dewatering,Flottweg,Z4E-3/441,SN181920,2020-11-08,high
-ORG-001,East Wing,Conveyor CN-101,BELT_CONVEYOR,Material transport,Beumer,CB 1200,SN212223,2021-04-12,medium
-ORG-001,East Wing,Dust Collector DC-101,BAGHOUSE_FILTER,Dust filtration,Donaldson,Dalamatic DLMV,SN242526,2019-12-01,high
-ORG-001,East Wing,Agitator AG-101,SIDE_ENTRY_AGITATOR,Mixing tank 101,Ekato,FLUID-B,SN272829,2020-08-18,medium
-ORG-001,East Wing,Flow Meter FM-101,ELECTROMAG_FLOW,Water flow measurement,Endress+Hauser,Promag 53P,SN303132,2021-06-25,low
+ORG-001,North Plant,Pump P-101,END_SUCT,Process cooling water pump,Grundfos,CR 32-160-2,SN123456,2020-01-15,high
+ORG-001,North Plant,Pump P-102,SPLIT_CASE,Secondary circulation pump,Grundfos,CR 32-160-1,SN123457,2020-01-15,medium
+ORG-001,North Plant,Motor M-201,TEFC,Main drive motor 75kW,ABB,M3BP 160MLA 4,SN789012,2019-06-20,high
+ORG-001,North Plant,Motor M-202,ODP,Auxiliary motor 15kW,ABB,M3BP 132SMB 4,SN789013,2019-06-20,medium
+ORG-001,North Plant,Compressor C-101,OIL_INJ,Air compressor 75kW,Atlas Copco,GA 75+,SN345678,2021-03-10,high
+ORG-001,North Plant,Heat Exchanger HX-101,SHELL_TUBE_OG,Primary process heater,Alfa Laval,TL10-BFG,SN901234,2018-11-05,high
+ORG-001,North Plant,Pressure Gauge PG-101,GAUGE,Suction pressure gauge,WIKA,232.50.100,SN111222,2022-01-10,low
+ORG-001,North Plant,Control Valve CV-101,RISING_ST,Steam control valve,Fisher,ED 667,SN333444,2019-08-15,high
+ORG-001,South Plant,Pump P-201,MULTISTG,Transfer pump,Sulzer,APL 32-160,SN555666,2020-05-20,medium
+ORG-001,South Plant,Motor M-301,EXPL_PR,Drive motor 45kW,Siemens,1LE1503-1DA,SN777888,2021-02-14,medium
+ORG-001,South Plant,Blower B-101,SINGLE,Cooling tower blower,Howden,VARIAX AF-1600,SN999000,2019-09-30,medium
+ORG-001,South Plant,Level Transmitter LT-101,RADAR,Tank level monitoring,Endress+Hauser,Micropilot FMR50,SN121314,2023-03-15,high
+ORG-001,South Plant,Temperature Sensor TS-101,RTD,High temp alarm,ASHCROFT,T4T 100,SN151617,2022-07-22,medium
+ORG-001,East Wing,Centrifuge CF-101,DECANT_CENT,Sludge dewatering,Flottweg,Z4E-3/441,SN181920,2020-11-08,high
+ORG-001,East Wing,Conveyor CN-101,OVL_CONV,Material transport,Beumer,CB 1200,SN212223,2021-04-12,medium
+ORG-001,East Wing,Dust Collector DC-101,BAGHOUSE,Dust filtration,Donaldson,Dalamatic DLMV,SN242526,2019-12-01,high
+ORG-001,East Wing,Agitator AG-101,AGIT_VESSEL,Mixing tank 101,Ekato,FLUID-B,SN272829,2020-08-18,medium
+ORG-001,East Wing,Flow Meter FM-101,ELEC_MAG,Water flow measurement,Endress+Hauser,Promag 53P,SN303132,2021-06-25,low

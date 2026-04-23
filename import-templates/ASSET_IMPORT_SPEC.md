@@ -26,9 +26,9 @@ Structured CSV import for facilities and assets with automatic template inherita
 ## CSV Format
 ```csv
 organization_id,facility_name,asset_name,equipment_type_code,asset_description,manufacturer,model,serial_number,commission_date,criticality
-ORG-001,North Plant,Pump P-101,CENTRIFUGAL_PUMP,Process cooling pump,Grundfos,CR 32-160,SN123456,2020-01-15,high
-ORG-001,North Plant,Motor M-205,TEFC_MOTOR,Main drive motor,ABB,M3BP 160L,SN789012,2019-06-20,medium
-ORG-001,South Plant,Compressor C-01,RECIP_COMPRESSOR,Air compressor,Atlas Copco,GA 75,SN345678,2021-03-10,high
+ORG-001,North Plant,Pump P-101,END_SUCT,Process cooling pump,Grundfos,CR 32-160,SN123456,2020-01-15,high
+ORG-001,North Plant,Motor M-205,TEFC,Main drive motor,ABB,M3BP 160L,SN789012,2019-06-20,medium
+ORG-001,South Plant,Compressor C-01,OIL_INJ,Air compressor,Atlas Copco,GA 75,SN345678,2021-03-10,high
 ```
 
 ## Field Validation Rules
@@ -54,7 +54,7 @@ ORG-001,South Plant,Compressor C-01,RECIP_COMPRESSOR,Air compressor,Atlas Copco,
 - Must exist in ISO 14224 master taxonomy
 - Case-insensitive match
 - Error if not found: "Equipment type '{code}' not in taxonomy"
-- Examples: CENTRIFUGAL_PUMP, TEFC_MOTOR, RECIP_COMPRESSOR
+- Examples: END_SUCT, TEFC, OIL_INJ, ELEC_MAG, GAUGE, BAGHOUSE
 
 ### commission_date
 - Format: YYYY-MM-DD

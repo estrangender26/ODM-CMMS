@@ -3,6 +3,12 @@
 <% showNav = false %>
 <% activeNav = '' %>
 
+<!-- Organization Header -->
+<div style="margin-bottom: 16px; padding: 12px 16px; background: var(--primary-light); border-radius: 12px; border-left: 4px solid var(--primary);">
+    <div style="font-size: 12px; color: var(--primary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Organization</div>
+    <div style="font-size: 16px; font-weight: 600; color: var(--text-primary);"><%= organizationName || 'Your Organization' %></div>
+</div>
+
 <!-- Action Buttons -->
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
     <button class="btn btn-secondary btn-full" onclick="location.href='/mobile/qr-labels'">
@@ -15,32 +21,32 @@
 
 <!-- Search -->
 <div style="margin-bottom: 16px;">
-    <input type="text" placeholder="Search assets..." style="width: 100%; height: 48px; padding: 0 16px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 12px;">
+    <input type="text" id="assetSearch" placeholder="Search assets..." oninput="filterAssets(this.value)" style="width: 100%; height: 48px; padding: 0 16px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 12px;">
 </div>
 
 <!-- Assets List -->
-<div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--gray-200);">
-        <div>
-            <div style="font-weight: 600;">Pump P-101</div>
-            <div style="font-size: 13px; color: var(--gray-600);">Centrifugal Pump • North Plant</div>
+<div id="assetsList">
+<% if (assets && assets.length > 0) { %>
+    <div class="card">
+    <% assets.forEach(function(asset, index) { %>
+        <div class="asset-item" data-name="<%= (asset.name || '').toLowerCase() %>" data-code="<%= (asset.code || '').toLowerCase() %>" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; <%= index < assets.length - 1 ? 'border-bottom: 1px solid var(--gray-200);' : '' %>">
+            <div style="min-width: 0;">
+                <div style="font-weight: 600;"><%= asset.name %></div>
+                <div style="font-size: 13px; color: var(--gray-600);"><%= asset.type_name || asset.equipment_type || 'Unknown Type' %> • <%= asset.facility_name || 'Unknown Facility' %></div>
+            </div>
+            <span class="status-badge <%= asset.status === 'operational' ? 'status-released' : (asset.status === 'maintenance' ? 'status-hold' : 'status-open') %>">
+                <%= asset.status ? asset.status.replace('_', ' ') : 'Active' %>
+            </span>
         </div>
-        <span class="status-badge status-released">Active</span>
+    <% }); %>
     </div>
-    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--gray-200);">
-        <div>
-            <div style="font-weight: 600;">Motor M-205</div>
-            <div style="font-size: 13px; color: var(--gray-600);">Electric Motor • South Plant</div>
-        </div>
-        <span class="status-badge status-released">Active</span>
+<% } else { %>
+    <div style="text-align: center; padding: 48px 20px; color: var(--gray-500);">
+        <div style="font-size: 48px; margin-bottom: 16px;">🔧</div>
+        <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">No assets yet</div>
+        <div style="font-size: 14px;">Register your first asset to get started</div>
     </div>
-    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0;">
-        <div>
-            <div style="font-weight: 600;">Heat Exchanger HX-301</div>
-            <div style="font-size: 13px; color: var(--gray-600);">Shell and Tube • North Plant</div>
-        </div>
-        <span class="status-badge status-released">Active</span>
-    </div>
+<% } %>
 </div>
 
 <!-- Add Asset Modal -->
@@ -61,7 +67,7 @@
             <select id="equipmentType" style="width: 100%; height: 48px; padding: 0 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px; background: white;">
                 <option value="">Select Equipment Type</option>
                 <% equipmentTypes.forEach(function(type) { %>
-                <option value="<%= type.id %>"><%= type.name %></option>
+                <option value="<%= type.id %>"><%= type.type_name || type.name %> (<%= type.class_name %>)</option>
                 <% }); %>
             </select>
         </div>
@@ -77,7 +83,7 @@
         </div>
         
         <div style="margin-bottom: 20px;">
-            <label style="display: block; font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">QR Code</label>
+            <label style="display: block; font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">Asset Code</label>
             <div style="display: flex; gap: 8px;">
                 <input type="text" id="qrCode" placeholder="Auto-generated or manual" style="flex: 1; height: 48px; padding: 0 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px;">
                 <button class="btn btn-outline" style="min-width: auto; padding: 0 16px; height: 48px;" onclick="generateQR()">Generate</button>
@@ -86,7 +92,7 @@
         
         <div style="display: flex; gap: 12px;">
             <button class="btn btn-outline" style="flex: 1;" onclick="hideAddAsset()">Cancel</button>
-            <button class="btn btn-primary" style="flex: 1;" onclick="saveAsset()">Save</button>
+            <button class="btn btn-primary" style="flex: 1;" onclick="saveAsset()" id="saveAssetBtn">Save</button>
         </div>
     </div>
 </div>
@@ -106,18 +112,58 @@ function generateQR() {
     document.getElementById('qrCode').value = prefix + random;
 }
 
-function saveAsset() {
-    // Validation
-    const name = document.getElementById('assetName').value;
-    const type = document.getElementById('equipmentType').value;
-    const facility = document.getElementById('facility').value;
+function filterAssets(query) {
+    const term = query.toLowerCase();
+    document.querySelectorAll('.asset-item').forEach(item => {
+        const name = item.getAttribute('data-name') || '';
+        const code = item.getAttribute('data-code') || '';
+        item.style.display = (name.includes(term) || code.includes(term)) ? 'flex' : 'none';
+    });
+}
+
+async function saveAsset() {
+    const name = document.getElementById('assetName').value.trim();
+    const equipmentTypeId = document.getElementById('equipmentType').value;
+    const facilityId = document.getElementById('facility').value;
+    const code = document.getElementById('qrCode').value.trim();
+    const btn = document.getElementById('saveAssetBtn');
     
-    if (!name || !type || !facility) {
+    if (!name || !equipmentTypeId || !facilityId) {
         alert('Please fill in all required fields');
         return;
     }
     
-    hideAddAsset();
-    // Save logic here
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    
+    try {
+        const response = await fetch('/api/equipment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                name,
+                code: code || undefined,
+                facility_id: parseInt(facilityId),
+                equipment_type_id: parseInt(equipmentTypeId),
+                status: 'operational'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            hideAddAsset();
+            location.reload();
+        } else {
+            alert('Error: ' + (result.message || 'Failed to create asset'));
+            btn.disabled = false;
+            btn.textContent = 'Save';
+        }
+    } catch (err) {
+        alert('Network error: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Save';
+    }
 }
 </script>

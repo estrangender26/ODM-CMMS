@@ -6,7 +6,7 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
-const pool = mysql.createPool({
+const createPool = () => mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT) || 3306,
   database: process.env.DB_NAME || 'odm_cmms',
@@ -18,6 +18,8 @@ const pool = mysql.createPool({
   enableKeepAlive: true,
   keepAliveInitialDelay: 0
 });
+
+const pool = createPool();
 
 // Test connection
 const testConnection = async () => {
@@ -42,6 +44,7 @@ const getDb = () => ({
 
 module.exports = {
   pool,
+  createPool,
   testConnection,
   getDb
 };

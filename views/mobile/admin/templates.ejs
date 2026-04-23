@@ -227,10 +227,11 @@ function filterByCategory(category) {
 function filterByCategoryDesktop(category) {
     const navItems = document.querySelectorAll('.category-nav-item');
     const sections = document.querySelectorAll('.category-section-desktop');
-    
+    const normalizedCategory = category === 'all' ? 'all' : category.replace(/[^a-zA-Z0-9]/g, '-');
+
     // Update nav styles
     navItems.forEach(item => {
-        if (item.dataset.category === category || (category === 'all' && item.dataset.category === 'all')) {
+        if (item.dataset.category === normalizedCategory) {
             item.style.background = '#e3f2fd';
             item.style.borderLeftColor = 'var(--primary)';
             item.style.color = 'var(--gray-900)';
@@ -240,10 +241,10 @@ function filterByCategoryDesktop(category) {
             item.style.color = 'var(--gray-700)';
         }
     });
-    
+
     // Show/hide sections
     sections.forEach(section => {
-        if (category === 'all' || section.dataset.category === category.replace(/[^a-zA-Z0-9]/g, '-')) {
+        if (category === 'all' || section.dataset.category === normalizedCategory) {
             section.style.display = 'block';
         } else {
             section.style.display = 'none';

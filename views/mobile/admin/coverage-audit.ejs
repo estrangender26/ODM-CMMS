@@ -115,6 +115,9 @@ async function loadAuditLog(page = 1) {
     if (result.success) {
       renderAuditLog(result.data.logs);
       renderPagination(result.data.pagination);
+    } else {
+      document.getElementById('auditList').innerHTML = 
+        `<div style="text-align: center; padding: 40px; color: var(--danger);">${result.message || 'Failed to load audit log'}</div>`;
     }
   } catch (err) {
     console.error('Failed to load audit log:', err);

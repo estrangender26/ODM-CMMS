@@ -127,9 +127,16 @@ function renderGaps(gaps) {
     'missing_templates': { bg: '#e0f2fe', border: '#0ea5e9', text: '#075985' }
   };
   
+  const criticalityColors = {
+    'A': { bg: '#fee2e2', text: '#991b1b' },
+    'B': { bg: '#fef9c3', text: '#854d0e' },
+    'C': { bg: '#dcfce7', text: '#166534' }
+  };
+  
   container.innerHTML = gaps.map((gap, index) => {
     const colors = gapColors[gap.gap_type] || gapColors['unmapped'];
     const icon = gapIcons[gap.gap_type] || '⚠️';
+    const crit = criticalityColors[gap.criticality] || criticalityColors['B'];
     
     return `
       <div class="gap-card card" style="padding: 16px; border-left: 4px solid ${colors.border}; background: ${colors.bg}20;">
@@ -143,14 +150,19 @@ function renderGaps(gaps) {
               ${gap.type_code} • ${gap.class_name}
             </div>
           </div>
-          <span style="background: ${colors.bg}; color: ${colors.text}; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; text-transform: uppercase;">
-            ${gap.gap_type.replace(/_/g, ' ')}
-          </span>
+          <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-end;">
+            <span style="background: ${colors.bg}; color: ${colors.text}; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; text-transform: uppercase;">
+              ${gap.gap_type.replace(/_/g, ' ')}
+            </span>
+            <span style="background: ${crit.bg}; color: ${crit.text}; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 500;">
+              ${gap.criticality || 'B'} rated
+            </span>
+          </div>
         </div>
         
         <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
           <div style="font-size: 12px; color: var(--gray-500); margin-bottom: 4px;">Action Required</div>
-          <div style="font-weight: 500; color: var(--gray-900);">${gap.action_required}</div>
+          <div style="font-weight: 500; color: var(--gray-900);">${gap.gap_reason}</div>
         </div>
         
         <div style="display: flex; gap: 8px;">

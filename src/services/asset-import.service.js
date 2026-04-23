@@ -5,7 +5,7 @@
 
 const fs = require('fs');
 const { Equipment, TaskTemplate } = require('../models');
-const db = require('../config/database');
+const { pool } = require('../config/database');
 
 class AssetImportService {
   constructor() {
@@ -163,7 +163,7 @@ class AssetImportService {
    */
   async validateOrganization(orgCode) {
     const sql = `SELECT id, code FROM organizations WHERE code = ? AND is_active = TRUE`;
-    const [org] = await db.query(sql, [orgCode.trim()]);
+    const [[org]] = await pool.query(sql, [orgCode.trim()]);
     
     if (!org) {
       throw new Error(`Organization '${orgCode}' not found or inactive`);
@@ -190,20 +190,32 @@ class AssetImportService {
       WHERE organization_id = ? 
         AND LOWER(name) = LOWER(?)
     `;
-    const [existing] = await db.query(sql, [organizationId, facilityName.trim()]);
+    const [[existing]] = await pool.query(sql, [organizationId, facilityName.trim()]);
     
     if (existing) {
       facilityCache.set(cacheKey, existing);
       return existing;
     }
     
-    // Create new facility
-    const facilityCode = this.generateFacilityCode(facilityName);
+    // Create new facility with unique code
+    let facilityCode = this.generateFacilityCode(facilityName);
+    
+    // Ensure code is unique within organization
+    const codeCheckSql = `SELECT COUNT(*) as count FROM facilities WHERE code = ? AND organization_id = ?`;
+    let [[codeCheck]] = await pool.query(codeCheckSql, [facilityCode, organizationId]);
+    let suffix = 1;
+    const baseCode = facilityCode;
+    while (codeCheck && codeCheck.count > 0) {
+      facilityCode = `${baseCode}_${suffix}`;
+      [[codeCheck]] = await pool.query(codeCheckSql, [facilityCode, organizationId]);
+      suffix++;
+    }
+    
     const insertSql = `
       INSERT INTO facilities (organization_id, name, code, status, created_by, created_at)
       VALUES (?, ?, ?, 'active', ?, NOW())
     `;
-    const result = await db.query(insertSql, [
+    const [result] = await pool.query(insertSql, [
       organizationId, 
       facilityName.trim(), 
       facilityCode,
@@ -233,7 +245,7 @@ class AssetImportService {
       FROM equipment_types 
       WHERE LOWER(type_code) = LOWER(?)
     `;
-    const [type] = await db.query(sql, [typeCode.trim()]);
+    const [[type]] = await pool.query(sql, [typeCode.trim()]);
     
     if (!type) {
       throw new Error(`Equipment type '${typeCode}' not found in ISO 14224 taxonomy`);
@@ -253,7 +265,7 @@ class AssetImportService {
         AND facility_id = ?
         AND LOWER(name) = LOWER(?)
     `;
-    const [existing] = await db.query(sql, [organizationId, facilityId, assetName.trim()]);
+    const [[existing]] = await pool.query(sql, [organizationId, facilityId, assetName.trim()]);
     
     if (existing) {
       throw new Error(`Asset '${assetName}' already exists in this facility`);
@@ -340,24 +352,35 @@ class AssetImportService {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
     
-    const result = await db.query(sql, [
-      assetData.organization_id,
-      assetData.facility_id,
-      assetData.name,
-      assetData.code,
-      assetData.equipment_type_id,
-      assetData.description,
-      assetData.manufacturer,
-      assetData.model,
-      assetData.serial_number,
-      assetData.install_date,
-      assetData.criticality,
-      assetData.status,
-      assetData.qr_code,
-      assetData.created_by
-    ]);
-    
-    return { ...assetData, id: result.insertId };
+    try {
+      const [result] = await pool.query(sql, [
+        assetData.organization_id,
+        assetData.facility_id,
+        assetData.name,
+        assetData.code,
+        assetData.equipment_type_id,
+        assetData.description,
+        assetData.manufacturer,
+        assetData.model,
+        assetData.serial_number,
+        assetData.install_date,
+        assetData.criticality,
+        assetData.status,
+        assetData.qr_code,
+        assetData.created_by
+      ]);
+      
+      return { ...assetData, id: result.insertId };
+    } catch (error) {
+      if (error.message && error.message.includes("Unknown column 'code'")) {
+        throw new Error(
+          "Database schema mismatch: the 'code' column is missing from the 'equipment' table. " +
+          "Please run migration 019_add_equipment_code_column.sql: " +
+          "mysql -u root -p odm_cmms < database/migrations/019_add_equipment_code_column.sql"
+        );
+      }
+      throw error;
+    }
   }
 
   /**
@@ -373,7 +396,7 @@ class AssetImportService {
         AND (organization_id IS NULL OR organization_id = ?)
     `;
     
-    const templates = await db.query(sql, [equipmentTypeId, asset.organization_id]);
+    const [templates] = await pool.query(sql, [equipmentTypeId, asset.organization_id]);
     
     if (templates.length === 0) {
       console.log(`[Import] No templates found for equipment type ${equipmentTypeId}`);
@@ -389,7 +412,7 @@ class AssetImportService {
     `;
     
     for (const template of templates) {
-      await db.query(linkSql, [asset.id, template.id]);
+      await pool.query(linkSql, [asset.id, template.id]);
     }
     
     return templates.length;

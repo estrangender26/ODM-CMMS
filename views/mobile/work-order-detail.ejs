@@ -109,7 +109,8 @@ function completeWorkOrder(woId) {
     if (confirm('Mark this work order as completed?')) {
         fetch('/mobile/work-orders/' + woId + '/complete', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin'
         })
         .then(r => r.json())
         .then(data => {

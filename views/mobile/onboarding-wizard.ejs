@@ -332,7 +332,7 @@
                         Required: facility_name, asset_name, equipment_type_code<br>
                         Optional: description, manufacturer, serial_number
                     </div>
-                    <a href="/mobile/onboarding/template" style="font-size: 13px; color: var(--primary); margin-top: 8px; display: inline-block;">Download template</a>
+                    <a href="/import-templates/asset-import-example.csv" download style="font-size: 13px; color: var(--primary); margin-top: 8px; display: inline-block;">Download template</a>
                 </div>
             </div>
             
@@ -529,68 +529,148 @@
         
         function onFileSelected(input) {
             const file = input.files[0];
-            if (file) {
-                document.getElementById('fileName').textContent = file.name;
-                document.getElementById('fileInfo').classList.remove('hidden');
-                document.getElementById('importStatus').textContent = 'Processing...';
+            if (!file) return;
+            
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileInfo').classList.remove('hidden');
+            document.getElementById('importStatus').textContent = 'Reading file...';
+            
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const csvText = e.target.result;
+                wizardData.csvContent = csvText;
                 
-                // Simulate import
-                setTimeout(() => {
-                    wizardData.assets = [
-                        { name: 'Pump P-101', type: 'Centrifugal Pump' },
-                        { name: 'Motor M-201', type: 'TEFC Motor' },
-                        { name: 'Compressor C-101', type: 'Reciprocating Compressor' }
-                    ];
-                    document.getElementById('importStatus').textContent = 
-                        `Imported ${wizardData.assets.length} assets successfully`;
-                    document.getElementById('step2Continue').disabled = false;
-                    
-                    // Populate templates for step 3
-                    populateTemplates();
-                }, 1500);
-            }
+                // Parse asset count for display
+                const lines = csvText.split('\n').filter(l => l.trim());
+                const assetCount = Math.max(0, lines.length - 1);
+                wizardData.assets = Array(assetCount).fill({});
+                
+                document.getElementById('importStatus').textContent = 
+                    `${assetCount} asset${assetCount === 1 ? '' : 's'} ready for import`;
+                document.getElementById('step2Continue').disabled = false;
+                
+                // Fetch real matched templates
+                await populateTemplates();
+            };
+            reader.readAsText(file);
         }
         
-        function populateTemplates() {
-            const templates = [
-                { id: 'TMP-001', name: 'Daily Pump Inspection', type: 'Centrifugal Pump', items: 12 },
-                { id: 'TMP-002', name: 'Weekly Motor Check', type: 'TEFC Motor', items: 8 },
-                { id: 'TMP-003', name: 'Monthly Compressor Maintenance', type: 'Reciprocating Compressor', items: 15 }
-            ];
-            wizardData.templates = templates;
-            
-            const listHtml = templates.map(t => `
-                <div class="template-item">
-                    <div class="template-info">
-                        <div class="template-name">${t.name}</div>
-                        <div class="template-type">${t.type} • ${t.items} items</div>
-                    </div>
-                    <label class="toggle">
-                        <input type="checkbox" class="template-toggle" data-template-id="${t.id}" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
+        async function populateTemplates() {
+            document.getElementById('templatesList').innerHTML = `
+                <div style="text-align: center; padding: 24px; color: var(--gray-500);">
+                    <div>⏳ Loading matched templates...</div>
                 </div>
-            `).join('');
+            `;
             
-            document.getElementById('templatesList').innerHTML = listHtml;
+            try {
+                const response = await fetch('/mobile/api/onboarding/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ csvContent: wizardData.csvContent })
+                });
+                const result = await response.json();
+                
+                let templates = [];
+                let unmatchedCodes = [];
+                if (result.success && result.data) {
+                    templates = result.data.templates || [];
+                    unmatchedCodes = result.data.unmatchedCodes || [];
+                }
+                wizardData.templates = templates;
+                
+                let html = '';
+                
+                // Show unmatched type codes warning
+                if (unmatchedCodes.length > 0) {
+                    html += `
+                        <div style="padding: 12px; background: #fef3c7; border-radius: 8px; color: #92400e; margin-bottom: 16px; font-size: 13px;">
+                            <strong>⚠ Warning:</strong> These equipment type codes were not found in the system and will fail to import:<br>
+                            <code>${unmatchedCodes.join(', ')}</code>
+                        </div>
+                    `;
+                }
+                
+                if (templates.length === 0) {
+                    html += `
+                        <div style="padding: 16px; background: var(--gray-100); border-radius: 8px; text-align: center; color: var(--gray-600);">
+                            No system templates matched your equipment types.<br>
+                            <span style="font-size: 13px;">Assets will still be imported.</span>
+                        </div>
+                    `;
+                    document.getElementById('templatesList').innerHTML = html;
+                    return;
+                }
+                
+                html += templates.map(t => `
+                    <div class="template-item">
+                        <div class="template-info">
+                            <div class="template-name">${t.name}</div>
+                            <div class="template-type">${t.type} • ${t.items} items</div>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" class="template-toggle" data-template-id="${t.id}" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                `).join('');
+                
+                document.getElementById('templatesList').innerHTML = html;
+            } catch (err) {
+                console.error('Failed to load templates:', err);
+                document.getElementById('templatesList').innerHTML = `
+                    <div style="padding: 16px; background: #fee2e2; border-radius: 8px; color: #991b1b;">
+                        Failed to load matched templates. You can still continue.
+                    </div>
+                `;
+            }
         }
         
         document.getElementById('schedulerEnabled').addEventListener('change', function() {
             document.getElementById('schedulerStatus').textContent = this.checked ? 'Enabled' : 'Disabled';
         });
         
-        function finishSetup() {
-            // Save wizard data
-            fetch('/api/onboarding/complete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(wizardData)
-            }).then(() => {
-                location.href = '/mobile/home';
-            }).catch(() => {
-                // Even if API fails, go to dashboard
-                location.href = '/mobile/home';
+        async function finishSetup() {
+            const btn = document.querySelector('#step5 .btn-primary');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Setting up...';
+            }
+            
+            const activeTemplates = [];
+            document.querySelectorAll('.template-toggle').forEach(toggle => {
+                if (toggle.checked) {
+                    activeTemplates.push(toggle.dataset.templateId);
+                }
             });
+            wizardData.activeTemplates = activeTemplates;
+            wizardData.schedulerEnabled = document.getElementById('schedulerEnabled').checked;
+            
+            try {
+                const response = await fetch('/mobile/api/onboarding/complete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(wizardData)
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    location.href = '/mobile/home';
+                } else {
+                    alert('Error: ' + (result.message || 'Setup failed'));
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = 'Go to Dashboard';
+                    }
+                }
+            } catch (err) {
+                alert('Network error: ' + err.message);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = 'Go to Dashboard';
+                }
+            }
         }
         
         // Initialize

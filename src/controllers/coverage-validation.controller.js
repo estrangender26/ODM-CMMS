@@ -5,7 +5,7 @@
  * HARDENED: Duplicate prevention, validation, audit logging
  */
 
-const db = require('../config/database');
+const { pool } = require('../config/database');
 
 class CoverageValidationController {
   /**
@@ -56,7 +56,7 @@ class CoverageValidationController {
         ORDER BY c.category_name, ec.class_name, et.type_name
       `;
       
-      const [equipment] = await db.query(sql);
+      const [equipment] = await pool.query(sql);
       
       res.json({
         success: true,
@@ -96,7 +96,7 @@ class CoverageValidationController {
         ORDER BY c.category_name, ec.class_name, et.type_name
       `;
       
-      const [equipment] = await db.query(sql);
+      const [equipment] = await pool.query(sql);
       
       res.json({
         success: true,
@@ -142,7 +142,7 @@ class CoverageValidationController {
         ORDER BY et.id, i.code
       `;
       
-      const [equipment] = await db.query(sql);
+      const [equipment] = await pool.query(sql);
       
       res.json({
         success: true,
@@ -183,7 +183,7 @@ class CoverageValidationController {
         ORDER BY i.name
       `;
       
-      const [coverage] = await db.query(sql);
+      const [coverage] = await pool.query(sql);
       
       res.json({
         success: true,
@@ -223,7 +223,7 @@ class CoverageValidationController {
         ORDER BY tf.family_name
       `;
       
-      const [coverage] = await db.query(sql);
+      const [coverage] = await pool.query(sql);
       
       res.json({
         success: true,
@@ -295,10 +295,10 @@ class CoverageValidationController {
       
       params.push(parseInt(limit), parseInt(offset));
       
-      const [mappings] = await db.query(sql, params);
+      const [mappings] = await pool.query(sql, params);
       
       // Get total count
-      const [countResult] = await db.query(
+      const [countResult] = await pool.query(
         `SELECT COUNT(DISTINCT et.id) as total FROM equipment_types et ${whereClause}`,
         params.slice(0, -2)
       );
@@ -332,7 +332,7 @@ class CoverageValidationController {
    * - Audit logs the change
    */
   async mapEquipmentToFamily(req, res) {
-    const connection = await db.getConnection();
+    const connection = await pool.getConnection();
     
     try {
       await connection.beginTransaction();
@@ -466,7 +466,7 @@ class CoverageValidationController {
    * - Audit logs the change
    */
   async mapEquipmentToIndustry(req, res) {
-    const connection = await db.getConnection();
+    const connection = await pool.getConnection();
     
     try {
       await connection.beginTransaction();
@@ -575,7 +575,7 @@ class CoverageValidationController {
    * Update existing family mapping (with safeguards)
    */
   async updateFamilyMapping(req, res) {
-    const connection = await db.getConnection();
+    const connection = await pool.getConnection();
     
     try {
       await connection.beginTransaction();
@@ -664,55 +664,102 @@ class CoverageValidationController {
    * Generate full validation report (industry-aware)
    */
   async generateValidationReport() {
+    let totalEquipmentTypes = 0;
+    let withFamilyMapping = 0;
+    let withIndustryMapping = 0;
+    let totalCombinations = 0;
+    let coveredCombinations = 0;
+    let duplicateMappings = 0;
+    let criticalityCounts = { A: 0, B: 0, C: 0 };
+
     // Total equipment types
-    const [totalResult] = await db.query('SELECT COUNT(*) as count FROM equipment_types');
-    const totalEquipmentTypes = totalResult[0].count;
-    
+    try {
+      const [totalResult] = await pool.query('SELECT COUNT(*) as count FROM equipment_types');
+      totalEquipmentTypes = totalResult[0].count;
+    } catch (e) {
+      console.error('[VALIDATION] Error counting equipment_types:', e.message);
+    }
+
     // With family mappings
-    const [withFamilyResult] = await db.query(`
-      SELECT COUNT(DISTINCT et.id) as count 
-      FROM equipment_types et
-      JOIN equipment_type_family_mappings etm ON et.id = etm.equipment_type_id
-    `);
-    const withFamilyMapping = withFamilyResult[0].count;
-    
+    try {
+      const [withFamilyResult] = await pool.query(`
+        SELECT COUNT(DISTINCT et.id) as count 
+        FROM equipment_types et
+        JOIN equipment_type_family_mappings etm ON et.id = etm.equipment_type_id
+      `);
+      withFamilyMapping = withFamilyResult[0].count;
+    } catch (e) {
+      console.error('[VALIDATION] Error counting family mappings:', e.message);
+    }
+
     // With industry mappings
-    const [withIndustryResult] = await db.query(`
-      SELECT COUNT(DISTINCT et.id) as count 
-      FROM equipment_types et
-      JOIN equipment_type_industries eti ON et.id = eti.equipment_type_id
-    `);
-    const withIndustryMapping = withIndustryResult[0].count;
-    
+    try {
+      const [withIndustryResult] = await pool.query(`
+        SELECT COUNT(DISTINCT et.id) as count 
+        FROM equipment_types et
+        JOIN equipment_type_industries eti ON et.id = eti.equipment_type_id
+      `);
+      withIndustryMapping = withIndustryResult[0].count;
+    } catch (e) {
+      console.error('[VALIDATION] Error counting industry mappings:', e.message);
+    }
+
     // Total (equipment, industry) combinations
-    const [totalCombinationsResult] = await db.query(`
-      SELECT COUNT(*) as count 
-      FROM equipment_type_family_mappings etm
-      JOIN equipment_type_industries eti ON etm.equipment_type_id = eti.equipment_type_id
-    `);
-    const totalCombinations = totalCombinationsResult[0].count;
-    
+    try {
+      const [totalCombinationsResult] = await pool.query(`
+        SELECT COUNT(*) as count 
+        FROM equipment_type_family_mappings etm
+        JOIN equipment_type_industries eti ON etm.equipment_type_id = eti.equipment_type_id
+      `);
+      totalCombinations = totalCombinationsResult[0].count;
+    } catch (e) {
+      console.error('[VALIDATION] Error counting combinations:', e.message);
+    }
+
     // Industry-aware covered combinations
-    const [coveredResult] = await db.query(`
-      SELECT COUNT(DISTINCT CONCAT(etm.equipment_type_id, '-', eti.industry_id)) as count
-      FROM equipment_type_family_mappings etm
-      JOIN equipment_type_industries eti ON etm.equipment_type_id = eti.equipment_type_id
-      JOIN task_templates tt ON etm.equipment_type_id = tt.equipment_type_id 
-        AND tt.is_system = TRUE 
-        AND (tt.industry_id = eti.industry_id OR tt.industry_id IS NULL)
-    `);
-    const coveredCombinations = coveredResult[0].count;
-    
+    try {
+      const [coveredResult] = await pool.query(`
+        SELECT COUNT(DISTINCT CONCAT(etm.equipment_type_id, '-', eti.industry_id)) as count
+        FROM equipment_type_family_mappings etm
+        JOIN equipment_type_industries eti ON etm.equipment_type_id = eti.equipment_type_id
+        JOIN task_templates tt ON etm.equipment_type_id = tt.equipment_type_id 
+          AND tt.is_system = TRUE 
+          AND (tt.industry_id = eti.industry_id OR tt.industry_id IS NULL)
+      `);
+      coveredCombinations = coveredResult[0].count;
+    } catch (e) {
+      console.error('[VALIDATION] Error counting covered combinations:', e.message);
+    }
+
     // Check for duplicates
-    const [duplicatesResult] = await db.query(`
-      SELECT COUNT(*) as count FROM (
-        SELECT equipment_type_id
-        FROM equipment_type_family_mappings
-        GROUP BY equipment_type_id
-        HAVING COUNT(*) > 1
-      ) dup
-    `);
-    
+    try {
+      const [duplicatesResult] = await pool.query(`
+        SELECT COUNT(*) as count FROM (
+          SELECT equipment_type_id
+          FROM equipment_type_family_mappings
+          GROUP BY equipment_type_id
+          HAVING COUNT(*) > 1
+        ) dup
+      `);
+      duplicateMappings = duplicatesResult[0].count;
+    } catch (e) {
+      console.error('[VALIDATION] Error checking duplicate mappings:', e.message);
+    }
+
+    // Criticality breakdown (global across all industry mappings)
+    try {
+      const [critRows] = await pool.query(`
+        SELECT criticality, COUNT(DISTINCT equipment_type_id) as count
+        FROM equipment_type_industries
+        GROUP BY criticality
+      `);
+      critRows.forEach(r => {
+        if (r.criticality) criticalityCounts[r.criticality] = r.count || 0;
+      });
+    } catch (e) {
+      console.error('[VALIDATION] Error counting criticality breakdown:', e.message);
+    }
+
     return {
       summary: {
         total_equipment_types: totalEquipmentTypes,
@@ -723,14 +770,15 @@ class CoverageValidationController {
         coverage_percentage: totalCombinations > 0 
           ? Math.round((coveredCombinations / totalCombinations) * 100)
           : 0,
-        duplicate_mappings: duplicatesResult[0].count
+        duplicate_mappings: duplicateMappings,
+        criticality_counts: criticalityCounts
       },
       gaps: {
         missing_family_mapping: totalEquipmentTypes - withFamilyMapping,
         missing_industry_mapping: withFamilyMapping - withIndustryMapping,
         missing_templates: totalCombinations - coveredCombinations
       },
-      status: (coveredCombinations === totalCombinations && duplicatesResult[0].count === 0) 
+      status: (coveredCombinations === totalCombinations && duplicateMappings === 0) 
         ? 'complete' 
         : 'incomplete'
     };

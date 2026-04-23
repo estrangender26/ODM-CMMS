@@ -821,9 +821,9 @@ router.get('/maintenance-plans/new', requireAuth, requireAdminUI, async (req, re
     
     // Get equipment (optional - for specific equipment plans)
     const equipment = await TaskTemplate.query(`
-      SELECT e.id, e.name, e.code, et.type_name as type
+      SELECT e.id, e.name, e.code, COALESCE(et.type_name, 'Unknown') as type
       FROM equipment e
-      JOIN equipment_types et ON e.equipment_type_id = et.id
+      LEFT JOIN equipment_types et ON e.equipment_type_id = et.id
       WHERE e.organization_id = ? AND e.status IN ('operational', 'active')
       ORDER BY e.name
     `, [organizationId]);
@@ -901,9 +901,9 @@ router.get('/maintenance-plans/:id/edit', requireAuth, requireAdminUI, async (re
     
     // Get equipment
     const equipment = await TaskTemplate.query(`
-      SELECT e.id, e.name, e.code, et.type_name as type
+      SELECT e.id, e.name, e.code, COALESCE(et.type_name, 'Unknown') as type
       FROM equipment e
-      JOIN equipment_types et ON e.equipment_type_id = et.id
+      LEFT JOIN equipment_types et ON e.equipment_type_id = et.id
       WHERE e.organization_id = ? AND e.status IN ('operational', 'active')
       ORDER BY e.name
     `, [organizationId]);
@@ -986,37 +986,66 @@ router.get('/admin', requireAuth, requireAdminUI, async (req, res) => {
 });
 
 // Facilities Management - admin only
-router.get('/admin/facilities', requireAuth, requireAdminOnly, (req, res) => {
-  const data = {
-    title: 'Facilities',
-    showBack: true,
-    showNav: true,
-    activeNav: 'admin',
-    facilities: [
-      { id: 'FAC-001', name: 'North Plant' },
-      { id: 'FAC-002', name: 'South Plant' },
-      { id: 'FAC-003', name: 'East Plant' }
-    ]
-  };
-  renderMobile(res, 'admin/facilities', data, req);
+router.get('/admin/facilities', requireAuth, requireAdminOnly, async (req, res) => {
+  try {
+    const { Facility, Organization } = require('../models');
+    const organizationId = req.user.organization_id;
+    const facilities = await Facility.getAllWithManager(organizationId);
+    const org = await Organization.findById(organizationId);
+    
+    const data = {
+      title: 'Facilities',
+      showBack: true,
+      showNav: true,
+      activeNav: 'admin',
+      organizationName: org?.organization_name || 'Your Organization',
+      facilities: facilities.map(f => ({
+        id: f.id,
+        name: f.name,
+        code: f.code
+      }))
+    };
+    renderMobile(res, 'admin/facilities', data, req);
+  } catch (error) {
+    console.error('[MOBILE] Error loading facilities:', error);
+    res.status(500).render('error', {
+      message: 'Error loading facilities: ' + error.message,
+      statusCode: 500,
+      error: process.env.NODE_ENV === 'development' ? error : {}
+    });
+  }
 });
 
 // Asset Registration - admin only
-router.get('/admin/assets', requireAuth, requireAdminOnly, (req, res) => {
-  const data = {
-    title: 'Assets',
-    showBack: true,
-    showNav: true,
-    activeNav: 'admin',
-    equipmentTypes: [
-      { id: 'ETYPE-001', name: 'Centrifugal Pump' },
-      { id: 'ETYPE-013', name: 'Electric Motor' }
-    ],
-    facilities: [
-      { id: 'FAC-001', name: 'North Plant' }
-    ]
-  };
-  renderMobile(res, 'admin/assets', data, req);
+router.get('/admin/assets', requireAuth, requireAdminOnly, async (req, res) => {
+  try {
+    const { Equipment, Facility, EquipmentType, Organization } = require('../models');
+    const organizationId = req.user.organization_id;
+    
+    const assets = await Equipment.getAllWithIsoClassification(organizationId);
+    const facilities = await Facility.getAllWithManager(organizationId);
+    const equipmentTypes = await EquipmentType.getAllWithHierarchy();
+    const org = await Organization.findById(organizationId);
+    
+    const data = {
+      title: 'Assets',
+      showBack: true,
+      showNav: true,
+      activeNav: 'admin',
+      organizationName: org?.organization_name || 'Your Organization',
+      assets,
+      facilities,
+      equipmentTypes
+    };
+    renderMobile(res, 'admin/assets', data, req);
+  } catch (error) {
+    console.error('[MOBILE] Error loading assets:', error);
+    res.status(500).render('error', {
+      message: 'Error loading assets: ' + error.message,
+      statusCode: 500,
+      error: process.env.NODE_ENV === 'development' ? error : {}
+    });
+  }
 });
 
 // Template Management - admin and supervisor
@@ -1413,7 +1442,11 @@ router.get('/templates/:id/edit', requireAuth, async (req, res) => {
     `, [templateId]);
     
     if (!template) {
-      return res.status(404).render('error', { message: 'Template not found', error: {} });
+      console.log(`[MOBILE] Template not found: id=${templateId}`);
+      return res.status(404).render('error', {
+        message: `Template #${templateId} not found. It may have been removed or the list page may be cached. Try a hard refresh (Ctrl+Shift+R).`,
+        error: {}
+      });
     }
     
     // Get template items (steps)
@@ -1481,25 +1514,162 @@ router.get('/onboarding', requireAuth, (req, res) => {
   res.render('mobile/onboarding-wizard');
 });
 
-// Complete onboarding API
-router.post('/api/onboarding/complete', requireAuth, (req, res) => {
-  const { facility, assets, activeTemplates } = req.body;
-  
-  // In production:
-  // 1. Create facility
-  // 2. Import assets
-  // 3. Activate templates
-  // 4. Enable scheduler
-  
-  res.json({ 
-    success: true, 
-    message: 'Onboarding complete',
-    data: {
-      facilities: 1,
-      assets: assets?.length || 0,
-      templates: activeTemplates?.length || 0
+// Onboarding preview API - returns matched templates for uploaded CSV
+router.post('/api/onboarding/preview', requireAuth, async (req, res) => {
+  try {
+    const { csvContent } = req.body;
+    const organizationId = req.user.organization_id;
+    
+    if (!csvContent) {
+      return res.json({ success: true, data: { templates: [] } });
     }
-  });
+    
+    // Simple CSV parse (first few rows)
+    const lines = csvContent.split('\n').filter(l => l.trim());
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const typeIdx = headers.indexOf('equipment_type_code');
+    
+    const typeCodes = new Set();
+    for (let i = 1; i < lines.length && i <= 100; i++) {
+      const cols = lines[i].split(',');
+      if (typeIdx !== -1 && cols[typeIdx]) {
+        typeCodes.add(cols[typeIdx].trim());
+      }
+    }
+    
+    // Find matching system templates
+    let templates = [];
+    let matchedCodes = new Set();
+    if (typeCodes.size > 0) {
+      const { pool } = require('../config/database');
+      const placeholders = Array.from(typeCodes).map(() => '?').join(',');
+      const [rows] = await pool.query(`
+        SELECT 
+          tt.id,
+          tt.template_name as name,
+          et.type_code as type_code,
+          et.type_name as type,
+          COUNT(tts.id) as items
+        FROM task_templates tt
+        JOIN equipment_types et ON tt.equipment_type_id = et.id
+        LEFT JOIN task_template_steps tts ON tt.id = tts.task_template_id
+        WHERE tt.is_system = TRUE
+          AND tt.organization_id IS NULL
+          AND LOWER(et.type_code) IN (${placeholders})
+        GROUP BY tt.id, tt.template_name, et.type_code, et.type_name
+      `, Array.from(typeCodes).map(c => c.toLowerCase()));
+      templates = rows || [];
+      templates.forEach(t => matchedCodes.add(t.type_code.toLowerCase()));
+    }
+    
+    // Identify unmatched type codes
+    const unmatchedCodes = Array.from(typeCodes).filter(
+      code => !matchedCodes.has(code.toLowerCase())
+    );
+    
+    res.json({ success: true, data: { templates, unmatchedCodes } });
+  } catch (error) {
+    console.error('[ONBOARDING] Preview error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Complete onboarding API
+router.post('/api/onboarding/complete', requireAuth, async (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const os = require('os');
+  const assetImportService = require('../services/asset-import.service');
+  const { Facility } = require('../models');
+  
+  const { facility: facilityData, csvContent, schedulerEnabled } = req.body;
+  const userId = req.user.id;
+  const organizationId = req.user.organization_id;
+  
+  try {
+    if (!facilityData || !facilityData.name) {
+      return res.status(400).json({ success: false, message: 'Facility name is required' });
+    }
+    
+    // 1. Create facility with unique code
+    let facilityCode = facilityData.name.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 20);
+    
+    // Ensure code is unique within organization
+    let codeExists = await Facility.codeExistsInOrganization(facilityCode, organizationId);
+    let suffix = 1;
+    const baseCode = facilityCode;
+    while (codeExists) {
+      facilityCode = `${baseCode}_${suffix}`;
+      codeExists = await Facility.codeExistsInOrganization(facilityCode, organizationId);
+      suffix++;
+    }
+    
+    const facility = await Facility.create({
+      name: facilityData.name.trim(),
+      code: facilityCode,
+      organization_id: organizationId,
+      status: 'active'
+    });
+    
+    // 2. Import assets from CSV
+    let importResults = {
+      total: 0,
+      success: 0,
+      failed: 0,
+      facilitiesCreated: 0,
+      assetsCreated: 0,
+      templatesLinked: 0,
+      errors: [],
+      facilitiesCreatedList: [],
+      assetsCreatedList: []
+    };
+    
+    if (csvContent && csvContent.trim()) {
+      // Replace org code in CSV with current user's org code
+      const lines = csvContent.split('\n').filter(l => l.trim());
+      const headers = lines[0].split(',').map(h => h.trim());
+      const orgIdx = headers.indexOf('organization_id');
+      
+      // Get user's org code
+      const { pool } = require('../config/database');
+      const [[orgRow]] = await pool.query('SELECT code FROM organizations WHERE id = ?', [organizationId]);
+      const orgCode = orgRow?.code || 'ORG-001';
+      
+      if (orgIdx !== -1) {
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',');
+          if (cols[orgIdx] !== undefined) {
+            cols[orgIdx] = orgCode;
+          }
+          lines[i] = cols.join(',');
+        }
+      }
+      
+      // Write modified CSV to temp file
+      const modifiedCsv = lines.join('\n');
+      const tmpFile = path.join(os.tmpdir(), `onboarding-${Date.now()}.csv`);
+      fs.writeFileSync(tmpFile, modifiedCsv);
+      
+      importResults = await assetImportService.importFromCSV(tmpFile, userId);
+      fs.unlinkSync(tmpFile);
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Onboarding complete',
+      data: {
+        facility,
+        assetsImported: importResults,
+        schedulerEnabled: !!schedulerEnabled
+      }
+    });
+  } catch (error) {
+    console.error('[ONBOARDING] Completion error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Onboarding failed'
+    });
+  }
 });
 
 module.exports = router;

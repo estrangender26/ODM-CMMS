@@ -278,7 +278,7 @@ async function loadSubscription() {
     
     if (data.success && data.data) {
       currentSubscription = data.data.subscription;
-      currentPlan = data.data.plan || {};
+      currentPlan = (data.data.subscription && data.data.subscription.plan) || {};
       
       document.getElementById('currentPlanName').textContent = currentPlan.name || 'Free';
       document.getElementById('currentPlanBadge').textContent = (currentPlan.code || 'FREE').toUpperCase();

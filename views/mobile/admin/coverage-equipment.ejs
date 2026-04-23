@@ -65,6 +65,17 @@
         </select>
       </div>
 
+      <!-- Criticality Filter -->
+      <div>
+        <label style="font-size: 13px; font-weight: 500; color: var(--gray-600); display: block; margin-bottom: 6px;">Criticality</label>
+        <select id="criticalityFilter" onchange="applyFilters()" style="width: 100%; padding: 10px; border: 1px solid var(--gray-200); border-radius: 8px; font-size: 14px;">
+          <option value="">All Criticalities</option>
+          <option value="A">🔴 A - Critical</option>
+          <option value="B">🟡 B - Important</option>
+          <option value="C">🟢 C - Normal</option>
+        </select>
+      </div>
+
       <!-- Clear Filters -->
       <button onclick="clearFilters()" style="padding: 10px; background: var(--gray-200); border: none; border-radius: 8px; font-weight: 500; margin-top: 8px;">
         Clear All Filters
@@ -212,6 +223,9 @@ async function loadEquipment(page = 1) {
   const industry = document.getElementById('industryFilter').value;
   if (industry) params.append('industry_id', industry);
   
+  const criticality = document.getElementById('criticalityFilter').value;
+  if (criticality) params.append('criticality', criticality);
+  
   const sort = document.getElementById('sortOrder').value;
   const [sortBy, sortOrder] = sort.split('_');
   params.append('sort_by', sortBy);
@@ -253,8 +267,15 @@ function renderEquipment(equipment) {
     'missing_templates': { bg: '#e0f2fe', text: '#075985', icon: '📋' }
   };
   
+  const criticalityColors = {
+    'A': { bg: '#fee2e2', text: '#991b1b' },
+    'B': { bg: '#fef9c3', text: '#854d0e' },
+    'C': { bg: '#dcfce7', text: '#166534' }
+  };
+  
   container.innerHTML = equipment.map(item => {
     const status = statusColors[item.status] || statusColors['unmapped'];
+    const crit = criticalityColors[item.criticality] || criticalityColors['B'];
     
     return `
       <div class="equipment-card card" style="padding: 16px;">
@@ -263,9 +284,14 @@ function renderEquipment(equipment) {
             <div style="font-weight: 600; font-size: 16px; color: var(--gray-900); margin-bottom: 4px;">${item.type_name}</div>
             <div style="font-size: 13px; color: var(--gray-500);">${item.type_code} • ${item.class_name}</div>
           </div>
-          <span style="background: ${status.bg}; color: ${status.text}; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; white-space: nowrap;">
-            ${status.icon} ${formatStatus(item.status)}
-          </span>
+          <div style="display: flex; gap: 6px; flex-direction: column; align-items: flex-end;">
+            <span style="background: ${status.bg}; color: ${status.text}; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; white-space: nowrap;">
+              ${status.icon} ${formatStatus(item.status)}
+            </span>
+            <span style="background: ${crit.bg}; color: ${crit.text}; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; white-space: nowrap;">
+              ${item.criticality || 'B'} rated
+            </span>
+          </div>
         </div>
         
         <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
@@ -359,6 +385,7 @@ function clearFilters() {
   document.getElementById('statusFilter').value = '';
   document.getElementById('familyFilter').value = '';
   document.getElementById('industryFilter').value = '';
+  document.getElementById('criticalityFilter').value = '';
   document.getElementById('searchInput').value = '';
   document.getElementById('activeFilterCount').style.display = 'none';
   loadEquipment(1);

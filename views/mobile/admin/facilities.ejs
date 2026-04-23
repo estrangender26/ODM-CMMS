@@ -3,55 +3,136 @@
 <% showNav = false %>
 <% activeNav = '' %>
 
+<!-- Organization Header -->
+<div style="margin-bottom: 16px; padding: 12px 16px; background: var(--primary-light); border-radius: 12px; border-left: 4px solid var(--primary);">
+    <div style="font-size: 12px; color: var(--primary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Organization</div>
+    <div style="font-size: 16px; font-weight: 600; color: var(--text-primary);"><%= organizationName || 'Your Organization' %></div>
+</div>
+
 <!-- Add Button -->
 <button class="btn btn-primary btn-full" style="margin-bottom: 16px;" onclick="showAddFacility()">
     + Add Facility
 </button>
 
 <!-- Facilities List -->
+<div id="facilitiesList">
 <% facilities.forEach(function(facility) { %>
-<div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+<div class="card" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 16px;">
     <div>
         <div style="font-weight: 600;"><%= facility.name %></div>
-        <div style="font-size: 13px; color: var(--gray-600);"><%= facility.id %></div>
+        <div style="font-size: 13px; color: var(--gray-600);"><%= facility.code %></div>
     </div>
     <div style="display: flex; gap: 8px;">
-        <button class="btn btn-outline" style="min-width: auto; padding: 8px 16px; height: 40px;">Edit</button>
+        <button class="btn btn-outline" style="min-width: auto; padding: 8px 16px; height: 40px;" onclick="editFacility('<%= facility.id %>', '<%= facility.name %>', '<%= facility.code %>')">Edit</button>
     </div>
 </div>
 <% }); %>
+</div>
 
-<!-- Add Facility Modal -->
-<div id="addFacilityModal" class="modal">
+<% if (facilities.length === 0) { %>
+<div id="emptyState" style="text-align: center; padding: 48px 20px; color: var(--gray-500);">
+    <div style="font-size: 48px; margin-bottom: 16px;">🏭</div>
+    <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">No facilities yet</div>
+    <div style="font-size: 14px;">Add your first facility to get started</div>
+</div>
+<% } %>
+
+<!-- Add/Edit Facility Modal -->
+<div id="facilityModal" class="modal">
     <div class="modal-content" style="padding: 24px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="font-size: 20px;">Add Facility</h2>
-            <button class="btn-close" onclick="hideAddFacility()">&times;</button>
+            <h2 style="font-size: 20px;" id="facilityModalTitle">Add Facility</h2>
+            <button class="btn-close" onclick="hideFacilityModal()">&times;</button>
         </div>
         
+        <input type="hidden" id="facilityId" value="">
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">Facility Name *</label>
+            <input type="text" id="facilityName" class="form-input" placeholder="e.g., North Plant" style="width: 100%; height: 48px; padding: 0 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px;">
+        </div>
+
         <div style="margin-bottom: 20px;">
-            <label style="display: block; font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">Facility Name</label>
-            <input type="text" class="form-input" placeholder="e.g., North Plant" style="width: 100%; height: 48px; padding: 0 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px;">
+            <label style="display: block; font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">Facility Code *</label>
+            <input type="text" id="facilityCode" class="form-input" placeholder="e.g., FAC-001" style="width: 100%; height: 48px; padding: 0 12px; font-size: 16px; border: 2px solid var(--gray-300); border-radius: 8px;">
+            <div style="font-size: 12px; color: var(--gray-500); margin-top: 6px;">A short unique code for this facility</div>
         </div>
         
         <div style="display: flex; gap: 12px;">
-            <button class="btn btn-outline" style="flex: 1;" onclick="hideAddFacility()">Cancel</button>
-            <button class="btn btn-primary" style="flex: 1;" onclick="saveFacility()">Save</button>
+            <button class="btn btn-outline" style="flex: 1;" onclick="hideFacilityModal()">Cancel</button>
+            <button class="btn btn-primary" style="flex: 1;" onclick="saveFacility()" id="saveFacilityBtn">Save</button>
         </div>
     </div>
 </div>
 
 <script>
+let isEditingFacility = false;
+
 function showAddFacility() {
-    document.getElementById('addFacilityModal').classList.add('active');
+    isEditingFacility = false;
+    document.getElementById('facilityModalTitle').textContent = 'Add Facility';
+    document.getElementById('facilityId').value = '';
+    document.getElementById('facilityName').value = '';
+    document.getElementById('facilityCode').value = '';
+    document.getElementById('saveFacilityBtn').disabled = false;
+    document.getElementById('saveFacilityBtn').textContent = 'Save';
+    document.getElementById('facilityModal').classList.add('active');
 }
 
-function hideAddFacility() {
-    document.getElementById('addFacilityModal').classList.remove('active');
+function editFacility(id, name, code) {
+    isEditingFacility = true;
+    document.getElementById('facilityModalTitle').textContent = 'Edit Facility';
+    document.getElementById('facilityId').value = id;
+    document.getElementById('facilityName').value = name;
+    document.getElementById('facilityCode').value = code;
+    document.getElementById('saveFacilityBtn').disabled = false;
+    document.getElementById('saveFacilityBtn').textContent = 'Update';
+    document.getElementById('facilityModal').classList.add('active');
 }
 
-function saveFacility() {
-    hideAddFacility();
-    // Save logic here
+function hideFacilityModal() {
+    document.getElementById('facilityModal').classList.remove('active');
+}
+
+async function saveFacility() {
+    const id = document.getElementById('facilityId').value;
+    const name = document.getElementById('facilityName').value.trim();
+    const code = document.getElementById('facilityCode').value.trim();
+    const btn = document.getElementById('saveFacilityBtn');
+
+    if (!name || !code) {
+        alert('Please enter both facility name and code');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = isEditingFacility ? 'Updating...' : 'Saving...';
+
+    try {
+        const url = isEditingFacility ? `/api/facilities/${id}` : '/api/facilities';
+        const method = isEditingFacility ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ name, code })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            hideFacilityModal();
+            location.reload();
+        } else {
+            alert('Error: ' + (result.message || 'Failed to save facility'));
+            btn.disabled = false;
+            btn.textContent = isEditingFacility ? 'Update' : 'Save';
+        }
+    } catch (err) {
+        alert('Network error: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = isEditingFacility ? 'Update' : 'Save';
+    }
 }
 </script>

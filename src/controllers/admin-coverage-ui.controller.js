@@ -63,105 +63,205 @@ class AdminCoverageUIController {
     try {
       const {
         page = 1,
-        limit = 50,
+        limit = 20,
         search = '',
-        category_id = '',
-        class_id = '',
+        status = '',
+        family_code = '',
         sort_by = 'type_name',
         sort_order = 'asc'
       } = req.query;
-      
+
       const industryCode = req.user?.industry || null;
+      const industryId = req.query.industry_id || '';
       const offset = (page - 1) * limit;
-      const filterParams = [];
-      
-      // Build WHERE clause - filter by organization's industry if set
-      let whereClause = 'WHERE 1=1';
-      
-      if (industryCode) {
-        whereClause += ' AND i.code = ?';
-        filterParams.push(industryCode);
-      }
-      
-      if (search) {
-        whereClause += ' AND (et.type_name LIKE ? OR et.type_code LIKE ?)';
-        filterParams.push(`%${search}%`, `%${search}%`);
-      }
-      
-      if (category_id) {
-        whereClause += ' AND ec.category_id = ?';
-        filterParams.push(category_id);
-      }
-      
-      if (class_id) {
-        whereClause += ' AND et.class_id = ?';
-        filterParams.push(class_id);
-      }
-      
-      // Valid sort columns
+
       const validSortColumns = ['type_name', 'type_code', 'class_name'];
       const sortColumn = validSortColumns.includes(sort_by) ? sort_by : 'type_name';
       const sortDir = sort_order.toLowerCase() === 'desc' ? 'DESC' : 'ASC';
-      
-      let joinClause = '';
+
+      let whereClause = 'WHERE 1=1';
+      const whereParams = [];
+
       if (industryCode) {
-        joinClause = `
-          JOIN equipment_type_industries eti ON et.id = eti.equipment_type_id
+        whereClause += ` AND EXISTS (
+          SELECT 1 FROM equipment_type_industries eti
           JOIN industries i ON eti.industry_id = i.id
-        `;
+          WHERE eti.equipment_type_id = et.id AND i.code = ?
+        )`;
+        whereParams.push(industryCode);
       }
-      
+
+      if (search) {
+        whereClause += ' AND (et.type_name LIKE ? OR et.type_code LIKE ?)';
+        whereParams.push(`%${search}%`, `%${search}%`);
+      }
+
+      if (family_code) {
+        if (family_code === 'none') {
+          whereClause += ' AND tfm.family_code IS NULL';
+        } else {
+          whereClause += ' AND tfm.family_code = ?';
+          whereParams.push(family_code);
+        }
+      }
+
+      if (industryId) {
+        if (industryId === 'none') {
+          whereClause += ' AND NOT EXISTS (SELECT 1 FROM equipment_type_industries eti WHERE eti.equipment_type_id = et.id)';
+        } else {
+          whereClause += ' AND EXISTS (SELECT 1 FROM equipment_type_industries eti WHERE eti.equipment_type_id = et.id AND eti.industry_id = ?)';
+          whereParams.push(parseInt(industryId));
+        }
+      }
+
+      const criticality = req.query.criticality || '';
+      if (criticality) {
+        if (industryCode) {
+          whereClause += ` AND EXISTS (
+            SELECT 1 FROM equipment_type_industries eti
+            JOIN industries i ON eti.industry_id = i.id
+            WHERE eti.equipment_type_id = et.id AND i.code = ? AND eti.criticality = ?
+          )`;
+          whereParams.push(industryCode, criticality);
+        } else {
+          whereClause += ` AND EXISTS (
+            SELECT 1 FROM equipment_type_industries eti
+            WHERE eti.equipment_type_id = et.id AND eti.criticality = ?
+          )`;
+          whereParams.push(criticality);
+        }
+      }
+
+      if (status) {
+        if (status === 'unmapped') {
+          whereClause += ' AND tfm.family_code IS NULL';
+        } else if (status === 'missing_industry') {
+          whereClause += ' AND NOT EXISTS (SELECT 1 FROM equipment_type_industries eti WHERE eti.equipment_type_id = et.id)';
+        } else if (status === 'missing_templates') {
+          whereClause += ` AND tfm.family_code IS NOT NULL
+            AND EXISTS (SELECT 1 FROM equipment_type_industries eti WHERE eti.equipment_type_id = et.id)
+            AND (
+              SELECT COUNT(DISTINCT tt.id)
+              FROM task_templates tt
+              WHERE tt.equipment_type_id = et.id AND tt.is_system = TRUE
+              ${industryCode ? "AND (tt.industry_id IN (SELECT eti2.industry_id FROM equipment_type_industries eti2 JOIN industries i2 ON eti2.industry_id = i2.id WHERE eti2.equipment_type_id = et.id AND i2.code = ?) OR tt.industry_id IS NULL)" : ""}
+            ) = 0`;
+          if (industryCode) whereParams.push(industryCode);
+        } else if (status === 'complete') {
+          whereClause += ` AND tfm.family_code IS NOT NULL
+            AND EXISTS (SELECT 1 FROM equipment_type_industries eti WHERE eti.equipment_type_id = et.id)
+            AND (
+              SELECT COUNT(DISTINCT tt.id)
+              FROM task_templates tt
+              WHERE tt.equipment_type_id = et.id AND tt.is_system = TRUE
+              ${industryCode ? "AND (tt.industry_id IN (SELECT eti2.industry_id FROM equipment_type_industries eti2 JOIN industries i2 ON eti2.industry_id = i2.id WHERE eti2.equipment_type_id = et.id AND i2.code = ?) OR tt.industry_id IS NULL)" : ""}
+            ) > 0`;
+          if (industryCode) whereParams.push(industryCode);
+        }
+      }
+
+      const selectSubqueryParams = [];
+      if (industryCode) {
+        selectSubqueryParams.push(industryCode, industryCode, industryCode);
+      }
+
       const sql = `
-        SELECT 
+        SELECT
           et.id,
           et.type_name,
           et.type_code,
           et.description,
+          (
+            SELECT eti.criticality
+            FROM equipment_type_industries eti
+            JOIN industries i ON eti.industry_id = i.id
+            WHERE eti.equipment_type_id = et.id
+            ${industryCode ? "AND i.code = ?" : ""}
+            ORDER BY FIELD(eti.criticality, 'A', 'B', 'C')
+            LIMIT 1
+          ) as criticality,
           ec.id as class_id,
           ec.class_name,
           ec.class_code,
           c.id as category_id,
           c.category_name,
           c.category_code,
-          COUNT(DISTINCT tt.id) as template_count,
-          CASE WHEN COUNT(DISTINCT tt.id) > 0 THEN 'complete' ELSE 'missing_templates' END as status
+          tfm.family_code,
+          tf.family_name,
+          (
+            SELECT COUNT(DISTINCT tt.id)
+            FROM task_templates tt
+            WHERE tt.equipment_type_id = et.id AND tt.is_system = TRUE
+            ${industryCode ? "AND (tt.industry_id IN (SELECT eti2.industry_id FROM equipment_type_industries eti2 JOIN industries i2 ON eti2.industry_id = i2.id WHERE eti2.equipment_type_id = et.id AND i2.code = ?) OR tt.industry_id IS NULL)" : ""}
+          ) as template_count,
+          CASE
+            WHEN tfm.family_code IS NULL THEN 'unmapped'
+            WHEN NOT EXISTS (SELECT 1 FROM equipment_type_industries eti WHERE eti.equipment_type_id = et.id) THEN 'missing_industry'
+            WHEN (
+              SELECT COUNT(DISTINCT tt.id)
+              FROM task_templates tt
+              WHERE tt.equipment_type_id = et.id AND tt.is_system = TRUE
+              ${industryCode ? "AND (tt.industry_id IN (SELECT eti2.industry_id FROM equipment_type_industries eti2 JOIN industries i2 ON eti2.industry_id = i2.id WHERE eti2.equipment_type_id = et.id AND i2.code = ?) OR tt.industry_id IS NULL)" : ""}
+            ) = 0 THEN 'missing_templates'
+            ELSE 'complete'
+          END as status
         FROM equipment_types et
         JOIN equipment_classes ec ON et.class_id = ec.id
         JOIN equipment_categories c ON ec.category_id = c.id
-        ${joinClause}
-        LEFT JOIN task_templates tt ON et.id = tt.equipment_type_id AND tt.is_system = TRUE
-          ${industryCode ? "AND (tt.industry_id = i.id OR tt.industry_id IS NULL)" : ""}
+        LEFT JOIN equipment_type_family_mappings tfm ON et.id = tfm.equipment_type_id
+        LEFT JOIN template_families tf ON tfm.family_code = tf.family_code
         ${whereClause}
-        GROUP BY et.id
         ORDER BY ${sortColumn} ${sortDir}
         LIMIT ? OFFSET ?
       `;
-      
-      const queryParams = [...filterParams, parseInt(limit), parseInt(offset)];
-      // Use pool.query to avoid mysql2 prepared-statement bug with LIMIT ? OFFSET ? in complex queries
+
+      const queryParams = [...selectSubqueryParams, ...whereParams, parseInt(limit), parseInt(offset)];
       const [equipment] = await pool.query(sql, queryParams);
-      
-      // Get total count - use filterParams only, no limit/offset
-      let countSql = `
-        SELECT COUNT(DISTINCT et.id) as total 
+
+      const countSql = `
+        SELECT COUNT(*) as total
         FROM equipment_types et
         JOIN equipment_classes ec ON et.class_id = ec.id
         JOIN equipment_categories c ON ec.category_id = c.id
-        ${joinClause}
+        LEFT JOIN equipment_type_family_mappings tfm ON et.id = tfm.equipment_type_id
+        LEFT JOIN template_families tf ON tfm.family_code = tf.family_code
         ${whereClause}
       `;
-      
-      const [countResult] = await pool.query(countSql, filterParams);
-      
-      // Get filter options
-      const [categories] = await pool.execute(
-        "SELECT id, category_name as name FROM equipment_categories ORDER BY category_name"
+
+      const [countResult] = await pool.query(countSql, whereParams);
+
+      let equipmentIndustries = [];
+      if (equipment.length > 0) {
+        const equipmentIds = equipment.map(e => e.id);
+        const placeholders = equipmentIds.map(() => '?').join(',');
+        const [indRows] = await pool.execute(`
+          SELECT eti.equipment_type_id, i.id, i.name
+          FROM equipment_type_industries eti
+          JOIN industries i ON eti.industry_id = i.id
+          WHERE eti.equipment_type_id IN (${placeholders})
+        `, equipmentIds);
+        equipmentIndustries = indRows || [];
+      }
+
+      const equipmentWithIndustries = equipment.map(item => ({
+        ...item,
+        industries: equipmentIndustries
+          .filter(ei => ei.equipment_type_id === item.id)
+          .map(ei => ({ id: ei.id, name: ei.name }))
+      }));
+
+      const [families] = await pool.execute(
+        "SELECT family_code, family_name FROM template_families ORDER BY family_name"
       );
-      
+
+      const [industries] = await pool.execute(
+        "SELECT id, name FROM industries WHERE is_active = TRUE ORDER BY name"
+      );
+
       res.json({
         success: true,
         data: {
-          equipment,
+          equipment: equipmentWithIndustries,
           pagination: {
             page: parseInt(page),
             limit: parseInt(limit),
@@ -169,13 +269,20 @@ class AdminCoverageUIController {
             total_pages: Math.ceil(countResult[0].total / limit)
           },
           filters: {
-            categories,
-            families: [],
-            industries: [],
+            families: families || [],
+            industries: industries || [],
             status_options: [
               { value: '', label: 'All Statuses' },
-              { value: 'complete', label: 'Complete' },
-              { value: 'missing_templates', label: 'Missing Templates' }
+              { value: 'complete', label: '✓ Complete' },
+              { value: 'unmapped', label: '⚠️ Unmapped' },
+              { value: 'missing_industry', label: '🏭 Missing Industry' },
+              { value: 'missing_templates', label: '📋 Missing Templates' }
+            ],
+            criticality_options: [
+              { value: '', label: 'All Criticalities' },
+              { value: 'A', label: '🔴 A - Critical' },
+              { value: 'B', label: '🟡 B - Important' },
+              { value: 'C', label: '🟢 C - Normal' }
             ]
           }
         }
@@ -206,7 +313,7 @@ class AdminCoverageUIController {
         // Unmapped
         try {
           const [unmappedRows] = await pool.execute(`
-            SELECT et.id, et.type_name, et.type_code, ec.class_name,
+            SELECT et.id, et.type_name, et.type_code, ec.class_name, eti.criticality,
               'unmapped' as gap_type, 'No family assigned' as gap_reason
             FROM equipment_types et
             JOIN equipment_classes ec ON et.class_id = ec.id
@@ -234,7 +341,7 @@ class AdminCoverageUIController {
         // Missing templates
         try {
           const [missingTmplRows] = await pool.execute(`
-            SELECT et.id, et.type_name, et.type_code, ec.class_name,
+            SELECT et.id, et.type_name, et.type_code, ec.class_name, eti.criticality,
               'missing_templates' as gap_type, 'No system templates for this industry' as gap_reason
             FROM equipment_types et
             JOIN equipment_classes ec ON et.class_id = ec.id
@@ -260,6 +367,7 @@ class AdminCoverageUIController {
             et.type_name,
             et.type_code,
             ec.class_name,
+            eti.criticality,
             'unmapped' as gap_type,
             'No family assigned' as gap_reason
           FROM equipment_types et
@@ -312,6 +420,7 @@ class AdminCoverageUIController {
             et.type_name,
             et.type_code,
             ec.class_name,
+            eti.criticality,
             'missing_templates' as gap_type,
             'No system templates for this industry' as gap_reason
           FROM equipment_types et
@@ -524,15 +633,93 @@ class AdminCoverageUIController {
    */
   async getAuditLog(req, res) {
     try {
-      // Return empty since audit log table may not exist
+      const {
+        page = 1,
+        limit = 25,
+        change_type = '',
+        start_date = '',
+        end_date = ''
+      } = req.query;
+
+      const industryCode = req.user?.industry || null;
+      const offset = (page - 1) * limit;
+      const params = [];
+
+      let whereClause = 'WHERE 1=1';
+
+      if (change_type) {
+        whereClause += ' AND c.change_type = ?';
+        params.push(change_type);
+      }
+
+      if (start_date) {
+        whereClause += ' AND c.changed_at >= ?';
+        params.push(`${start_date} 00:00:00`);
+      }
+
+      if (end_date) {
+        whereClause += ' AND c.changed_at <= ?';
+        params.push(`${end_date} 23:59:59`);
+      }
+
+      if (industryCode) {
+        whereClause += ` AND EXISTS (
+          SELECT 1 FROM equipment_type_industries eti
+          JOIN industries i ON eti.industry_id = i.id
+          WHERE eti.equipment_type_id = c.equipment_type_id AND i.code = ?
+        )`;
+        params.push(industryCode);
+      }
+
+      const sql = `
+        SELECT
+          c.id,
+          c.change_type,
+          c.old_value,
+          c.new_value,
+          c.changed_at,
+          c.change_reason,
+          et.type_name,
+          et.type_code,
+          u.username as changed_by_name
+        FROM equipment_mapping_change_log c
+        JOIN equipment_types et ON c.equipment_type_id = et.id
+        LEFT JOIN users u ON c.changed_by = u.id
+        ${whereClause}
+        ORDER BY c.changed_at DESC
+        LIMIT ? OFFSET ?
+      `;
+
+      const queryParams = [...params, parseInt(limit), parseInt(offset)];
+      const [logs] = await pool.query(sql, queryParams);
+
+      const countSql = `
+        SELECT COUNT(*) as total
+        FROM equipment_mapping_change_log c
+        JOIN equipment_types et ON c.equipment_type_id = et.id
+        ${whereClause}
+      `;
+      const [countResult] = await pool.query(countSql, params);
+      const total = countResult[0]?.total || 0;
+
+      // Get distinct change types for filter dropdown
+      const [changeTypesResult] = await pool.execute(`
+        SELECT DISTINCT change_type
+        FROM equipment_mapping_change_log
+        ORDER BY change_type
+      `);
+      const changeTypes = changeTypesResult.map(r => r.change_type);
+
       res.json({
         success: true,
         data: {
-          logs: [],
-          change_types: [],
+          logs: logs || [],
+          change_types: changeTypes,
           pagination: {
-            page: 1,
-            limit: 50
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            total_pages: Math.ceil(total / limit)
           }
         }
       });
@@ -634,12 +821,31 @@ class AdminCoverageUIController {
       ? Math.round((templateCount / totalCount) * 100) 
       : 0;
 
+    // Criticality breakdown
+    let criticalityCounts = { A: 0, B: 0, C: 0 };
+    try {
+      let critSql = `SELECT eti.criticality, COUNT(DISTINCT et.id) as count FROM equipment_types et`;
+      const critParams = [];
+      if (industryCode) {
+        critSql += ` JOIN equipment_type_industries eti ON et.id = eti.equipment_type_id JOIN industries i ON eti.industry_id = i.id WHERE i.code = ?`;
+        critParams.push(industryCode);
+      } else {
+        critSql += ` JOIN equipment_type_industries eti ON et.id = eti.equipment_type_id`;
+      }
+      critSql += ` GROUP BY eti.criticality`;
+      const [critRows] = await pool.execute(critSql, critParams);
+      critRows.forEach(r => {
+        if (r.criticality) criticalityCounts[r.criticality] = r.count || 0;
+      });
+    } catch (e) { /* ignore */ }
+
     return {
       total_equipment_types: totalCount,
       with_family_mapping: familyMappedCount,
       with_industry_mapping: industryMappedCount,
       with_system_templates: templateCount,
-      coverage_percentage: coveragePercentage
+      coverage_percentage: coveragePercentage,
+      criticality_counts: criticalityCounts
     };
   }
 
