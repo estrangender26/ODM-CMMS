@@ -18,7 +18,7 @@ const TEST_ADMIN_TOKEN = 'test_admin_token_' + Date.now();
 const TEST_SUPERVISOR_TOKEN = 'test_supervisor_token_' + Date.now();
 const TEST_TECH_TOKEN = 'test_tech_token_' + Date.now();
 
-describe('Step 6: Coverage Management E2E Tests', () => {
+describe('Step 6: Coverage Management E2E Tests', { skip: process.env.RUN_DB_TESTS !== 'true' }, () => {
   let server;
   let pool;
   let baseUrl;

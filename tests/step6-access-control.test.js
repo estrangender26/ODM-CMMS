@@ -15,7 +15,7 @@ const TEST_TIMEOUT = 30000;
 const TENANT_A = { id: 888888, name: 'Tenant A' };
 const TENANT_B = { id: 888889, name: 'Tenant B' };
 
-describe('Step 6: Access Control & Tenant Protection', () => {
+describe('Step 6: Access Control & Tenant Protection', { skip: process.env.RUN_DB_TESTS !== 'true' }, () => {
   let server;
   let pool;
   let baseUrl;

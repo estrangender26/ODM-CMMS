@@ -25,8 +25,8 @@ app.use(expressLayouts);
 app.set('layout', false); // Disable default layout
 
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: process.env.REQUEST_BODY_LIMIT || '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: process.env.REQUEST_BODY_LIMIT || '1mb' }));
 app.use(cookieParser());
 
 // Static files with cache-busting in development
@@ -46,23 +46,32 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS - Allow requests with credentials
+// CORS: only explicitly trusted browser origins may make credentialed requests.
+// Same-origin requests do not need CORS headers.
+const allowedCorsOrigins = new Set(
+  (process.env.CORS_ALLOWED_ORIGINS || process.env.CORS_ORIGIN || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+);
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  // Allow the requesting origin or default to localhost in dev
-  const allowedOrigin = origin || (process.env.NODE_ENV !== 'production' ? 'http://localhost:3000' : null);
-  
-  if (allowedOrigin) {
-    res.header('Access-Control-Allow-Origin', allowedOrigin);
+  const isAllowedOrigin = origin && allowedCorsOrigins.has(origin);
+
+  if (isAllowedOrigin) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Vary', 'Origin');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   }
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+
   if (req.method === 'OPTIONS') {
-    res.sendStatus(200);
-  } else {
-    next();
+    return origin && !isAllowedOrigin ? res.sendStatus(403) : res.sendStatus(204);
   }
+
+  next();
 });
 
 // Request logger

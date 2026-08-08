@@ -10,7 +10,7 @@ const { createPool } = require('../src/config/database');
 const TEST_TIMEOUT = 60000;
 const TEST_ORG_ID = 666666;
 
-describe('Step 6: Seed & Migration Validation', () => {
+describe('Step 6: Seed & Migration Validation', { skip: process.env.RUN_DB_TESTS !== 'true' }, () => {
   let pool;
 
   before(async () => {

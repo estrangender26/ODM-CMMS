@@ -10,7 +10,7 @@ const { createPool } = require('../src/config/database');
 const TEST_TIMEOUT = 120000;
 const PERF_THRESHOLD_MS = 1000; // 1 second max for queries
 
-describe('Step 6: Performance Tests', () => {
+describe('Step 6: Performance Tests', { skip: process.env.RUN_DB_TESTS !== 'true' }, () => {
   let pool;
 
   before(async () => {
