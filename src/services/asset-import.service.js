@@ -29,6 +29,10 @@ class AssetImportService {
    * @param {number} importUserId - User performing import
    * @returns {Promise<Object>} Import results
    */
+  getMaxImportRows() {
+    return parseInt(process.env.ASSET_IMPORT_MAX_ROWS, 10) || 10000;
+  }
+
   async importFromCSV(filePath, importUserId) {
     this.resetResults();
     
@@ -37,7 +41,7 @@ class AssetImportService {
     
     return new Promise((resolve, reject) => {
       const rows = [];
-      const maxRows = parseInt(process.env.ASSET_IMPORT_MAX_ROWS, 10) || 10000;
+      const maxRows = this.getMaxImportRows();
       const input = fs.createReadStream(filePath);
       const parser = input.pipe(csv());
 

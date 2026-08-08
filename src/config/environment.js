@@ -3,10 +3,31 @@
  * Production secrets must be provided by the deployment environment, never files in Git.
  */
 
-const PLACEHOLDER_PATTERN = /^(?:change[-_ ]?me|replace[-_ ]?with|your[-_ ]?|default[-_ ]?secret|example|password|secret|null|undefined)$/i;
 const MIN_SECRET_LENGTH = 32;
+const EXACT_PLACEHOLDERS = new Set([
+  'replace-with-a-long-random-secret',
+  'replace-with-a-secret',
+  'your-super-secret-jwt-key-change-this-in-production',
+  'your-session-secret-change-this-in-production',
+  'your_password_here',
+  'password',
+  'secret',
+  'null',
+  'undefined'
+]);
+const PLACEHOLDER_PATTERNS = [
+  /^replace-with-/i,
+  /^(?:change-me|changeme)(?:[-_].*)?$/i,
+  /^your[-_]/i,
+  /^(?:example|placeholder)(?:[-_].*)?$/i,
+  /^default-secret(?:[-_].*)?$/i
+];
 
-const isPlaceholder = (value) => !value || PLACEHOLDER_PATTERN.test(value.trim());
+const isPlaceholder = (value) => {
+  if (!value || !value.trim()) return true;
+  const normalized = value.trim().toLowerCase();
+  return EXACT_PLACEHOLDERS.has(normalized) || PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(normalized));
+};
 
 const validateSecret = (name, value) => {
   if (isPlaceholder(value)) {
@@ -21,7 +42,6 @@ const validateProductionConfig = (env = process.env) => {
   if (env.NODE_ENV !== 'production') return;
 
   validateSecret('JWT_SECRET', env.JWT_SECRET);
-  validateSecret('SESSION_SECRET', env.SESSION_SECRET);
 
   if (isPlaceholder(env.DB_PASSWORD)) {
     throw new Error('Invalid production configuration: DB_PASSWORD must be set to a non-placeholder value.');

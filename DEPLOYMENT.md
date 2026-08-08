@@ -7,7 +7,7 @@ Guide for deploying ODM-CMMS to production environments.
 - `HOST` defaults to `127.0.0.1` for local development. Set `HOST=0.0.0.0` for Docker, Railway, Render, or another platform that routes traffic into the container. Binding to all interfaces exposes the application port to the host network; retain firewall and reverse-proxy controls.
 - `CORS_ALLOWED_ORIGINS` is a comma-separated exact allowlist for credentialed browser requests. Configure it only when a separate browser origin must call the API; same-origin EJS/mobile use does not require it.
 - `REQUEST_BODY_LIMIT` limits JSON and URL-encoded bodies (default `1mb`). Multipart limits are enforced separately by Multer: CSV imports are limited to 5 MB and general uploads to `UPLOAD_MAX_SIZE` (default 10 MB). CSV imports also validate required headers and enforce `ASSET_IMPORT_MAX_ROWS` (default 10,000).
-- Production startup fails if JWT/session secrets are missing, placeholder-like, or shorter than 32 characters, or if `DB_PASSWORD` is missing/placeholder-like.
+- Production startup fails if JWT secrets are missing, placeholder-like, or shorter than 32 characters, or if `DB_PASSWORD` is missing/placeholder-like.
 - `TRUST_PROXY` is disabled by default. Set it only to `loopback` or a verified hop count when traffic always enters through a trusted proxy. Do not trust client-supplied forwarded headers directly.
 
 See [Historical Environment-File Remediation](docs/SECURITY-INCIDENT-REMEDIATION.md) for manual credential rotation and history-remediation actions.
