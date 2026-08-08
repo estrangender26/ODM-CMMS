@@ -79,9 +79,14 @@ class AssetImportController {
         sample: []
       };
       
-      const stream = fs.createReadStream(filePath)
-        .pipe(csv())
+      const maxRows = assetImportService.getMaxImportRows();
+      const input = fs.createReadStream(filePath);
+      const stream = input.pipe(csv())
         .on('data', (row) => {
+          if (results.total_rows >= maxRows) {
+            input.destroy(new Error(`CSV exceeds the ${maxRows}-row import limit`));
+            return;
+          }
           results.total_rows++;
           if (results.sample.length < 3) {
             results.sample.push(row);
@@ -99,6 +104,7 @@ class AssetImportController {
       await new Promise((resolve, reject) => {
         stream.on('end', resolve);
         stream.on('error', reject);
+        input.on('error', reject);
       });
       
       // Clean up
@@ -115,10 +121,10 @@ class AssetImportController {
         fs.unlinkSync(req.file.path);
       }
       
-      res.status(500).json({
+      const isRowLimitError = error.message && error.message.includes('row import limit');
+      res.status(isRowLimitError ? 400 : 500).json({
         success: false,
-        message: 'Validation failed',
-        error: error.message
+        message: isRowLimitError ? error.message : 'Validation failed'
       });
     }
   }

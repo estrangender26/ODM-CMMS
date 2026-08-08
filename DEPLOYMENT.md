@@ -2,6 +2,16 @@
 
 Guide for deploying ODM-CMMS to production environments.
 
+## Runtime Configuration
+
+- `HOST` defaults to `127.0.0.1` for local development. Set `HOST=0.0.0.0` for Docker, Railway, Render, or another platform that routes traffic into the container. Binding to all interfaces exposes the application port to the host network; retain firewall and reverse-proxy controls.
+- `CORS_ALLOWED_ORIGINS` is a comma-separated exact allowlist for credentialed browser requests. Configure it only when a separate browser origin must call the API; same-origin EJS/mobile use does not require it.
+- `REQUEST_BODY_LIMIT` limits JSON and URL-encoded bodies (default `1mb`). Multipart limits are enforced separately by Multer: CSV imports are limited to 5 MB and general uploads to `UPLOAD_MAX_SIZE` (default 10 MB). CSV imports also validate required headers and enforce `ASSET_IMPORT_MAX_ROWS` (default 10,000).
+- Production startup fails if JWT secrets are missing, placeholder-like, or shorter than 32 characters, or if `DB_PASSWORD` is missing/placeholder-like.
+- `TRUST_PROXY` is disabled by default. Set it only to `loopback` or a verified hop count when traffic always enters through a trusted proxy. Do not trust client-supplied forwarded headers directly.
+
+See [Historical Environment-File Remediation](docs/SECURITY-INCIDENT-REMEDIATION.md) for manual credential rotation and history-remediation actions.
+
 ## Local Deployment
 
 ### Windows (Easiest)
@@ -129,7 +139,9 @@ Best for: Production use, full control
    # Create .env
    cat > .env << 'EOF'
    PORT=3000
+   HOST=0.0.0.0
    NODE_ENV=production
+   CORS_ALLOWED_ORIGINS=https://your-domain.example
    DB_HOST=localhost
    DB_PORT=3306
    DB_NAME=odm_cmms
@@ -230,7 +242,7 @@ Best for: Production use, full control
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | Server port | 3000 |
-| `HOST` | Server host | localhost |
+| `HOST` | Server host (`127.0.0.1` locally; use `0.0.0.0` in containers) | `127.0.0.1` |
 | `NODE_ENV` | Environment | development |
 | `DB_HOST` | Database host | localhost |
 | `DB_PORT` | Database port | 3306 |
@@ -347,3 +359,17 @@ TTL: Auto
 - [ ] Update dependencies
 - [ ] Disable root SSH login
 - [ ] Use SSH keys only
+
+## Integration Test Database
+
+`npm test` is non-destructive and does not require MySQL. Run `npm run test:integration` only with a disposable database. The command refuses to run unless all of the following are supplied:
+
+```env
+TEST_DB_HOST=127.0.0.1
+TEST_DB_PORT=3306
+TEST_DB_NAME=odm_cmms_test
+TEST_DB_USER=test_user
+TEST_DB_PASSWORD=replace-with-test-only-password
+```
+
+The database name must clearly indicate a test database (for example, end in `_test`). The integration runner sets `NODE_ENV=test` and `RUN_DB_TESTS=true`, and the database configuration never falls back to `DB_*` while that destructive mode is active. In CI, provision a dedicated ephemeral MySQL service/container, run migrations against it, and pass only `TEST_DB_*` values.

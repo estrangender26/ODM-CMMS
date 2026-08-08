@@ -1,5 +1,5 @@
 require('dotenv').config();
-const controller = require('./src/controllers/admin-coverage-ui.controller');
+const controller = require('../../src/controllers/admin-coverage-ui.controller');
 
 (async () => {
   console.log('=== Global Stats ===');

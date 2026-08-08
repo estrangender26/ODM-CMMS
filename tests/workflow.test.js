@@ -6,8 +6,8 @@
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert');
 const http = require('http');
-const app = require('./src/app');
-const { pool } = require('./src/config/database');
+const app = require('../src/app');
+const { pool } = require('../src/config/database');
 
 function request(baseUrl, path) {
   return new Promise((resolve, reject) => {

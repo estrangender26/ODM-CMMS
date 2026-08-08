@@ -57,7 +57,7 @@ const upload = multer({
 const handleUploadError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({
+      return res.status(413).json({
         success: false,
         message: 'File too large'
       });
@@ -67,7 +67,10 @@ const handleUploadError = (err, req, res, next) => {
       message: err.message
     });
   }
-  next(err);
+  if (err) {
+    return res.status(400).json({ success: false, message: 'Invalid upload' });
+  }
+  next();
 };
 
 module.exports = {

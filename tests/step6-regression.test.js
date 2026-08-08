@@ -12,7 +12,7 @@ const TEST_PORT = 9997;
 const TEST_TIMEOUT = 30000;
 const TEST_ORG_ID = 777777;
 
-describe('Step 6: Regression Tests - Preserved Functionality', () => {
+describe('Step 6: Regression Tests - Preserved Functionality', { skip: process.env.RUN_DB_TESTS !== 'true' }, () => {
   let server;
   let pool;
   let baseUrl;
