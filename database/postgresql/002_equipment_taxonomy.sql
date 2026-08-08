@@ -231,7 +231,6 @@ ALTER TABLE equipment ADD CONSTRAINT fk_equipment_equipment_ibfk_1 FOREIGN KEY (
 ALTER TABLE equipment ADD CONSTRAINT fk_equipment_equipment_ibfk_2 FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE equipment ADD CONSTRAINT fk_equipment_fk_equip_category FOREIGN KEY (equipment_category_id) REFERENCES equipment_categories(id) ON DELETE SET NULL;
 ALTER TABLE equipment ADD CONSTRAINT fk_equipment_fk_equip_class FOREIGN KEY (equipment_class_id) REFERENCES equipment_classes(id) ON DELETE SET NULL;
-ALTER TABLE equipment ADD CONSTRAINT fk_equipment_fk_equip_facility FOREIGN KEY (facility_id) REFERENCES facilities(id) ON DELETE SET NULL;
 ALTER TABLE equipment ADD CONSTRAINT fk_equipment_fk_equip_item FOREIGN KEY (maintainable_item_id) REFERENCES maintainable_items(id) ON DELETE SET NULL;
 ALTER TABLE equipment ADD CONSTRAINT fk_equipment_fk_equip_subunit FOREIGN KEY (subunit_id) REFERENCES subunits(id) ON DELETE SET NULL;
 ALTER TABLE equipment ADD CONSTRAINT fk_equipment_fk_equip_type FOREIGN KEY (equipment_type_id) REFERENCES equipment_types(id) ON DELETE SET NULL;

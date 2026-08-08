@@ -215,7 +215,6 @@ ALTER TABLE organization_industries ADD CONSTRAINT fk_organization_industries_or
 ALTER TABLE organization_industries ADD CONSTRAINT fk_organization_industries_organization_industries_ibfk_2 FOREIGN KEY (industry_id) REFERENCES industries(id) ON DELETE CASCADE;
 ALTER TABLE users ADD CONSTRAINT fk_users_fk_user_facility FOREIGN KEY (facility_id) REFERENCES facilities(id) ON DELETE SET NULL;
 ALTER TABLE users ADD CONSTRAINT fk_users_fk_users_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE users ADD CONSTRAINT fk_users_fk_users_facility_mig FOREIGN KEY (facility_id) REFERENCES facilities(id) ON DELETE SET NULL;
 ALTER TABLE facilities ADD CONSTRAINT fk_facilities_facilities_ibfk_1 FOREIGN KEY (manager_id) REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE facilities ADD CONSTRAINT fk_facilities_fk_facilities_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
 ALTER TABLE facilities ADD CONSTRAINT fk_facilities_fk_facilities_default_operator_mig FOREIGN KEY (default_operator_id) REFERENCES users(id) ON DELETE SET NULL;

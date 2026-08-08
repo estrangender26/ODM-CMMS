@@ -190,7 +190,7 @@ ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order
 ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_2 FOREIGN KEY (asset_id) REFERENCES equipment(id) ON DELETE CASCADE;
 ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_3 FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
 ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_4 FOREIGN KEY (equipment_type_id) REFERENCES equipment_types(id) ON DELETE SET NULL;
-ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_5 FOREIGN KEY (subunit_id) REFERENCES equipment_subunits(id) ON DELETE SET NULL;
+ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_5 FOREIGN KEY (subunit_id) REFERENCES subunits(id) ON DELETE SET NULL;
 ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_6 FOREIGN KEY (maintainable_item_id) REFERENCES maintainable_items(id) ON DELETE SET NULL;
 ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_7 FOREIGN KEY (object_part_id) REFERENCES object_parts(id) ON DELETE SET NULL;
 ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_8 FOREIGN KEY (damage_code_id) REFERENCES damage_codes(id) ON DELETE SET NULL;
