@@ -4,7 +4,7 @@
 
 module.exports = {
   jwt: {
-    secret: process.env.JWT_SECRET || 'default-secret-change-in-production',
+    secret: process.env.JWT_SECRET || (process.env.NODE_ENV === 'test' ? 'test-only-jwt-secret-not-for-production-000000' : 'development-only-jwt-secret-not-for-production-000'),
     expiresIn: process.env.JWT_EXPIRES_IN || '24h'
   },
   bcrypt: {

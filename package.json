@@ -14,7 +14,11 @@
     "import:csv": "node src/utils/import-csv.js",
     "import:smp": "node src/utils/import-smp.js",
     "import:smps": "node src/utils/batch-import-smps.js",
-    "reset:all": "reset-and-rebuild.bat"
+    "reset:all": "reset-and-rebuild.bat",
+    "test:integration": "node scripts/run-integration-tests.js",
+    "test:all": "node scripts/run-all-tests.js",
+    "diagnose:coverage": "node scripts/diagnostics/coverage-api.js",
+    "diagnose:gaps": "node scripts/diagnostics/gap-api.js"
   },
   "keywords": [
     "cmms",
@@ -27,6 +31,7 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
+    "csv-parser": "^3.2.1",
     "dotenv": "^16.3.1",
     "ejs": "^3.1.9",
     "express": "^5.2.1",

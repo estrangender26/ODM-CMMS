@@ -37,10 +37,25 @@ class AssetImportService {
     
     return new Promise((resolve, reject) => {
       const rows = [];
-      
-      fs.createReadStream(filePath)
-        .pipe(csv())
-        .on('data', (row) => rows.push(row))
+      const maxRows = parseInt(process.env.ASSET_IMPORT_MAX_ROWS, 10) || 10000;
+      const input = fs.createReadStream(filePath);
+      const parser = input.pipe(csv());
+
+      parser
+        .on('headers', (headers) => {
+          try {
+            this.validateHeaders(headers);
+          } catch (error) {
+            input.destroy(error);
+          }
+        })
+        .on('data', (row) => {
+          if (rows.length >= maxRows) {
+            input.destroy(new Error(`CSV exceeds the ${maxRows}-row import limit`));
+            return;
+          }
+          rows.push(row);
+        })
         .on('end', async () => {
           try {
             await this.processRows(rows, importUserId);
@@ -50,6 +65,7 @@ class AssetImportService {
           }
         })
         .on('error', reject);
+      input.on('error', reject);
     });
   }
 

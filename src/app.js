@@ -16,6 +16,11 @@ const { optionalAuth } = require('./middleware/auth');
 
 const app = express();
 
+const trustProxy = process.env.TRUST_PROXY;
+if (trustProxy === 'loopback' || /^\d+$/.test(trustProxy || '')) {
+  app.set('trust proxy', trustProxy === 'loopback' ? 'loopback' : Number(trustProxy));
+}
+
 // View engine setup
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../views'));
@@ -47,7 +52,8 @@ app.use((req, res, next) => {
 });
 
 // CORS: only explicitly trusted browser origins may make credentialed requests.
-// Same-origin requests do not need CORS headers.
+// Same-origin requests do not need CORS headers. Only actual CORS preflights
+// (OPTIONS with Origin and Access-Control-Request-Method) are intercepted.
 const allowedCorsOrigins = new Set(
   (process.env.CORS_ALLOWED_ORIGINS || process.env.CORS_ORIGIN || '')
     .split(',')
@@ -58,17 +64,18 @@ const allowedCorsOrigins = new Set(
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const isAllowedOrigin = origin && allowedCorsOrigins.has(origin);
+  const isCorsPreflight = req.method === 'OPTIONS' && origin && req.headers['access-control-request-method'];
 
   if (isAllowedOrigin) {
     res.header('Access-Control-Allow-Origin', origin);
-    res.header('Vary', 'Origin');
+    res.vary('Origin');
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   }
 
-  if (req.method === 'OPTIONS') {
-    return origin && !isAllowedOrigin ? res.sendStatus(403) : res.sendStatus(204);
+  if (isCorsPreflight) {
+    return isAllowedOrigin ? res.sendStatus(204) : res.sendStatus(403);
   }
 
   next();
