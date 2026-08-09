@@ -51,7 +51,7 @@ jobs:
         run: npm test -- tests/runtime-migration.test.js
 
       - name: Run full test suite (non-destructive)
-        run: npm test || true
+        run: npm test
 
       - name: Verify adapter loads without mysql2 for runtime
         run: |
@@ -62,4 +62,4 @@ jobs:
           "
 
       - name: Audit production deps
-        run: npm audit --omit=dev --audit-level=moderate || true
+        run: npm audit --omit=dev --audit-level=moderate
