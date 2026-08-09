@@ -4,9 +4,9 @@ set -euo pipefail
 echo "=== ODM-CMMS PostgreSQL Schema Validation ==="
 
 if ! command -v docker &> /dev/null; then
-  echo "Docker is not available in the current environment."
-  echo "In CI environments with a postgres service container, execute psql directly against the container."
-  exit 0
+  echo "SKIPPED/PENDING: Docker is not available in the current environment."
+  echo "POSTGRESQL EXECUTION VALIDATION PENDING — CI service container execution required."
+  exit 2
 fi
 
 CONTAINER_NAME="odm_pg_validation_$$"
