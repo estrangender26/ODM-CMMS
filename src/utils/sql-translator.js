@@ -105,47 +105,43 @@ function convertPlaceholders(sql, params = []) {
  *   - .insertId
  *   - .affectedRows
  */
-function normalizeResult(pgResult, originalSql = '') {
+function normalizeResult(pgResult, originalSql = "") {
   if (!pgResult) {
-    return [];
+    const empty = [];
+    empty.insertId = null;
+    empty.affectedRows = 0;
+    empty.rowCount = 0;
+    return [empty, {}];
   }
 
-  // If pg client returned rows directly (some patterns)
   let rows = pgResult.rows || pgResult;
-
   if (!Array.isArray(rows)) {
-    rows = [rows].filter(Boolean);
+    rows = rows ? [rows] : [];
   }
 
-  // Detect INSERT to attach insertId
-  const isInsert = /^\s*INSERT/i.test(originalSql || '');
-  const isUpdateOrDelete = /^\s*(UPDATE|DELETE)/i.test(originalSql || '');
+  const isInsert = /^\s*INSERT/i.test(originalSql || "");
+  const isUpdateOrDelete = /^\s*(UPDATE|DELETE)/i.test(originalSql || "");
 
-  const normalized = rows;
-
-  // Attach mysql2-like properties on the array (and first element if needed)
   if (isInsert) {
-    // Try to get id from RETURNING or from last row if present
     let insertId = null;
     if (rows.length > 0 && rows[0]) {
-      // Common cases: id, or the first column
-      insertId = rows[0].id || rows[0].insert_id || Object.values(rows[0])[0];
+      insertId = rows[0].id || rows[0].insert_id || Object.values(rows[0])[0] || null;
+      if (insertId != null) insertId = parseInt(insertId, 10);
     }
-    // Fallback - caller can also use RETURNING in sql
-    normalized.insertId = insertId ? parseInt(insertId, 10) : null;
-    normalized.affectedRows = pgResult.rowCount || (rows.length > 0 ? 1 : 0);
+    rows.insertId = insertId;
+    rows.affectedRows = pgResult.rowCount || (rows.length > 0 ? 1 : 0);
   } else if (isUpdateOrDelete) {
-    normalized.affectedRows = pgResult.rowCount || 0;
-    normalized.insertId = null;
+    rows.affectedRows = pgResult.rowCount || 0;
+    rows.insertId = null;
   } else {
-    normalized.affectedRows = pgResult.rowCount || rows.length;
-    normalized.insertId = null;
+    rows.affectedRows = pgResult.rowCount || rows.length;
+    rows.insertId = null;
   }
 
-  // Also expose rowCount for convenience
-  normalized.rowCount = pgResult.rowCount || rows.length;
+  rows.rowCount = pgResult.rowCount || rows.length;
 
-  return normalized;
+  // mysql2 style: [rows, fields]
+  return [rows, { /* field metadata stub */ }];
 }
 
 /**
