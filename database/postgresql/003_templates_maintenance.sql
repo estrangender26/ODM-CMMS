@@ -272,8 +272,8 @@ CREATE TABLE IF NOT EXISTS smp_tasks (
 );
 
 ALTER TABLE template_family_rules ADD CONSTRAINT fk_template_family_rules_template_family_rules_ibfk_1 FOREIGN KEY (family_code) REFERENCES template_families(family_code) ON DELETE CASCADE;
-ALTER TABLE equipment_type_family_mappings ADD CONSTRAINT fk_equipment_type_family_mappings_equipment_type_family_mappings_ibfk_1 FOREIGN KEY (equipment_type_id) REFERENCES equipment_types(id) ON DELETE CASCADE;
-ALTER TABLE equipment_type_family_mappings ADD CONSTRAINT fk_equipment_type_family_mappings_equipment_type_family_mappings_ibfk_2 FOREIGN KEY (family_code) REFERENCES template_families(family_code) ON DELETE CASCADE;
+ALTER TABLE equipment_type_family_mappings ADD CONSTRAINT fk_etfm_equip_type_id FOREIGN KEY (equipment_type_id) REFERENCES equipment_types(id) ON DELETE CASCADE;
+ALTER TABLE equipment_type_family_mappings ADD CONSTRAINT fk_etfm_family_code FOREIGN KEY (family_code) REFERENCES template_families(family_code) ON DELETE CASCADE;
 ALTER TABLE equipment_type_family_proposals ADD CONSTRAINT fk_equipment_type_family_proposals_fk_equip_proposal_type FOREIGN KEY (equipment_type_id) REFERENCES equipment_types(id) ON DELETE CASCADE;
 ALTER TABLE equipment_type_family_proposals ADD CONSTRAINT fk_equipment_type_family_proposals_fk_equip_proposal_family FOREIGN KEY (proposed_family_code) REFERENCES template_families(family_code) ON DELETE CASCADE;
 ALTER TABLE equipment_type_family_proposals ADD CONSTRAINT fk_equipment_type_family_proposals_fk_equip_proposal_by FOREIGN KEY (proposed_by) REFERENCES users(id) ON DELETE SET NULL;
