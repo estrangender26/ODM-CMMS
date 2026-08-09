@@ -56,14 +56,31 @@ npm install
 
 # 2. Configure environment
 copy .env.example .env
-# Edit .env with your PostgreSQL credentials
+# Edit .env with your PostgreSQL credentials (DB_HOST, DB_PORT=5432,
+# DB_NAME, DB_USER, DB_PASSWORD).
 
-# 3. Initialize database
-npm run db:init
+# 3. Create the PostgreSQL database
+createdb -U postgres odm_cmms
 
-# 4. Start server
+# 4. Initialize the PostgreSQL schema.
+#    Apply the numbered SQL files in database/postgresql/ in order:
+psql -U postgres -d odm_cmms -f database/postgresql/001_core.sql
+psql -U postgres -d odm_cmms -f database/postgresql/002_equipment_taxonomy.sql
+psql -U postgres -d odm_cmms -f database/postgresql/003_templates_maintenance.sql
+psql -U postgres -d odm_cmms -f database/postgresql/004_work_management.sql
+psql -U postgres -d odm_cmms -f database/postgresql/005_commercial_security.sql
+psql -U postgres -d odm_cmms -f database/postgresql/006_customization_files.sql
+psql -U postgres -d odm_cmms -f database/postgresql/007_indexes.sql
+psql -U postgres -d odm_cmms -f database/postgresql/008_views.sql
+
+# 5. Start server
 npm run dev
 ```
+
+> **Legacy note:** `npm run db:init` runs `src/utils/init-db.js`, which is a
+> **legacy MySQL-only** bootstrap utility that uses `mysql2`. It is not used
+> for PostgreSQL and must not be run against the PostgreSQL runtime. Use the
+> `psql` workflow above (or the Windows installer) to initialize PostgreSQL.
 
 ### Available Scripts
 
@@ -174,13 +191,14 @@ Run `reset-database.bat` to restore default data.
 - `npm start` - Start production server
 - `npm run dev` - Start with auto-reload
 - `npm test` - Run tests
-- `npm run db:init` - Initialize database
+- `npm run db:init` - **Legacy MySQL-only** bootstrap (`src/utils/init-db.js`, uses `mysql2`); do not use for PostgreSQL. Initialize PostgreSQL with the numbered SQL files under `database/postgresql/` instead.
 
 ### Project Structure
 ```
 ODM-CMMS/
 ├── database/
-│   └── schema.sql          # Database schema
+│   ├── postgresql/         # PostgreSQL schema (numbered .sql files applied in order)
+│   └── schema.sql          # Legacy MySQL schema reference
 ├── src/
 │   ├── config/             # Configuration files
 │   ├── controllers/        # Route controllers
