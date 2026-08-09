@@ -1,0 +1,65 @@
+name: PostgreSQL Schema Validation
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+  workflow_dispatch:
+
+jobs:
+  validate-schema:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: odm_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Execute schema files in order
+        env:
+          PGPASSWORD: password
+        run: |
+          echo "Executing PostgreSQL schema files..."
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d odm_test -f database/postgresql/001_core.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d odm_test -f database/postgresql/002_equipment_taxonomy.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d odm_test -f database/postgresql/003_templates_maintenance.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d odm_test -f database/postgresql/004_work_management.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d odm_test -f database/postgresql/005_commercial_security.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d odm_test -f database/postgresql/006_customization_files.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d odm_test -f database/postgresql/007_indexes.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d odm_test -f database/postgresql/008_views.sql
+
+          echo "Verifying table count..."
+          TABLE_COUNT=$(psql -h localhost -U postgres -d odm_test -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE';" | xargs)
+          echo "Tables created: $TABLE_COUNT"
+          if [ "$TABLE_COUNT" -ne 66 ]; then
+            echo "Expected 66 tables, got $TABLE_COUNT"
+            exit 1
+          fi
+
+          echo "Verifying view count..."
+          VIEW_COUNT=$(psql -h localhost -U postgres -d odm_test -t -c "SELECT COUNT(*) FROM information_schema.views WHERE table_schema = 'public';" | xargs)
+          echo "Views created: $VIEW_COUNT"
+          if [ "$VIEW_COUNT" -ne 6 ]; then
+            echo "Expected 6 views, got $VIEW_COUNT"
+            exit 1
+          fi
+
+          echo "All PostgreSQL schema execution and verification checks passed successfully!"
