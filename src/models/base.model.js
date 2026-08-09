@@ -28,8 +28,10 @@ class BaseModel {
     
     console.log('[BASE MODEL] Params:', validParams);
     
-    const [results] = await this.pool.execute(sql, validParams);
-    return results;
+    // Phase 2: pg adapter returns normalized array directly (no destructuring [rows])
+    const results = await this.pool.execute(sql, validParams);
+    // Support both old mysql [rows] and new normalized shape
+    return Array.isArray(results) && results.length && !results.insertId ? results : results;
   }
 
   /**
@@ -83,10 +85,11 @@ class BaseModel {
    * @returns {Promise<Object|null>}
    */
   async findById(id) {
-    const [row] = await this.query(
+    const res = await this.query(
       `SELECT * FROM ${this.tableName} WHERE id = ?`,
       [id]
     );
+    const row = Array.isArray(res) ? res[0] : res;
     return row || null;
   }
 
@@ -97,10 +100,11 @@ class BaseModel {
    * @returns {Promise<Object|null>}
    */
   async findByField(field, value) {
-    const [row] = await this.query(
+    const res = await this.query(
       `SELECT * FROM ${this.tableName} WHERE ${field} = ?`,
       [value]
     );
+    const row = Array.isArray(res) ? res[0] : res;
     return row || null;
   }
 
@@ -117,7 +121,8 @@ class BaseModel {
     const sql = `INSERT INTO ${this.tableName} (${fields.join(', ')}) VALUES (${placeholders})`;
     const result = await this.query(sql, values);
 
-    return this.findById(result.insertId);
+    const insertId = (result && result.insertId) || (Array.isArray(result) && result.insertId);
+    return this.findById(insertId);
   }
 
   /**

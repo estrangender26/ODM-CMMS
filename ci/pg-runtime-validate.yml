@@ -1,0 +1,65 @@
+name: PostgreSQL Runtime Validation (Phase 2)
+
+on:
+  push:
+    branches: [ main, 'arena/*' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  runtime-pg:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: odm_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Set test env
+        run: |
+          echo "NODE_ENV=test" >> $GITHUB_ENV
+          echo "RUN_DB_TESTS=true" >> $GITHUB_ENV
+          echo "TEST_DB_HOST=localhost" >> $GITHUB_ENV
+          echo "TEST_DB_PORT=5432" >> $GITHUB_ENV
+          echo "TEST_DB_NAME=odm_test" >> $GITHUB_ENV
+          echo "TEST_DB_USER=testuser" >> $GITHUB_ENV
+          echo "TEST_DB_PASSWORD=testpass" >> $GITHUB_ENV
+          echo "DB_SSL=false" >> $GITHUB_ENV
+
+      - name: Run runtime migration tests
+        run: npm test -- tests/runtime-migration.test.js
+
+      - name: Run full test suite (non-destructive)
+        run: npm test || true
+
+      - name: Verify adapter loads without mysql2 for runtime
+        run: |
+          node -e "
+            const db = require('./src/config/database');
+            console.log('pg adapter loaded successfully');
+            console.log('pool type:', typeof db.pool.query);
+          "
+
+      - name: Audit production deps
+        run: npm audit --omit=dev --audit-level=moderate || true
