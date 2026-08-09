@@ -1,8 +1,14 @@
 /**
- * Database Configuration - Phase 2: PostgreSQL Runtime Migration
- * Primary driver: pg (node-postgres)
- * Compatibility layer for existing MySQL-style usage
+ * Database Configuration - Phase 3: PostgreSQL Runtime Cutover
  *
+ * The application runtime uses PostgreSQL exclusively through the `pg`
+ * driver (node-postgres). The `mysql2` package is retained ONLY as an
+ * optional dependency of one-off legacy import/migration utilities
+ * (see the LEGACY_MYSQL2_ALLOWLIST exported below) and MUST NOT be loaded
+ * by the HTTP/API runtime. tests/phase3-cutover-guard.test.js enforces
+ * this boundary in CI.
+ *
+ * Compatibility layer for existing MySQL-style usage:
  * - Preserves getDb(), pool usage patterns
  * - Supports ? -> $n placeholder translation
  * - Provides insertId / affectedRows compatibility
@@ -12,6 +18,27 @@
 
 const { Pool } = require('pg');
 const { prepareQuery, translateSql } = require('../utils/sql-translator');
+
+/**
+ * Phase 3 cutover declaration.
+ *
+ * PRIMARY_RUNTIME_DRIVER names the only SQL driver the API/HTTP runtime
+ * is permitted to load. LEGACY_MYSQL2_ALLOWLIST enumerates the documented
+ * one-off import/migration utilities that may still use `mysql2/promise`.
+ * Any new runtime code outside this list MUST use `pg` / the adapter
+ * exposed here.
+ */
+const PRIMARY_RUNTIME_DRIVER = 'pg';
+const LEGACY_MYSQL2_ALLOWLIST = Object.freeze([
+  // Legacy one-off data import utilities (run manually; not part of HTTP runtime)
+  'src/utils/import-csv.js',
+  'src/utils/import-smp.js',
+  'src/utils/import-smp-csv.js',
+  'src/utils/import-excel-workbook.js',
+  'src/utils/batch-import-smps.js',
+  // Legacy database bootstrap / migration runners (manual operations)
+  'src/utils/init-db.js'
+]);
 
 /**
  * MySQL2-style result normalizer.
@@ -227,5 +254,8 @@ module.exports = {
   isIntegrationTest,
   getConnection,
   // Expose translator for testing / advanced
-  _translate: { prepareQuery, normalizeResult, translateSql }
+  _translate: { prepareQuery, normalizeResult, translateSql },
+  // Phase 3 cutover declaration
+  PRIMARY_RUNTIME_DRIVER,
+  LEGACY_MYSQL2_ALLOWLIST
 };

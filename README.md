@@ -2,7 +2,27 @@
 
 **Operator-Driven Maintenance Computerized Maintenance Management System**
 
-A mobile-first CMMS application built with Node.js, Express, and MySQL.
+A mobile-first CMMS application built with Node.js, Express, and PostgreSQL.
+
+## Database Runtime (Phase 3)
+
+**PostgreSQL (`pg`) is the primary and only runtime database driver.** The API/HTTP
+server, models, controllers, services, and routes connect to PostgreSQL exclusively.
+
+The legacy `mysql2` driver remains a dependency solely for documented one-off
+import/migration utilities that are run manually and are never loaded by the web
+runtime:
+
+- `src/utils/import-csv.js`
+- `src/utils/import-smp.js`, `src/utils/import-smp-csv.js`, `src/utils/import-excel-workbook.js`
+- `src/utils/batch-import-smps.js`
+- `src/utils/init-db.js` (legacy MySQL bootstrap)
+
+This boundary is enforced by `tests/phase3-cutover-guard.test.js`, which scans
+the runtime source tree and also verifies that booting the application does not
+load `mysql2`. Do not add `mysql2` to any model, controller, service, route, or
+middleware. See the full allowlist in `src/config/database.js`
+(`LEGACY_MYSQL2_ALLOWLIST`).
 
 ## Quick Start (Windows)
 
@@ -10,7 +30,7 @@ The easiest way to get started on Windows is using the provided installer script
 
 ### Prerequisites
 1. **Node.js 18+** - Download from [nodejs.org](https://nodejs.org/)
-2. **MySQL 8.0+** - Download from [mysql.com](https://dev.mysql.com/downloads/installer/)
+2. **PostgreSQL 14+** - Download from [postgresql.org](https://www.postgresql.org/download/)
 
 ### Installation Steps
 
@@ -36,14 +56,31 @@ npm install
 
 # 2. Configure environment
 copy .env.example .env
-# Edit .env with your MySQL credentials
+# Edit .env with your PostgreSQL credentials (DB_HOST, DB_PORT=5432,
+# DB_NAME, DB_USER, DB_PASSWORD).
 
-# 3. Initialize database
-npm run db:init
+# 3. Create the PostgreSQL database
+createdb -U postgres odm_cmms
 
-# 4. Start server
+# 4. Initialize the PostgreSQL schema.
+#    Apply the numbered SQL files in database/postgresql/ in order:
+psql -U postgres -d odm_cmms -f database/postgresql/001_core.sql
+psql -U postgres -d odm_cmms -f database/postgresql/002_equipment_taxonomy.sql
+psql -U postgres -d odm_cmms -f database/postgresql/003_templates_maintenance.sql
+psql -U postgres -d odm_cmms -f database/postgresql/004_work_management.sql
+psql -U postgres -d odm_cmms -f database/postgresql/005_commercial_security.sql
+psql -U postgres -d odm_cmms -f database/postgresql/006_customization_files.sql
+psql -U postgres -d odm_cmms -f database/postgresql/007_indexes.sql
+psql -U postgres -d odm_cmms -f database/postgresql/008_views.sql
+
+# 5. Start server
 npm run dev
 ```
+
+> **Legacy note:** `npm run db:init` runs `src/utils/init-db.js`, which is a
+> **legacy MySQL-only** bootstrap utility that uses `mysql2`. It is not used
+> for PostgreSQL and must not be run against the PostgreSQL runtime. Use the
+> `psql` workflow above (or the Windows installer) to initialize PostgreSQL.
 
 ### Available Scripts
 
@@ -73,7 +110,8 @@ npm run dev
 ## Tech Stack
 
 - **Backend:** Node.js, Express
-- **Database:** MySQL 8.0+
+- **Database:** PostgreSQL 14+ (primary runtime driver: `pg`)
+- **Legacy tooling:** `mysql2` retained only for one-off import/migration utilities
 - **Frontend:** EJS, Vanilla JavaScript (Mobile-first CSS)
 - **Authentication:** JWT with bcrypt
 - **PWA:** Service Worker, Web Manifest
@@ -131,9 +169,9 @@ npm run dev
 
 ## Troubleshooting
 
-### "mysql command not found"
-Add MySQL to your PATH:
-- Default location: `C:\Program Files\MySQL\MySQL Server 8.0\bin`
+### "psql command not found"
+Add PostgreSQL to your PATH:
+- Default location: `C:\Program Files\PostgreSQL\<version>\bin`
 
 ### "Port 3000 already in use"
 Edit `.env` file:
@@ -142,7 +180,7 @@ PORT=3001
 ```
 
 ### "Access denied for user"
-Check your MySQL credentials in `.env` file.
+Check your PostgreSQL credentials in `.env` file.
 
 ### Reset Everything
 Run `reset-database.bat` to restore default data.
@@ -153,13 +191,14 @@ Run `reset-database.bat` to restore default data.
 - `npm start` - Start production server
 - `npm run dev` - Start with auto-reload
 - `npm test` - Run tests
-- `npm run db:init` - Initialize database
+- `npm run db:init` - **Legacy MySQL-only** bootstrap (`src/utils/init-db.js`, uses `mysql2`); do not use for PostgreSQL. Initialize PostgreSQL with the numbered SQL files under `database/postgresql/` instead.
 
 ### Project Structure
 ```
 ODM-CMMS/
 ├── database/
-│   └── schema.sql          # Database schema
+│   ├── postgresql/         # PostgreSQL schema (numbered .sql files applied in order)
+│   └── schema.sql          # Legacy MySQL schema reference
 ├── src/
 │   ├── config/             # Configuration files
 │   ├── controllers/        # Route controllers

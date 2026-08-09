@@ -1,4 +1,4 @@
-name: PostgreSQL Runtime Validation (Phase 2)
+name: PostgreSQL Runtime Validation (Phase 3 Cutover)
 
 on:
   push:
@@ -58,8 +58,13 @@ jobs:
           node -e "
             const db = require('./src/config/database');
             console.log('pg adapter loaded successfully');
-            console.log('pool type:', typeof db.pool.query);
+            console.log('primary runtime driver:', db.PRIMARY_RUNTIME_DRIVER);
+            console.log('legacy mysql2 allowlist entries:', db.LEGACY_MYSQL2_ALLOWLIST.length);
+            if (db.PRIMARY_RUNTIME_DRIVER !== 'pg') throw new Error('Expected pg primary runtime driver');
           "
+
+      - name: Phase 3 cutover guard (no mysql2 in runtime)
+        run: npm test -- tests/phase3-cutover-guard.test.js
 
       - name: Audit production deps
         run: npm audit --omit=dev --audit-level=moderate
