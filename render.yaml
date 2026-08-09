@@ -1,8 +1,8 @@
 services:
   - type: web
-    name: odm-cmms
+    name: atiman-api
     env: node
-    plan: free
+    plan: starter
     region: singapore
     branch: main
     rootDir: .

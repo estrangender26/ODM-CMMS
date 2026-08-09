@@ -75,13 +75,13 @@ The schema SQL uses idempotent table/index creation and replaceable views, so th
 ## 3. Deploy with the Render Blueprint
 
 1. In Render, select **New > Blueprint** and connect this GitHub repository.
-2. Render detects the root `render.yaml`. Review the `odm-cmms` web service and apply the Blueprint.
+2. Render detects the root `render.yaml`. Review the `atiman-api` web service and apply the Blueprint.
 3. Supply every environment variable marked `sync: false`:
    - `DB_HOST`: the Supabase host only, without a URI scheme.
    - `DB_NAME`: usually `postgres` for a new Supabase project.
    - `DB_USER`: the exact user shown by Supabase.
    - `DB_PASSWORD`: the Supabase database password.
-   - `CORS_ALLOWED_ORIGINS`: the exact public Render origin, such as `https://odm-cmms.onrender.com`. Add other trusted browser origins as a comma-separated list only when needed.
+   - `CORS_ALLOWED_ORIGINS`: the exact public Render origin, such as `https://atiman-api.onrender.com`. Add other trusted browser origins as a comma-separated list only when needed.
 4. Confirm that Render generated `JWT_SECRET`. Do not replace it with a placeholder; production validation requires a non-placeholder secret of at least 32 characters.
 5. Deploy. Render runs `npm ci --omit=dev`, executes `node scripts/smoke-test-pg.js` as its pre-deploy check, and starts `node src/index.js` only after the database check passes.
 
@@ -112,14 +112,14 @@ Render monitors `GET /health`. The correct cloud health path is `/health`, **not
 | `ASSET_IMPORT_MAX_ROWS` | `10000` | Maximum CSV asset import rows. |
 | `LOG_LEVEL` | `info` | Production logging level. |
 
-The Blueprint also fixes the service plan to `free`, region to `singapore`, and deployment branch to `main`.
+The Blueprint also fixes the service plan to `starter`, region to `singapore`, and deployment branch to `main`.
 
 ## 4. Verify the Deployment
 
 After Render reports the service as live, verify the configured health check:
 
 ```bash
-curl -fsS https://odm-cmms.onrender.com/health
+curl -fsS https://atiman-api.onrender.com/health
 ```
 
 A successful response is HTTP 200 JSON with `success: true`, a message, and a timestamp. If Render assigns a different hostname, substitute that hostname but keep the `/health` path.
@@ -176,9 +176,9 @@ Confirm `DB_SSL=true`, `DB_SSL_REJECT_UNAUTHORIZED=false`, and `PGSSLMODE=requir
 
 Use the Supabase session pooler host on port 5432 when the client or Render cannot reach the direct IPv6 endpoint. Check Supabase network restrictions and verify that the project is running rather than paused.
 
-### Render free-plan cold starts
+### Render startup delays
 
-A free Render service can take time to wake after inactivity. Retry the `/health` request after the service starts, and inspect Render logs if it never returns HTTP 200. Cold-start latency does not change the health path.
+A Render service can take time to start or restart. Retry the `/health` request after the service starts, and inspect Render logs if it never returns HTTP 200. Startup latency does not change the health path.
 
 ## What This Does Not Change
 
