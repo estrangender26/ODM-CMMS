@@ -49,7 +49,7 @@ class ApiKey {
     const keyHash = this.hashKey(apiKey);
     const keyPrefix = this.getPrefix(apiKey);
 
-    const [result] = await pool.execute(
+    const resultRows = await pool.execute(
       `INSERT INTO api_keys 
        (organization_id, user_id, name, api_key_hash, api_key_prefix, scopes, rate_limit_per_minute, expires_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -67,7 +67,7 @@ class ApiKey {
 
     // Return the key info with the full key (only time it's available)
     return {
-      id: result.insertId,
+      id: resultRows.insertId || (resultRows[0] && resultRows[0].id),
       name,
       api_key: apiKey, // ONLY returned on creation
       prefix: keyPrefix,
@@ -88,7 +88,7 @@ class ApiKey {
 
     const keyHash = this.hashKey(apiKey);
 
-    const [rows] = await pool.execute(
+    const rows = await pool.execute(
       `SELECT ak.*, u.username, u.role, u.organization_id, u.facility_id
        FROM api_keys ak
        JOIN users u ON ak.user_id = u.id
@@ -125,7 +125,7 @@ class ApiKey {
    * Get all API keys for an organization
    */
   static async getForOrganization(organizationId) {
-    const [rows] = await pool.execute(
+    const rows = await pool.execute(
       `SELECT ak.id, ak.name, ak.api_key_prefix, ak.scopes, ak.rate_limit_per_minute,
               ak.last_used_at, ak.usage_count, ak.expires_at, ak.is_active, ak.created_at,
               u.username as created_by
@@ -155,7 +155,7 @@ class ApiKey {
    * Get API key by ID
    */
   static async getById(id, organizationId) {
-    const [rows] = await pool.execute(
+    const rows = await pool.execute(
       `SELECT ak.*, u.username as created_by
        FROM api_keys ak
        JOIN users u ON ak.user_id = u.id
@@ -225,19 +225,19 @@ class ApiKey {
    * Delete API key
    */
   static async delete(id, organizationId) {
-    const [result] = await pool.execute(
+    const resultRows = await pool.execute(
       'DELETE FROM api_keys WHERE id = ? AND organization_id = ?',
       [id, organizationId]
     );
 
-    return result.affectedRows > 0;
+    return (resultRows.affectedRows || (resultRows[0] && resultRows[0].affectedRows) || 0) > 0;
   }
 
   /**
    * Count API keys for organization
    */
   static async countForOrganization(organizationId) {
-    const [rows] = await pool.execute(
+    const rows = await pool.execute(
       'SELECT COUNT(*) as count FROM api_keys WHERE organization_id = ? AND is_active = TRUE',
       [organizationId]
     );
@@ -289,13 +289,13 @@ class ApiKey {
     dateFrom.setDate(dateFrom.getDate() - days);
 
     // Total requests
-    const [totalResult] = await pool.execute(
+    const totalResultRows = await pool.execute(
       'SELECT COUNT(*) as count FROM api_usage_logs WHERE organization_id = ? AND created_at >= ?',
       [organizationId, dateFrom]
     );
 
     // Requests by endpoint
-    const [endpointStats] = await pool.execute(
+    const endpointStatsRows = await pool.execute(
       `SELECT endpoint, COUNT(*) as count 
        FROM api_usage_logs 
        WHERE organization_id = ? AND created_at >= ?
@@ -306,7 +306,7 @@ class ApiKey {
     );
 
     // Error rate
-    const [errorStats] = await pool.execute(
+    const errorStats = await pool.execute(
       `SELECT 
         COUNT(*) as total,
         COUNT(CASE WHEN response_status >= 400 THEN 1 END) as errors
@@ -316,7 +316,7 @@ class ApiKey {
     );
 
     // Requests by day
-    const [dailyStats] = await pool.execute(
+    const dailyStatsRows = await pool.execute(
       `SELECT DATE(created_at) as date, COUNT(*) as count
        FROM api_usage_logs 
        WHERE organization_id = ? AND created_at >= ?
@@ -326,10 +326,10 @@ class ApiKey {
     );
 
     return {
-      total_requests: totalResult[0].count,
-      error_rate: errorStats[0].total > 0 ? (errorStats[0].errors / errorStats[0].total * 100).toFixed(2) : 0,
-      top_endpoints: endpointStats,
-      daily_usage: dailyStats
+      total_requests: (totalResultRows[0] || totalResultRows).count,
+      error_rate: (errorStatsRows[0] || errorStatsRows).total > 0 ? ((errorStatsRows[0] || errorStatsRows).errors || 0 / (errorStatsRows[0] || errorStatsRows).total * 100).toFixed(2) : 0,
+      top_endpoints: endpointStatsRows,
+      daily_usage: dailyStatsRows
     };
   }
 
@@ -347,7 +347,7 @@ class ApiKey {
     );
 
     // Get current count
-    const [rows] = await pool.execute(
+    const rows = await pool.execute(
       'SELECT SUM(request_count) as count FROM api_rate_limit_tracking WHERE api_key_id = ? AND window_start >= ?',
       [apiKeyId, windowStart]
     );

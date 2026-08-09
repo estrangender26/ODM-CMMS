@@ -20,7 +20,7 @@ describe('integration database safety guard', () => {
         TEST_DB_HOST: '127.0.0.1', TEST_DB_PORT: '3306', TEST_DB_NAME: 'odm_cmms_test', TEST_DB_USER: 'test', TEST_DB_PASSWORD: 'test-password'
       });
       assert.deepStrictEqual(getDatabaseConfig(), {
-        host: '127.0.0.1', port: 3306, database: 'odm_cmms_test', user: 'test', password: 'test-password'
+        host: '127.0.0.1', port: 3306, database: 'odm_cmms_test', user: 'test', password: 'test-password', ssl: false
       });
     } finally {
       restore(original);

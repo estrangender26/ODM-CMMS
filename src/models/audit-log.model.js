@@ -37,7 +37,7 @@ class AuditLog {
       failure_reason
     } = data;
 
-    const [result] = await pool.execute(
+    const resultRows = await pool.execute(
       `INSERT INTO audit_logs 
        (organization_id, action, entity_type, entity_id, entity_name,
         user_id, user_name, user_role, old_values, new_values, changed_fields,
@@ -130,7 +130,7 @@ class AuditLog {
     }
 
     // Get total count
-    const [countResult] = await pool.execute(
+    const countResult = await pool.execute(
       `SELECT COUNT(*) as total FROM audit_logs al ${sql.replace('SELECT al.* FROM audit_logs al', '')}`,
       params
     );
@@ -139,7 +139,7 @@ class AuditLog {
     sql += ' ORDER BY al.created_at DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
 
-    const [rows] = await pool.execute(sql, params);
+    const rows = await pool.execute(sql, params);
 
     return {
       logs: rows.map(this.formatLog),
@@ -153,7 +153,7 @@ class AuditLog {
    * Get a single audit log by ID
    */
   static async getById(id, organizationId) {
-    const [rows] = await pool.execute(
+    const rows = await pool.execute(
       'SELECT * FROM audit_logs WHERE id = ? AND organization_id = ?',
       [id, organizationId]
     );
@@ -164,7 +164,7 @@ class AuditLog {
    * Get recent activity for a user
    */
   static async getUserActivity(userId, organizationId, limit = 20) {
-    const [rows] = await pool.execute(
+    const rows = await pool.execute(
       `SELECT * FROM audit_logs 
        WHERE user_id = ? AND organization_id = ?
        ORDER BY created_at DESC
@@ -178,7 +178,7 @@ class AuditLog {
    * Get activity for an entity
    */
   static async getEntityActivity(entityType, entityId, organizationId, limit = 50) {
-    const [rows] = await pool.execute(
+    const rows = await pool.execute(
       `SELECT * FROM audit_logs 
        WHERE entity_type = ? AND entity_id = ? AND organization_id = ?
        ORDER BY created_at DESC
@@ -201,7 +201,7 @@ class AuditLog {
     if (actions.length === 0) return [];
 
     const placeholders = actions.map(() => '?').join(',');
-    const [rows] = await pool.execute(
+    const rows = await pool.execute(
       `SELECT * FROM audit_logs 
        WHERE organization_id = ? AND action IN (${placeholders})
        ORDER BY created_at DESC
@@ -242,7 +242,7 @@ class AuditLog {
     sql += ' ORDER BY created_at DESC LIMIT ?';
     params.push(limit);
 
-    const [rows] = await pool.execute(sql, params);
+    const rows = await pool.execute(sql, params);
     return rows.map(this.formatLog);
   }
 
@@ -254,7 +254,7 @@ class AuditLog {
     dateFrom.setDate(dateFrom.getDate() - days);
 
     // Activity by action
-    const [actionStats] = await pool.execute(
+    const actionStats = await pool.execute(
       `SELECT action, COUNT(*) as count 
        FROM audit_logs 
        WHERE organization_id = ? AND created_at >= ?
@@ -264,7 +264,7 @@ class AuditLog {
     );
 
     // Activity by user
-    const [userStats] = await pool.execute(
+    const userStats = await pool.execute(
       `SELECT user_id, user_name, COUNT(*) as count 
        FROM audit_logs 
        WHERE organization_id = ? AND created_at >= ? AND user_id IS NOT NULL
@@ -275,7 +275,7 @@ class AuditLog {
     );
 
     // Failed login attempts
-    const [failedLogins] = await pool.execute(
+    const failedLogins = await pool.execute(
       `SELECT DATE(created_at) as date, COUNT(*) as count
        FROM audit_logs 
        WHERE organization_id = ? AND action = 'login_failed' AND created_at >= ?
@@ -285,7 +285,7 @@ class AuditLog {
     );
 
     // Total events
-    const [totalResult] = await pool.execute(
+    const totalResult = await pool.execute(
       'SELECT COUNT(*) as total FROM audit_logs WHERE organization_id = ? AND created_at >= ?',
       [organizationId, dateFrom]
     );
@@ -309,7 +309,7 @@ class AuditLog {
     await this.archiveOldLogs(organizationId, cutoffDate);
 
     // Then delete
-    const [result] = await pool.execute(
+    const resultRows = await pool.execute(
       'DELETE FROM audit_logs WHERE organization_id = ? AND created_at < ?',
       [organizationId, cutoffDate]
     );
@@ -322,7 +322,7 @@ class AuditLog {
    */
   static async archiveOldLogs(organizationId, cutoffDate) {
     // Check if archiving is enabled
-    const [policy] = await pool.execute(
+    const policy = await pool.execute(
       'SELECT archive_before_delete FROM audit_retention_policies WHERE organization_id = ?',
       [organizationId]
     );
@@ -350,7 +350,7 @@ class AuditLog {
    * Get or create audit configuration for organization
    */
   static async getConfiguration(organizationId) {
-    const [rows] = await pool.execute(
+    const rows = await pool.execute(
       'SELECT * FROM audit_configurations WHERE organization_id = ?',
       [organizationId]
     );
