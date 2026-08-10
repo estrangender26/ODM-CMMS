@@ -339,18 +339,22 @@ A standard event envelope must include:
 
 ### 9.1 Authentication Flow
 
-1. User presents credentials.
-2. Platform validates credentials and tenant membership.
-3. Platform issues short-lived access token and refresh token.
-4. Subsequent requests present access token.
-5. Access token carries identity, tenant, and role claims.
+1. User or service presents credentials.
+2. Platform validates identity and tenant membership.
+3. Platform establishes a secure authenticated session or context.
+4. Subsequent requests carry that authenticated context.
+5. The context includes identity, tenant, and authorization information.
+
+*The exact session/token mechanism (e.g., access/refresh tokens, session cookies, signed assertions) is an implementation decision.*
 
 ### 9.2 Authorization Flow
 
-1. API receives request with access token.
-2. Platform extracts tenant and role claims.
+1. API receives request within an authenticated context.
+2. Platform extracts tenant and authorization information.
 3. Policy engine evaluates permission for requested resource/action.
-4. Rejected requests return 403 with audit record.
+4. Rejected requests return a forbidden response with an audit record.
+
+*The exact claim format and policy engine implementation are implementation decisions.*
 
 ### 9.3 Service Accounts
 
