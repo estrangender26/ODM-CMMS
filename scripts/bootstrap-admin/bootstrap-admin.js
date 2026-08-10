@@ -8,7 +8,7 @@
  * - Reads credentials from secure environment variables ONLY.
  * - Hashes the password using the same bcrypt configuration as the app.
  * - Creates a single active admin with no organization/facility attachment.
- * - Runs inside an explicit database transaction.
+ * - Runs inside a database transaction started by getConnection() (BEGIN already issued).
  * - Does not print the password or password hash.
  */
 
@@ -69,11 +69,10 @@ async function main(options = {}) {
 
   await validateInputs(username, email, fullName, password);
 
+  // getConnection() already starts a PostgreSQL transaction (BEGIN).
   const conn = await connectionProvider();
 
   try {
-    await conn.beginTransaction();
-
     // Guard: refuse if any user already exists.
     const [existing] = await conn.query('SELECT COUNT(*) AS count FROM users');
     const existingCount = parseInt(existing.count, 10);

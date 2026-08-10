@@ -20,6 +20,7 @@ function createMockConnection(scenario = 'empty') {
   const rows = [];
 
   return {
+    // getConnection() already started a transaction; beginTransaction is a no-op in the bootstrap.
     beginTransaction: async () => {},
     query: async (sql, params) => {
       if (sql.match(/SELECT COUNT\(\*\) AS count FROM users/i)) {
