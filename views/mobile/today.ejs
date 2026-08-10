@@ -5,6 +5,7 @@
 <% const isAdmin = typeof userRole !== 'undefined' && userRole === 'admin'; %>
 <% const isSupervisor = typeof userRole !== 'undefined' && userRole === 'supervisor'; %>
 <% const isOperator = typeof userRole !== 'undefined' && userRole === 'operator'; %>
+<% function formatCount(value) { return (typeof value === 'number') ? value.toString() : '—'; } %>
 
 <!-- Organization Card -->
 <div id="orgCard" class="card" style="margin-bottom: 16px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark, #1565c0) 100%); color: white; display: none;">
@@ -54,12 +55,12 @@
 <!-- Supervisor Today -->
 <div class="dashboard-stats">
     <div class="stat-card">
-        <div class="stat-value"><%= typeof openFindingsCount === 'number' ? openFindingsCount : '—' %></div>
+        <div class="stat-value"><%= formatCount(openFindingsCount) %></div>
         <div class="stat-label">Needs Assessment</div>
     </div>
     <div class="stat-card">
-        <div class="stat-value">—</div>
-        <div class="stat-label">Overdue</div>
+        <div class="stat-value"><%= formatCount(overdueScheduleCount) %></div>
+        <div class="stat-label">Overdue Schedules</div>
     </div>
 </div>
 
@@ -108,20 +109,20 @@
 <!-- Operator Today -->
 <div class="dashboard-stats">
     <div class="stat-card">
-        <div class="stat-value"><%= typeof todayCount === 'number' ? todayCount : '—' %></div>
-        <div class="stat-label">Today's Tasks</div>
+        <div class="stat-value"><%= formatCount(dueScheduleCount) %></div>
+        <div class="stat-label">Due Schedules</div>
     </div>
     <div class="stat-card">
-        <div class="stat-value" style="<%= overdueCount > 0 ? 'color: var(--danger);' : '' %>"><%= typeof overdueCount === 'number' ? overdueCount : '—' %></div>
-        <div class="stat-label">Overdue</div>
+        <div class="stat-value" style="<%= (typeof overdueScheduleCount === 'number' && overdueScheduleCount > 0) ? 'color: var(--danger);' : '' %>"><%= formatCount(overdueScheduleCount) %></div>
+        <div class="stat-label">Overdue Schedules</div>
     </div>
 </div>
 
-<% if (overdueCount > 0) { %>
+<% if (typeof overdueScheduleCount === 'number' && overdueScheduleCount > 0) { %>
 <div class="alert-banner">
     <span class="alert-icon">⚠️</span>
     <div class="alert-content">
-        <div class="alert-title"><%= overdueCount %> overdue task<%= overdueCount === 1 ? '' : 's' %></div>
+        <div class="alert-title"><%= overdueScheduleCount %> overdue schedule<%= overdueScheduleCount === 1 ? '' : 's' %></div>
         <div class="alert-subtitle">Review overdue work first</div>
     </div>
 </div>
@@ -138,16 +139,16 @@
 </button>
 
 <div class="card">
-    <div class="card-title">Priority Tasks</div>
-    <% if (todayTasks && todayTasks.length > 0) { %>
-        <% todayTasks.forEach(function(task) { %>
+    <div class="card-title">Due Schedule Items</div>
+    <% if (dueScheduleItems && dueScheduleItems.length > 0) { %>
+        <% dueScheduleItems.forEach(function(item) { %>
         <div class="wo-card card" style="margin-bottom: 8px;">
             <div class="wo-header">
                 <div>
-                    <div class="wo-title"><%= task.equipment_name || 'Unnamed asset' %></div>
+                    <div class="wo-title"><%= item.equipment_name || 'Unnamed asset' %></div>
                     <div class="wo-meta">
-                        <%= task.task_title || 'Untitled task' %>
-                        <% if (task.equipment_code) { %> · <%= task.equipment_code %><% } %>
+                        <%= item.task_title || 'Untitled task' %>
+                        <% if (item.equipment_code) { %> · <%= item.equipment_code %><% } %>
                     </div>
                 </div>
                 <span class="status-badge status-released">Today</span>
@@ -158,8 +159,8 @@
     <div class="wo-card card" style="margin-bottom: 8px; opacity: 0.7;">
         <div class="wo-header">
             <div>
-                <div class="wo-title">No tasks available</div>
-                <div class="wo-meta">Assigned tasks will appear once work is scheduled</div>
+                <div class="wo-title">No due schedule items</div>
+                <div class="wo-meta">Schedule items will appear once work is scheduled</div>
             </div>
         </div>
     </div>

@@ -90,10 +90,10 @@ router.get('/today', requireAuth, async (req, res) => {
     canInspect: checkPermission(userRole, 'INSPECTIONS', 'SUBMIT') !== 'none',
     canReport: checkPermission(userRole, 'FINDINGS', 'CREATE') !== 'none',
     canAssess: checkPermission(userRole, 'FINDINGS', 'MANAGE') !== 'none',
-    todayCount: 0,
-    overdueCount: 0,
-    todayTasks: [],
-    openFindingsCount: 0,
+    dueScheduleCount: null,
+    overdueScheduleCount: null,
+    dueScheduleItems: [],
+    openFindingsCount: null,
     openFindings: []
   };
 
@@ -103,19 +103,25 @@ router.get('/today', requireAuth, async (req, res) => {
       if (operatorVisible) {
         const dueToday = await Schedule.getDueToday(organizationId);
         const overdue = await Schedule.getOverdue(organizationId);
-        data.todayCount = Array.isArray(dueToday) ? dueToday.length : 0;
-        data.overdueCount = Array.isArray(overdue) ? overdue.length : 0;
-        data.todayTasks = (Array.isArray(dueToday) ? dueToday : []).slice(0, 5);
+        data.dueScheduleCount = Array.isArray(dueToday) ? dueToday.length : null;
+        data.overdueScheduleCount = Array.isArray(overdue) ? overdue.length : null;
+        data.dueScheduleItems = (Array.isArray(dueToday) ? dueToday : []).slice(0, 5);
       }
 
       const assessVisible = userRole === 'supervisor' || userRole === 'admin';
       if (assessVisible) {
         const openFindings = await Finding.getFindingsWithDetails(organizationId, { status: 'open', limit: 5 });
-        data.openFindingsCount = Array.isArray(openFindings) ? openFindings.length : 0;
         data.openFindings = Array.isArray(openFindings) ? openFindings : [];
+        // Count is the returned page size unless a dedicated count method exists.
+        data.openFindingsCount = data.openFindings.length;
       }
     } catch (err) {
       console.error('[Today] Error loading dashboard data:', err);
+      data.dueScheduleCount = null;
+      data.overdueScheduleCount = null;
+      data.dueScheduleItems = [];
+      data.openFindingsCount = null;
+      data.openFindings = [];
     }
   }
 
