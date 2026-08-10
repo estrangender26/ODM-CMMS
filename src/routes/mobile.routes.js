@@ -671,9 +671,10 @@ router.get('/profile', requireAuth, async (req, res) => {
   renderMobile(res, 'profile', data, req);
 });
 
-// Logout
+// Logout - clears the auth cookie and returns to the mobile login screen
 router.post('/logout', (req, res) => {
-  // Clear session/JWT
+  const authConfig = require('../config/auth');
+  res.clearCookie(authConfig.cookie.name);
   res.redirect('/mobile/login');
 });
 
