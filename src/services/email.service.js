@@ -9,7 +9,7 @@
 class EmailService {
   constructor() {
     this.isDevelopment = process.env.NODE_ENV === 'development';
-    this.fromEmail = process.env.FROM_EMAIL || 'noreply@atiman.com';
+    this.fromEmail = process.env.FROM_EMAIL || 'noreply@example.com';
     this.appUrl = process.env.APP_URL || `http://${process.env.HOST || 'localhost'}:${process.env.PORT || 3000}`;
   }
 
@@ -35,7 +35,7 @@ class EmailService {
         
         <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <h3 style="margin-top: 0;">What is Atiman?</h3>
-          <p>Operator-Driven Maintenance Computerized Maintenance Management System - A mobile-first maintenance platform for managing equipment, inspections, and work orders.</p>
+          <p>Atiman is an Asset Operations and Intelligence Platform that helps frontline teams collect asset condition information and turn it into actionable engineering intelligence.</p>
         </div>
         
         <p style="text-align: center; margin: 30px 0;">
