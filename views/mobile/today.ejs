@@ -1,0 +1,143 @@
+<% title = 'Today' %>
+<% showBack = false %>
+<% showNav = true %>
+<% activeNav = 'today' %>
+<% const isAdmin = typeof userRole !== 'undefined' && userRole === 'admin'; %>
+<% const isSupervisor = typeof userRole !== 'undefined' && userRole === 'supervisor'; %>
+<% const isOperator = typeof userRole !== 'undefined' && userRole === 'operator'; %>
+
+<!-- Organization Card -->
+<div id="orgCard" class="card" style="margin-bottom: 16px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark, #1565c0) 100%); color: white; display: none;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="width: 48px; height: 48px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+            🏭
+        </div>
+        <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12px; opacity: 0.8; margin-bottom: 2px;">Organization</div>
+            <div id="orgCardName" style="font-size: 18px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+        </div>
+        <a href="/mobile/admin/organization" style="color: white; opacity: 0.8; text-decoration: none;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"/>
+            </svg>
+        </a>
+    </div>
+</div>
+
+<% if (isAdmin) { %>
+<!-- Admin Today -->
+<div class="card" style="margin-bottom: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+    <div style="padding: 20px;">
+        <div style="font-size: 20px; font-weight: 600; margin-bottom: 8px;">Atiman Admin</div>
+        <div style="font-size: 14px; opacity: 0.9; margin-bottom: 16px;">
+            Manage tenant settings, users, knowledge coverage, and integrations.
+        </div>
+        <a href="/mobile/admin" class="btn" style="background: white; color: #667eea; border: none; font-weight: 500;">
+            Admin Panel →
+        </a>
+    </div>
+</div>
+
+<div class="dashboard-stats">
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--primary);">🛡️</div>
+        <div class="stat-label">Knowledge Coverage</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--success);">⚙️</div>
+        <div class="stat-label">Settings</div>
+    </div>
+</div>
+<% } %>
+
+<% if (isSupervisor) { %>
+<!-- Supervisor Today -->
+<div class="dashboard-stats">
+    <div class="stat-card">
+        <div class="stat-value">—</div>
+        <div class="stat-label">Needs Assessment</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">—</div>
+        <div class="stat-label">Overdue</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title">Assessment Queue</div>
+    <div class="wo-card card" style="margin-bottom: 8px; opacity: 0.7;">
+        <div class="wo-header">
+            <div>
+                <div class="wo-title">No findings awaiting assessment</div>
+                <div class="wo-meta">Submitted findings will appear here once data is connected</div>
+            </div>
+        </div>
+    </div>
+    <a href="/mobile/dashboard/findings" class="btn btn-secondary" style="width: 100%; margin-top: 8px;">View Findings</a>
+</div>
+<% } %>
+
+<% if (isOperator) { %>
+<!-- Operator Today -->
+<div class="dashboard-stats">
+    <div class="stat-card">
+        <div class="stat-value">—</div>
+        <div class="stat-label">Today's Tasks</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">—</div>
+        <div class="stat-label">Overdue</div>
+    </div>
+</div>
+
+<button class="btn-scan-large" onclick="openQRScanner()">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7"/>
+        <rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/>
+        <rect x="3" y="14" width="7" height="7"/>
+    </svg>
+    Scan Asset QR
+</button>
+
+<div class="card">
+    <div class="card-title">Priority Tasks</div>
+    <div class="wo-card card" style="margin-bottom: 8px; opacity: 0.7;">
+        <div class="wo-header">
+            <div>
+                <div class="wo-title">No tasks available</div>
+                <div class="wo-meta">Assigned tasks will appear once work is scheduled</div>
+            </div>
+        </div>
+    </div>
+</div>
+<% } %>
+
+<!-- Quick Actions -->
+<div class="card">
+    <div class="card-title">Quick Actions</div>
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+        <% if (canInspect) { %>
+        <a href="/mobile/inspection/adhoc" class="btn btn-secondary" style="text-align: center;">
+            <div style="font-size: 24px; margin-bottom: 4px;">🔍</div>
+            <div>Inspect</div>
+        </a>
+        <% } %>
+        <% if (canReport) { %>
+        <a href="/mobile/inspection/adhoc" class="btn btn-secondary" style="text-align: center;">
+            <div style="font-size: 24px; margin-bottom: 4px;">📝</div>
+            <div>Report</div>
+        </a>
+        <% } %>
+        <a href="/mobile/templates" class="btn btn-secondary" style="text-align: center;">
+            <div style="font-size: 24px; margin-bottom: 4px;">📚</div>
+            <div>Know</div>
+        </a>
+        <% if (canAssess) { %>
+        <a href="/mobile/dashboard/findings" class="btn btn-secondary" style="text-align: center;">
+            <div style="font-size: 24px; margin-bottom: 4px;">⚖️</div>
+            <div>Assess</div>
+        </a>
+        <% } %>
+    </div>
+</div>

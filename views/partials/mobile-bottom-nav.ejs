@@ -1,56 +1,64 @@
-<% const navIsAdmin = typeof userRole !== 'undefined' && userRole === 'admin'; %>
+<% const navRole = typeof userRole !== 'undefined' ? userRole : null; %>
+<% const navIsAdmin = navRole === 'admin'; %>
+<% const navIsSupervisor = navRole === 'supervisor'; %>
+<% const navIsOperator = navRole === 'operator'; %>
+<% const navCanInspect = navIsSupervisor || navIsOperator; %>
+<% const navCanAssess = navIsAdmin || navIsSupervisor; %>
+<% const navCanEscalate = navIsAdmin || navIsSupervisor; %>
+
 <nav class="bottom-nav">
-    <a href="/mobile/home" class="nav-item <%= activeNav === 'home' ? 'active' : '' %>">
+    <a href="/mobile/today" class="nav-item <%= activeNav === 'today' ? 'active' : '' %>">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
             <polyline points="9 22 9 12 15 12 15 22"/>
         </svg>
-        <span>Home</span>
+        <span>Today</span>
     </a>
-    <% if (!navIsAdmin) { %>
-    <a href="/mobile/work-orders" class="nav-item <%= activeNav === 'tasks' ? 'active' : '' %>">
+
+    <% if (navCanInspect) { %>
+    <a href="/mobile/inspection/adhoc" class="nav-item <%= activeNav === 'inspect' ? 'active' : '' %>">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <span>Inspect</span>
+    </a>
+    <% } %>
+
+    <a href="/mobile/inspection/adhoc" class="nav-item <%= activeNav === 'report' ? 'active' : '' %>">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
             <line x1="16" y1="13" x2="8" y2="13"/>
             <line x1="16" y1="17" x2="8" y2="17"/>
         </svg>
-        <span>Tasks</span>
+        <span>Report</span>
+    </a>
+
+    <a href="/mobile/templates" class="nav-item <%= activeNav === 'know' ? 'active' : '' %>">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+        <span>Know</span>
+    </a>
+
+    <% if (navCanAssess) { %>
+    <a href="/mobile/dashboard/findings" class="nav-item <%= activeNav === 'assess' ? 'active' : '' %>">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span>Assess</span>
     </a>
     <% } %>
-    <a href="/mobile/equipment" class="nav-item <%= activeNav === 'equipment' ? 'active' : '' %>">
+
+    <% if (navCanEscalate) { %>
+    <a href="/mobile/dashboard/findings" class="nav-item <%= activeNav === 'escalate' ? 'active' : '' %>">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="4" y="4" width="16" height="16" rx="2" ry="2"/>
-            <rect x="9" y="9" width="6" height="6"/>
-            <line x1="9" y1="1" x2="9" y2="4"/>
-            <line x1="15" y1="1" x2="15" y2="4"/>
-            <line x1="9" y1="20" x2="9" y2="23"/>
-            <line x1="15" y1="20" x2="15" y2="23"/>
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+            <polyline points="16 7 22 7 22 13"/>
         </svg>
-        <span>Equip</span>
+        <span>Escalate</span>
     </a>
-    <a href="/mobile/calendar" class="nav-item <%= activeNav === 'scheduler' ? 'active' : '' %>">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-            <line x1="16" y1="2" x2="16" y2="6"/>
-            <line x1="8" y1="2" x2="8" y2="6"/>
-            <line x1="3" y1="10" x2="21" y2="10"/>
-        </svg>
-        <span>Sched</span>
-    </a>
-    <a href="/mobile/reports" class="nav-item <%= activeNav === 'reports' ? 'active' : '' %>">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 3v18h18"/>
-            <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
-        </svg>
-        <span>Reports</span>
-    </a>
-    <a href="/mobile/admin" class="nav-item <%= activeNav === 'admin' ? 'active' : '' %>">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-            <path d="M2 17l10 5 10-5"/>
-            <path d="M2 12l10 5 10-5"/>
-        </svg>
-        <span>Admin</span>
-    </a>
+    <% } %>
 </nav>

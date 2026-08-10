@@ -23,7 +23,7 @@ const requireAdminUI = (req, res, next) => {
   const allowedRoles = ['admin', 'supervisor'];
   if (!allowedRoles.includes(req.user.role)) {
     // Redirect operators to home - they don't have admin access
-    return res.redirect('/mobile/home');
+    return res.redirect('/mobile/today');
   }
   
   next();
@@ -62,49 +62,36 @@ router.get('/login', (req, res) => {
 // Login POST
 router.post('/login', (req, res) => {
   // Authenticate user
-  res.redirect('/mobile/home');
+  res.redirect('/mobile/today');
 });
 
 /**
  * Main Operator Routes
  */
 
-// Home Dashboard
+// Legacy Home Dashboard - redirect to Today
 router.get('/home', requireAuth, (req, res) => {
-  // Admins should not see inspection tasks - redirect to admin dashboard
-  if (req.user && req.user.role === 'admin') {
-    return res.redirect('/mobile/admin');
-  }
-  
+  res.redirect('/mobile/today');
+});
+
+// Today - role-aware landing destination
+router.get('/today', requireAuth, (req, res) => {
+  const userRole = req.user?.role;
+  const { checkPermission } = require('../config/permissions');
+
   const data = {
-    title: 'Home',
+    title: 'Today',
     showBack: false,
     showNav: true,
-    activeNav: 'home',
-    userRole: req.user?.role,
+    activeNav: 'today',
+    userRole,
+    canInspect: checkPermission(userRole, 'INSPECTIONS', 'SUBMIT') !== 'none',
+    canReport: checkPermission(userRole, 'FINDINGS', 'CREATE') !== 'none',
+    canAssess: checkPermission(userRole, 'FINDINGS', 'MANAGE') !== 'none',
     todayCount: 5,
-    overdueCount: 2,
-    priorityTasks: [
-      {
-        id: 'WO-2026-0042',
-        assetName: 'Pump P-101',
-        equipmentType: 'Centrifugal Pump',
-        facility: 'North Plant',
-        dueStatus: 'today',
-        status: 'released'
-      },
-      {
-        id: 'WO-2026-0038',
-        assetName: 'Motor M-205',
-        equipmentType: 'Electric Motor',
-        facility: 'South Plant',
-        dueStatus: 'overdue',
-        daysOverdue: 2,
-        status: 'released'
-      }
-    ]
+    overdueCount: 2
   };
-  renderMobile(res, 'home', data, req);
+  renderMobile(res, 'today', data, req);
 });
 
 // Work Order List - operators and supervisors only
