@@ -56,9 +56,9 @@ Atiman is explicitly NOT:
 
 ## 3. Mission
 
-**Make institutional maintenance knowledge actionable, trustworthy, and continuously improving across every asset and every role.**
+**Enable operators to become the first line of defense against asset failures by systematically collecting asset condition information and converting that information into actionable engineering intelligence.**
 
-Atiman exists so that organizations can capture, validate, and reuse the maintenance knowledge that would otherwise live only in senior engineers' heads, scattered spreadsheets, or legacy systems. When knowledge is authoritative and accessible, operators detect issues earlier, supervisors prioritize better, engineers improve procedures, and enterprise systems receive higher-quality decisions.
+*Supporting knowledge objective:* Atiman captures, validates, and makes reusable the maintenance knowledge that would otherwise live only in senior engineers' heads, scattered spreadsheets, or legacy systems. This knowledge supports the primary mission by ensuring that operator-collected condition information is interpreted against authoritative, continuously improving engineering knowledge.
 
 ---
 
@@ -501,11 +501,11 @@ Marketplace business rules, external contributor models, pack ownership, and lic
 
 ### 15.9 Knowledge Ownership
 
-- Shared knowledge is owned by Atiman or certified contributors.
-- Customer knowledge is owned by the tenant.
-- Marketplace packs are owned by their authors, licensed to subscribers.
+*Proposed Future Architecture — not approved policy.*
 
-*The marketplace ownership/licensing model is Proposed Future Architecture.*
+Ownership and licensing models for knowledge are not established in this document. Possible future models may include shared knowledge ownership, tenant-owned customer knowledge, or marketplace author ownership with subscriber licensing. Any such model must be established by an authoritative Project Source before it becomes Atiman policy.
+
+ATM-000 does not establish legal, IP, or licensing policy.
 
 ### 15.10 Knowledge Evolution
 
