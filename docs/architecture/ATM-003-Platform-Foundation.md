@@ -56,7 +56,7 @@ The Platform Foundation exists to:
 |-------------|-------------|
 | User identity | Every user has a unique, tenant-scoped identity. |
 | Password-based auth | bcrypt password hashes; strong password policy. |
-| Session management | Secure, time-bounded sessions with refresh tokens. |
+| Session management | Secure, time-bounded sessions. Access/refresh token split is an optional implementation choice. |
 | SSO readiness | Support SAML/OIDC integration for enterprise customers. |
 | Service accounts | API keys for machine-to-machine integration. |
 | Multi-factor authentication | Optional MFA for privileged roles. |
@@ -110,13 +110,13 @@ Authorization is enforced at the API and service layers, not only in UI code.
 | Tenant context | API requests carry and enforce tenant context. |
 | Rate limiting | Prevent abuse and ensure fair usage. |
 | Documentation | OpenAPI / Swagger-style documentation for public endpoints. |
-| GraphQL readiness | Consider GraphQL for complex knowledge queries in future. |
+| GraphQL readiness | Optional future query pattern; not a current requirement. |
 
 ### 3.6 Events
 
 | Requirement | Description |
 |-------------|-------------|
-| Event bus | Publish/subscribe bus for cross-layer communication. |
+| Event bus | Cross-layer communication mechanism. Message-broker choice is an open implementation decision. |
 | Domain events | Knowledge published, finding created, assessment completed, escalation submitted. |
 | Integration events | Outbound/inbound event translation for Enterprise Integration. |
 | Event schema | Stable, versioned event envelope with tenant context. |
@@ -128,8 +128,8 @@ Authorization is enforced at the API and service layers, not only in UI code.
 |-------------|-------------|
 | Primary database | PostgreSQL for transactional and knowledge data. |
 | Blob storage | Images, videos, and documents attached to evidence. |
-| Caching | Hot-path caching for knowledge lookups and session data. |
-| Search index | Full-text search over knowledge and operational evidence. |
+| Caching | Optional hot-path caching for knowledge lookups and session data. Cache technology is an open implementation decision. |
+| Search index | Optional full-text search over knowledge and operational evidence. Search technology is an open implementation decision. |
 | Backup and point-in-time recovery | Production operational requirement. |
 
 ### 3.8 Security
@@ -157,9 +157,9 @@ Authorization is enforced at the API and service layers, not only in UI code.
 
 | Requirement | Description |
 |-------------|-------------|
-| Containerized runtime | Deployed as containers (e.g., Docker, Kubernetes, or Render equivalent). |
+| Containerized runtime | Deployed as a runnable service appropriate to the chosen hosting environment. Specific container orchestration is an open implementation choice. |
 | Idempotent schema deployment | PostgreSQL migrations are rerunnable and safe. |
-| Zero-downtime readiness | Rolling deployments and graceful shutdown. |
+| Zero-downtime readiness | Deployment process should minimize downtime. Specific rolling-blue-green strategy is an open implementation choice. |
 | Health checks | `/health`, `/ready`, `/live` endpoints. |
 | Dependency readiness | Application waits for database and required services. |
 
@@ -169,7 +169,7 @@ Authorization is enforced at the API and service layers, not only in UI code.
 |-------------|-------------|
 | Structured logging | JSON logs with correlation IDs and tenant context. |
 | Metrics | Latency, throughput, error rates, business metrics. |
-| Tracing | Distributed tracing across API and event flows. |
+| Tracing | Optional distributed tracing across API and event flows for operational maturity. |
 | Alerting | Alerts for errors, latency spikes, and resource exhaustion. |
 | Dashboards | Operational and business health dashboards. |
 
@@ -222,6 +222,7 @@ PostgreSQL remains the primary database. The existing ODM-CMMS schema is the sta
 - **Knowledge Foundation tables:** defined in ATM-001.
 - **Operational tables:** `equipment`, `facilities`, `work_orders`, `findings`, `inspection_*`, `schedules`, `maintenance_plans`, etc.
 - **Commercial tables:** `subscription_plans`, `organization_subscriptions`, `stripe_customers`, `payments`.
+  - *These support Atiman SaaS operation (billing/subscription management) but are not Atiman financial-system product capabilities. They do not replace customer ERP/accounting systems.*
 - **Legacy / to-evaluate:** `dashboard_widgets`, `sso_*`, `custom_field_*`, `attachments`, `uploaded_files`, `asset_*`, `seed_batches`.
 
 ### 5.2 Physical Partitioning is an Open Decision
@@ -363,20 +364,20 @@ A standard event envelope must include:
 
 ### 10.1 Runtime Requirements
 
-- Container image with application and static assets.
+- Application runtime and static assets.
 - PostgreSQL database(s).
-- Blob storage backend.
-- Cache / session store (e.g., Redis) for future scaling.
+- Blob storage backend where attachments are required.
+- Optional cache/session store if performance requires it.
 - Secrets manager integration.
-- Event transport (in-app queue, message broker, or managed service) for future scale.
+- Event transport appropriate to scale; in-app events may suffice initially.
 
 ### 10.2 Deployment Pipeline
 
-- Build container image.
+- Build deployable artifact.
 - Run automated tests.
 - Deploy to staging with idempotent schema migration.
 - Smoke tests against staging.
-- Promote to production with rolling deployment.
+- Promote to production using a deployment strategy appropriate to the environment.
 - Monitor health and error rates post-deployment.
 
 ### 10.3 Idempotency
