@@ -120,13 +120,14 @@ ALTER TABLE task_template_versions
 ALTER TABLE task_template_versions
     ADD COLUMN IF NOT EXISTS is_step_set_sealed BOOLEAN NOT NULL DEFAULT FALSE;
 
--- Deferred seal check: a published task_template_version must be sealed when the
--- transaction commits. This permits the assembly pattern (create version,
--- insert ordered steps, update is_step_set_sealed = TRUE) inside a single
--- transaction while guaranteeing the version cannot be committed while still
--- unsealed. Implemented as a deferred constraint trigger because PostgreSQL
--- CHECK constraints cannot be deferred.
-CREATE OR REPLACE FUNCTION task_template_version_published_seal_constraint()
+-- Deferred seal check: every committed task_template_version must be sealed.
+-- This applies to all post-publication states (published, superseded, retired).
+-- It permits the assembly pattern (create version, insert ordered steps,
+-- update is_step_set_sealed = TRUE) inside a single transaction while
+-- guaranteeing the version cannot be committed while still unsealed.
+-- Implemented as a deferred constraint trigger because PostgreSQL CHECK
+-- constraints cannot be deferred.
+CREATE OR REPLACE FUNCTION task_template_version_seal_constraint()
 RETURNS TRIGGER AS $$
 DECLARE
     current_lifecycle TEXT;
@@ -139,8 +140,8 @@ BEGIN
     FROM task_template_versions
     WHERE id = NEW.id;
 
-    IF current_lifecycle = 'published' AND current_sealed = FALSE THEN
-        RAISE EXCEPTION 'published task_template_version % must be sealed before commit; set is_step_set_sealed = TRUE after adding steps', NEW.id
+    IF current_lifecycle IN ('published', 'superseded', 'retired') AND current_sealed = FALSE THEN
+        RAISE EXCEPTION 'task_template_version % must be sealed before commit; set is_step_set_sealed = TRUE after adding steps', NEW.id
             USING ERRCODE = 'check_violation';
     END IF;
     RETURN NEW;
@@ -149,12 +150,14 @@ $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_task_template_versions_published_seal_constraint
     ON task_template_versions;
+DROP TRIGGER IF EXISTS trg_task_template_versions_seal_constraint
+    ON task_template_versions;
 
-CREATE CONSTRAINT TRIGGER trg_task_template_versions_published_seal_constraint
+CREATE CONSTRAINT TRIGGER trg_task_template_versions_seal_constraint
     AFTER INSERT OR UPDATE ON task_template_versions
     DEFERRABLE INITIALLY DEFERRED
     FOR EACH ROW
-    EXECUTE FUNCTION task_template_version_published_seal_constraint();
+    EXECUTE FUNCTION task_template_version_seal_constraint();
 
 
 -- Immutable published step belonging to a task_template_version.
@@ -567,6 +570,8 @@ RETURNS TRIGGER AS $$
 DECLARE
     parent_sealed BOOLEAN;
     parent_lifecycle TEXT;
+    expected_template_id INTEGER;
+    actual_template_id INTEGER;
 BEGIN
     IF TG_OP IN ('UPDATE','DELETE') THEN
         SELECT v.is_step_set_sealed, v.lifecycle_state_at_publish
@@ -580,8 +585,8 @@ BEGIN
                 USING ERRCODE = 'insufficient_privilege';
         END IF;
     ELSIF TG_OP = 'INSERT' THEN
-        SELECT v.is_step_set_sealed, v.lifecycle_state_at_publish
-        INTO parent_sealed, parent_lifecycle
+        SELECT v.is_step_set_sealed, v.lifecycle_state_at_publish, v.task_template_id
+        INTO parent_sealed, parent_lifecycle, expected_template_id
         FROM task_template_versions v
         WHERE v.id = NEW.task_template_version_id;
 
@@ -589,6 +594,18 @@ BEGIN
             RAISE EXCEPTION 'cannot add task_template_step_versions to sealed immutable template version %',
                 NEW.task_template_version_id
                 USING ERRCODE = 'insufficient_privilege';
+        END IF;
+
+        -- Source-step ancestry: the referenced task_template_steps row must
+        -- belong to the same logical template as the parent version.
+        SELECT s.task_template_id INTO actual_template_id
+        FROM task_template_steps s
+        WHERE s.id = NEW.task_template_step_id;
+
+        IF actual_template_id IS DISTINCT FROM expected_template_id THEN
+            RAISE EXCEPTION 'task_template_step_id % does not belong to task_template_id % for task_template_version %',
+                NEW.task_template_step_id, expected_template_id, NEW.task_template_version_id
+                USING ERRCODE = 'check_violation';
         END IF;
     END IF;
 

@@ -30,7 +30,12 @@ const isSupersessionError = (err) => {
 
 const isSealError = (err) => {
   const msg = (err.message || '').toLowerCase();
-  return msg.includes('seal') || msg.includes('cannot be changed') || msg.includes('check_violation');
+  return msg.includes('seal') || msg.includes('cannot be changed') || msg.includes('must be sealed before commit') || msg.includes('check_violation');
+};
+
+const isAncestryError = (err) => {
+  const msg = (err.message || '').toLowerCase();
+  return msg.includes('does not belong to task_template_id') || msg.includes('check_violation');
 };
 
 describe('Knowledge Versioning Foundation', () => {
@@ -1212,6 +1217,145 @@ describe('Knowledge Versioning Foundation', () => {
         await conn.query('ROLLBACK TO SAVEPOINT backlink_template_test');
       }
       assert.ok(blocked, 'Back-link supersession v2 -> v1 should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+
+  it('rejects committing a retired task_template_version with an unsealed step set', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish, is_step_set_sealed
+        )
+        VALUES ($1, 1, $2, 'Unsealed Retired Template', 'preventive', 'retired', FALSE)
+      `, [template.id, template.equipment_type_id]);
+
+      let blocked = false;
+      try {
+        await conn.query('SET CONSTRAINTS ALL IMMEDIATE');
+      } catch (err) {
+        blocked = /must be sealed before commit|check_violation/i.test(err.message || '');
+      }
+      assert.ok(blocked, 'Committing a retired unsealed template version should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('rejects committing a superseded task_template_version with an unsealed step set', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+
+      const [v1] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish, is_step_set_sealed
+        )
+        VALUES ($1, 1, $2, 'Unsealed Superseded Template', 'preventive', 'published', FALSE)
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      const [v2] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish, is_step_set_sealed
+        )
+        VALUES ($1, 2, $2, 'Successor Template', 'preventive', 'published', FALSE)
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      // v2 must be sealed because every committed version requires it.
+      // We need at least one step for v2 before sealing.
+      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      await conn.query(`
+        INSERT INTO task_template_step_versions (
+          task_template_version_id, step_no, task_template_step_id, step_type, instruction
+        )
+        VALUES ($1, 1, $2, 'instruction', 'Successor step')
+      `, [v2.id, step.id]);
+
+      await conn.query(`
+        UPDATE task_template_versions SET is_step_set_sealed = TRUE WHERE id = $1
+      `, [v2.id]);
+
+      // This will coerce v1 to superseded.
+      await conn.query(`
+        UPDATE task_template_versions
+        SET superseded_by_version_id = $1
+        WHERE id = $2
+      `, [v2.id, v1.id]);
+
+      let blocked = false;
+      try {
+        await conn.query('SET CONSTRAINTS ALL IMMEDIATE');
+      } catch (err) {
+        blocked = /must be sealed before commit|check_violation/i.test(err.message || '');
+      }
+      assert.ok(blocked, 'Committing a superseded unsealed template version should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('rejects task_template_step_versions whose source step belongs to a different template', async () => {
+    const conn = await getConnection();
+    try {
+      const [templateA] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const [templateB] = await conn.query(`
+        SELECT id, equipment_type_id FROM task_templates
+        WHERE id != $1 LIMIT 1
+      `, [templateA.id]);
+      assert.ok(templateB, 'Need at least two distinct task_templates rows');
+
+      const [versionA] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish, is_step_set_sealed
+        )
+        VALUES ($1, 1, $2, 'Ancestry Template A', 'preventive', 'published', FALSE)
+        RETURNING id
+      `, [templateA.id, templateA.equipment_type_id]);
+
+      const [stepB] = await conn.query(`
+        SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1
+      `, [templateB.id]);
+      assert.ok(stepB, 'Need at least one step for template B');
+
+      let blocked = false;
+      await conn.query('SAVEPOINT ancestry_test');
+      try {
+        await conn.query(`
+          INSERT INTO task_template_step_versions (
+            task_template_version_id, step_no, task_template_step_id, step_type, instruction
+          )
+          VALUES ($1, 1, $2, 'instruction', 'Step from wrong template')
+        `, [versionA.id, stepB.id]);
+      } catch (err) {
+        blocked = isAncestryError(err);
+        await conn.query('ROLLBACK TO SAVEPOINT ancestry_test');
+      }
+      assert.ok(blocked, 'Source step from a different template should be rejected');
 
       await conn.rollback();
     } catch (err) {
