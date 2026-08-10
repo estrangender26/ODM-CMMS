@@ -53,7 +53,12 @@ describe('ODM Workflow Validation', () => {
     { name: 'Admin Assets', url: '/mobile/admin/assets' },
     { name: 'Admin Templates', url: '/mobile/admin/templates' },
     { name: 'Dashboard WO', url: '/mobile/dashboard/work-orders' },
-    { name: 'Dashboard Findings', url: '/mobile/dashboard/findings' }
+    { name: 'Dashboard Findings', url: '/mobile/dashboard/findings' },
+    { name: 'Knowledge Browser', url: '/mobile/templates' },
+    { name: 'Knowledge Classes', url: '/mobile/templates/classes/1' },
+    { name: 'Knowledge Types', url: '/mobile/templates/types/1' },
+    { name: 'Knowledge Type Templates', url: '/mobile/templates/type/1' },
+    { name: 'Knowledge Template Detail', url: '/mobile/templates/1' }
   ];
 
   for (const route of uiRoutes) {

@@ -1,0 +1,57 @@
+<% title = category ? category.category_name : 'Equipment Classes' %>
+<% showBack = true %>
+<% showNav = true %>
+<% activeNav = 'know' %>
+
+<div style="padding: 0 0 80px;">
+    <% if (!category) { %>
+        <div class="card" style="text-align: center; padding: 48px 24px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">📚</div>
+            <div style="font-size: 17px; font-weight: 600; margin-bottom: 8px;">Category not found</div>
+            <div style="font-size: 14px; color: var(--text-secondary);">
+                The requested equipment category could not be loaded.
+            </div>
+        </div>
+    <% } else { %>
+        <div style="margin-bottom: 8px;">
+            <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Category</div>
+            <h1 style="font-size: 22px; font-weight: 700; margin: 0 0 6px 0;"><%= category.category_name %></h1>
+            <p style="font-size: 14px; color: var(--text-secondary); margin: 0;">
+                Select an equipment class to view its types
+            </p>
+        </div>
+
+        <% if (!classes || classes.length === 0) { %>
+            <div class="card" style="text-align: center; padding: 32px 24px;">
+                <div style="font-size: 32px; margin-bottom: 12px;">🔧</div>
+                <div style="font-size: 16px; font-weight: 600; margin-bottom: 6px;">No classes in this category</div>
+                <div style="font-size: 14px; color: var(--text-secondary);">
+                    Equipment classes have not been loaded for this category.
+                </div>
+            </div>
+        <% } else { %>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <% classes.forEach(function(cls) { %>
+                    <a href="/mobile/templates/types/<%= cls.id %>" class="card" style="display: block; text-decoration: none; color: inherit;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-weight: 600; font-size: 16px;"><%= cls.class_name %></div>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                        </div>
+                        <% if (cls.class_code) { %>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px;">
+                                <%= cls.class_code %>
+                            </div>
+                        <% } %>
+                        <% if (cls.description) { %>
+                            <div style="font-size: 13px; color: var(--text-secondary); margin-top: 6px; line-height: 1.4;">
+                                <%= cls.description %>
+                            </div>
+                        <% } %>
+                    </a>
+                <% }); %>
+            </div>
+        <% } %>
+    <% } %>
+</div>

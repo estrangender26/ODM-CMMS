@@ -1,0 +1,59 @@
+<% title = class_ ? class_.class_name : 'Equipment Types' %>
+<% showBack = true %>
+<% showNav = true %>
+<% activeNav = 'know' %>
+
+<div style="padding: 0 0 80px;">
+    <% if (!class_) { %>
+        <div class="card" style="text-align: center; padding: 48px 24px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">📚</div>
+            <div style="font-size: 17px; font-weight: 600; margin-bottom: 8px;">Class not found</div>
+            <div style="font-size: 14px; color: var(--text-secondary);">
+                The requested equipment class could not be loaded.
+            </div>
+        </div>
+    <% } else { %>
+        <div style="margin-bottom: 8px;">
+            <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+                <%= category ? category.category_name : 'Class' %>
+            </div>
+            <h1 style="font-size: 22px; font-weight: 700; margin: 0 0 6px 0;"><%= class_.class_name %></h1>
+            <p style="font-size: 14px; color: var(--text-secondary); margin: 0;">
+                Select an equipment type to view its task templates
+            </p>
+        </div>
+
+        <% if (!types || types.length === 0) { %>
+            <div class="card" style="text-align: center; padding: 32px 24px;">
+                <div style="font-size: 32px; margin-bottom: 12px;">🔧</div>
+                <div style="font-size: 16px; font-weight: 600; margin-bottom: 6px;">No types in this class</div>
+                <div style="font-size: 14px; color: var(--text-secondary);">
+                    Equipment types have not been loaded for this class.
+                </div>
+            </div>
+        <% } else { %>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <% types.forEach(function(type) { %>
+                    <a href="/mobile/templates/type/<%= type.id %>" class="card" style="display: block; text-decoration: none; color: inherit;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-weight: 600; font-size: 16px;"><%= type.type_name %></div>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                        </div>
+                        <% if (type.type_code) { %>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px;">
+                                <%= type.type_code %>
+                            </div>
+                        <% } %>
+                        <% if (type.description || type.typical_components) { %>
+                            <div style="font-size: 13px; color: var(--text-secondary); margin-top: 6px; line-height: 1.4;">
+                                <%= type.description || type.typical_components %>
+                            </div>
+                        <% } %>
+                    </a>
+                <% }); %>
+            </div>
+        <% } %>
+    <% } %>
+</div>

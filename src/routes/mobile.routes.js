@@ -1341,63 +1341,25 @@ router.get('/qr-labels/batch',
   qrLabelController.batchLabelUI
 );
 
-// Template List
+
+// Knowledge Browser - Equipment Categories
 router.get('/templates', requireAuth, async (req, res) => {
   try {
-    const { TaskTemplate } = require('../models');
-    const organizationId = req.user.organization_id;
-    
-    // Get templates from database with category and class
-    const templates = await TaskTemplate.query(`
-      SELECT 
-        tt.id,
-        tt.template_name as name,
-        tt.is_active as isActive,
-        et.type_name as equipmentType,
-        ec.class_name as className,
-        c.category_name as categoryName,
-        COUNT(tts.id) as itemCount
-      FROM task_templates tt
-      JOIN equipment_types et ON tt.equipment_type_id = et.id
-      JOIN equipment_classes ec ON et.class_id = ec.id
-      JOIN equipment_categories c ON ec.category_id = c.id
-      LEFT JOIN task_template_steps tts ON tt.id = tts.task_template_id
-      WHERE tt.organization_id IS NULL OR tt.organization_id = ?
-      GROUP BY tt.id, tt.template_name, tt.is_active, et.type_name, ec.class_name, c.category_name
-      ORDER BY c.category_name, ec.class_name, tt.template_name
-    `, [organizationId]);
-    
-    // Group templates by category and class
-    const templatesByCategory = {};
-    templates.forEach(t => {
-      const category = t.categoryName;
-      const className = t.className;
-      
-      if (!templatesByCategory[category]) templatesByCategory[category] = {};
-      if (!templatesByCategory[category][className]) templatesByCategory[category][className] = [];
-      
-      templatesByCategory[category][className].push({
-        id: t.id,
-        name: t.name,
-        equipmentType: t.equipmentType,
-        isActive: t.isActive === 1 || t.isActive === true,
-        itemCount: t.itemCount || 0
-      });
-    });
-    
+    const { EquipmentCategory } = require('../models');
+    const categories = await EquipmentCategory.findAll({}, { orderBy: 'category_name' });
+
     const data = {
-      title: 'Templates',
+      title: 'Know',
       showBack: false,
       showNav: true,
-      activeNav: 'templates',
-      templatesByCategory,
-      totalTemplates: templates.length
+      activeNav: 'know',
+      categories: Array.isArray(categories) ? categories : []
     };
-    renderMobile(res, 'template-list', data, req);
+    renderMobile(res, 'knowledge-categories', data, req);
   } catch (error) {
-    console.error('[MOBILE] Error loading templates:', error);
-    res.status(500).render('error', { 
-      message: 'Error loading templates: ' + error.message,
+    console.error('[MOBILE] Error loading knowledge categories:', error);
+    res.status(500).render('error', {
+      message: 'Error loading knowledge categories: ' + error.message,
       error: process.env.NODE_ENV === 'development' ? error : {}
     });
   }
@@ -1522,6 +1484,128 @@ router.get('/templates/:id/edit', requireAuth, async (req, res) => {
     console.error('[MOBILE] Error loading template for edit:', error);
     res.status(500).render('error', { 
       message: 'Error loading template: ' + error.message,
+      error: process.env.NODE_ENV === 'development' ? error : {}
+    });
+  }
+});
+
+
+// Knowledge Browser - Classes in Category
+router.get('/templates/classes/:categoryId', requireAuth, async (req, res) => {
+  try {
+    const { EquipmentCategory, EquipmentClass } = require('../models');
+    const categoryId = parseInt(req.params.categoryId, 10);
+
+    const category = await EquipmentCategory.findById(categoryId);
+    const classes = await EquipmentClass.findByCategory(categoryId);
+
+    const data = {
+      title: category ? category.category_name : 'Equipment Classes',
+      showBack: true,
+      showNav: true,
+      activeNav: 'know',
+      category: category || null,
+      classes: Array.isArray(classes) ? classes : []
+    };
+    renderMobile(res, 'knowledge-classes', data, req);
+  } catch (error) {
+    console.error('[MOBILE] Error loading knowledge classes:', error);
+    res.status(500).render('error', {
+      message: 'Error loading knowledge classes: ' + error.message,
+      error: process.env.NODE_ENV === 'development' ? error : {}
+    });
+  }
+});
+
+// Knowledge Browser - Types in Class
+router.get('/templates/types/:classId', requireAuth, async (req, res) => {
+  try {
+    const { EquipmentClass, EquipmentType, EquipmentCategory } = require('../models');
+    const classId = parseInt(req.params.classId, 10);
+
+    const class_ = await EquipmentClass.getWithCategory(classId);
+    const types = await EquipmentType.findByClass(classId);
+
+    const data = {
+      title: class_ ? class_.class_name : 'Equipment Types',
+      showBack: true,
+      showNav: true,
+      activeNav: 'know',
+      class_: class_ || null,
+      category: class_ ? { category_name: class_.category_name } : null,
+      types: Array.isArray(types) ? types : []
+    };
+    renderMobile(res, 'knowledge-types', data, req);
+  } catch (error) {
+    console.error('[MOBILE] Error loading knowledge types:', error);
+    res.status(500).render('error', {
+      message: 'Error loading knowledge types: ' + error.message,
+      error: process.env.NODE_ENV === 'development' ? error : {}
+    });
+  }
+});
+
+// Knowledge Browser - Templates for Equipment Type
+router.get('/templates/type/:equipmentTypeId', requireAuth, async (req, res) => {
+  try {
+    const { EquipmentType, TaskTemplate } = require('../models');
+    const equipmentTypeId = parseInt(req.params.equipmentTypeId, 10);
+
+    const equipmentType = await EquipmentType.getFullHierarchy(equipmentTypeId);
+    let templates = [];
+    if (equipmentType) {
+      templates = await TaskTemplate.findByEquipmentType(equipmentTypeId);
+      templates = Array.isArray(templates) ? templates : [];
+      // Add step count for each template
+      for (const template of templates) {
+        const [countResult] = await TaskTemplate.query(
+          'SELECT COUNT(*) as count FROM task_template_steps WHERE task_template_id = ?',
+          [template.id]
+        );
+        template.step_count = countResult ? parseInt(countResult.count, 10) : 0;
+      }
+    }
+
+    const data = {
+      title: equipmentType ? equipmentType.type_name : 'Task Templates',
+      showBack: true,
+      showNav: true,
+      activeNav: 'know',
+      equipmentType: equipmentType || null,
+      hierarchy: equipmentType ? equipmentType.full_hierarchy : '',
+      templates
+    };
+    renderMobile(res, 'knowledge-templates', data, req);
+  } catch (error) {
+    console.error('[MOBILE] Error loading knowledge templates:', error);
+    res.status(500).render('error', {
+      message: 'Error loading knowledge templates: ' + error.message,
+      error: process.env.NODE_ENV === 'development' ? error : {}
+    });
+  }
+});
+
+// Knowledge Browser - Template Detail with Steps and Safety Controls
+router.get('/templates/:templateId', requireAuth, async (req, res) => {
+  try {
+    const { TaskTemplate } = require('../models');
+    const templateId = parseInt(req.params.templateId, 10);
+
+    const template = await TaskTemplate.getWithDetails(templateId);
+
+    const data = {
+      title: template ? template.template_name : 'Template Detail',
+      showBack: true,
+      showNav: true,
+      activeNav: 'know',
+      template: template || null,
+      hierarchy: template ? `${template.category_name} > ${template.class_name} > ${template.type_name}` : ''
+    };
+    renderMobile(res, 'knowledge-template-detail', data, req);
+  } catch (error) {
+    console.error('[MOBILE] Error loading knowledge template detail:', error);
+    res.status(500).render('error', {
+      message: 'Error loading template detail: ' + error.message,
       error: process.env.NODE_ENV === 'development' ? error : {}
     });
   }

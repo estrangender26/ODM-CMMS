@@ -1,0 +1,66 @@
+<% title = equipmentType ? equipmentType.type_name : 'Task Templates' %>
+<% showBack = true %>
+<% showNav = true %>
+<% activeNav = 'know' %>
+
+<div style="padding: 0 0 80px;">
+    <% if (!equipmentType) { %>
+        <div class="card" style="text-align: center; padding: 48px 24px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">📚</div>
+            <div style="font-size: 17px; font-weight: 600; margin-bottom: 8px;">Equipment type not found</div>
+            <div style="font-size: 14px; color: var(--text-secondary);">
+                The requested equipment type could not be loaded.
+            </div>
+        </div>
+    <% } else { %>
+        <div style="margin-bottom: 8px;">
+            <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+                <%= hierarchy %>
+            </div>
+            <h1 style="font-size: 22px; font-weight: 700; margin: 0 0 6px 0;"><%= equipmentType.type_name %></h1>
+            <p style="font-size: 14px; color: var(--text-secondary); margin: 0;">
+                <%= templates.length %> task template<%= templates.length === 1 ? '' : 's' %>
+            </p>
+        </div>
+
+        <% if (templates.length === 0) { %>
+            <div class="card" style="text-align: center; padding: 32px 24px;">
+                <div style="font-size: 32px; margin-bottom: 12px;">📋</div>
+                <div style="font-size: 16px; font-weight: 600; margin-bottom: 6px;">No task templates for this type</div>
+                <div style="font-size: 14px; color: var(--text-secondary);">
+                    No maintenance procedures are available for this equipment type yet.
+                </div>
+            </div>
+        <% } else { %>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <% templates.forEach(function(template) { %>
+                    <a href="/mobile/templates/<%= template.id %>" class="card" style="display: block; text-decoration: none; color: inherit;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-weight: 600; font-size: 16px; margin-bottom: 4px;"><%= template.template_name %></div>
+                                <% if (template.template_code) { %>
+                                    <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+                                        <%= template.template_code %>
+                                    </div>
+                                <% } %>
+                                <% if (template.maintenance_type || template.task_kind) { %>
+                                    <div style="font-size: 13px; color: var(--text-secondary); margin-top: 6px;">
+                                        <%= [template.maintenance_type, template.task_kind].filter(Boolean).join(' · ') %>
+                                    </div>
+                                <% } %>
+                            </div>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" style="flex-shrink: 0; margin-left: 8px; margin-top: 2px;">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                        </div>
+                        <% if (template.step_count !== undefined) { %>
+                            <div style="font-size: 13px; color: var(--text-secondary); margin-top: 8px;">
+                                <%= template.step_count %> step<%= template.step_count === 1 ? '' : 's' %>
+                            </div>
+                        <% } %>
+                    </a>
+                <% }); %>
+            </div>
+        <% } %>
+    <% } %>
+</div>
