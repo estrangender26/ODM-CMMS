@@ -5,14 +5,13 @@
  *
  * Rules:
  * - Refuses to run if the users table already contains any row.
- * - Reads credentials from secure environment variables or prompts.
+ * - Reads credentials from secure environment variables ONLY.
  * - Hashes the password using the same bcrypt configuration as the app.
  * - Creates a single active admin with no organization/facility attachment.
- * - Runs inside a single database transaction.
+ * - Runs inside an explicit database transaction.
  * - Does not print the password or password hash.
  */
 
-const readline = require('readline');
 const { pool, getConnection } = require('../../src/config/database');
 const { hashPassword } = require('../../src/utils/helpers');
 
@@ -23,28 +22,12 @@ const REQUIRED_ENV = [
   'ADMIN_PASSWORD'
 ];
 
-function getEnvOrPrompt(name, rl) {
+function getEnv(name) {
   const value = process.env[name];
-  if (value && value.trim().length > 0) {
-    return Promise.resolve(value.trim());
+  if (!value || value.trim().length === 0) {
+    throw new Error(`${name} environment variable is required`);
   }
-
-  return new Promise((resolve) => {
-    const isPassword = name.includes('PASSWORD');
-    const prompt = isPassword
-      ? `${name} (input hidden): `
-      : `${name}: `;
-
-    if (isPassword && rl.output.isTTY) {
-      rl.question(prompt, { input: rl.input, output: rl.output }, (answer) => {
-        resolve(answer.trim());
-      });
-      // Hide input in raw TTY mode is non-trivial with readline; rely on env for secrets.
-      return;
-    }
-
-    rl.question(prompt, (answer) => resolve(answer.trim()));
-  });
+  return value.trim();
 }
 
 async function validateInputs(username, email, fullName, password) {
@@ -62,22 +45,35 @@ async function validateInputs(username, email, fullName, password) {
   }
 }
 
-async function main() {
-  if (!process.env.ADMIN_PASSWORD) {
-    console.error('[ERROR] ADMIN_PASSWORD must be provided via environment variable for security.');
-    console.error('Set ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_FULL_NAME, and ADMIN_PASSWORD, then rerun.');
-    process.exit(1);
+async function main(options = {}) {
+  const exitFn = options.exit || process.exit;
+  const logSuccess = options.logSuccess || console.log;
+  const logError = options.logError || console.error;
+  const connectionProvider = options.getConnection || getConnection;
+  const closePool = options.closePool || (() => pool.end());
+
+  for (const name of REQUIRED_ENV) {
+    if (!process.env[name] || process.env[name].trim().length === 0) {
+      logError(`[ERROR] ${name} environment variable is required.`);
+      if (!options.noExit) {
+        exitFn(1);
+      }
+      throw new Error(`${name} environment variable is required`);
+    }
   }
 
-  const username = process.env.ADMIN_USERNAME;
-  const email = process.env.ADMIN_EMAIL;
-  const fullName = process.env.ADMIN_FULL_NAME;
-  const password = process.env.ADMIN_PASSWORD;
+  const username = getEnv('ADMIN_USERNAME');
+  const email = getEnv('ADMIN_EMAIL');
+  const fullName = getEnv('ADMIN_FULL_NAME');
+  const password = getEnv('ADMIN_PASSWORD');
 
   await validateInputs(username, email, fullName, password);
 
-  const conn = await getConnection();
+  const conn = await connectionProvider();
+
   try {
+    await conn.beginTransaction();
+
     // Guard: refuse if any user already exists.
     const [existing] = await conn.query('SELECT COUNT(*) AS count FROM users');
     const existingCount = parseInt(existing.count, 10);
@@ -114,25 +110,32 @@ async function main() {
 
     await conn.commit();
 
-    console.log('[SUCCESS] First Atiman administrator created.');
-    console.log(`  id:       ${newUserId}`);
-    console.log(`  username: ${username}`);
-    console.log(`  email:    ${email}`);
-    console.log(`  role:     admin`);
-    console.log(`  status:   active`);
-    console.log('[NOTICE] No organization or facility was created. Log in via /api/login first.');
+    logSuccess('[SUCCESS] First Atiman administrator created.');
+    logSuccess(`  id:       ${newUserId}`);
+    logSuccess(`  username: ${username}`);
+    logSuccess(`  email:    ${email}`);
+    logSuccess(`  role:     admin`);
+    logSuccess(`  status:   active`);
+    logSuccess('[NOTICE] No organization or facility was created. Log in via /api/login first.');
   } catch (error) {
     await conn.rollback();
-    console.error('[FAILURE] Bootstrap rolled back.');
-    console.error(error.message);
-    process.exit(1);
+    logError('[FAILURE] Bootstrap rolled back.');
+    logError(error.message);
+    if (options.exit) {
+      exitFn(1);
+    }
+    throw error;
   } finally {
     conn.release();
-    await pool.end();
+    await closePool();
   }
 }
 
-main().catch((error) => {
-  console.error('[ERROR]', error.message);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error('[ERROR]', error.message);
+    process.exit(1);
+  });
+}
+
+module.exports = { main };
