@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#1976d2">
+    <meta name="theme-color" content="#92400e">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>ODM - Login</title>
+    <title>Sign In - Atiman</title>
     <link rel="stylesheet" href="/css/odm-mobile.css?v=<%= Date.now() %>">
     <style>
         .login-container {
@@ -18,142 +18,238 @@
             padding: 24px;
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
         }
-        
+
         .login-logo {
             text-align: center;
-            margin-bottom: 48px;
+            margin-bottom: 40px;
             color: white;
         }
-        
+
         .login-logo h1 {
-            font-size: 48px;
+            font-size: 40px;
             font-weight: 700;
             margin-bottom: 8px;
         }
-        
+
         .login-logo p {
-            font-size: 16px;
+            font-size: 15px;
             opacity: 0.9;
         }
-        
+
         .login-form {
             background: white;
             border-radius: 16px;
-            padding: 32px 24px;
+            padding: 28px 24px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.2);
         }
-        
+
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 18px;
         }
-        
+
         .form-label {
             display: block;
             font-size: 14px;
             font-weight: 500;
-            color: var(--gray-600);
+            color: var(--text-secondary);
             margin-bottom: 8px;
         }
-        
+
         .form-input {
             width: 100%;
-            height: 56px;
+            height: 52px;
             padding: 0 16px;
             font-size: 16px;
-            border: 2px solid var(--gray-300);
+            border: 2px solid var(--border-medium);
             border-radius: 12px;
             transition: border-color 0.2s;
         }
-        
+
         .form-input:focus {
             outline: none;
             border-color: var(--primary);
         }
-        
-        .organization-select {
-            margin-bottom: 24px;
+
+        .form-input.error {
+            border-color: var(--danger);
         }
-        
+
+        .form-error-message {
+            display: none;
+            font-size: 13px;
+            color: var(--danger);
+            margin-top: 6px;
+        }
+
+        .form-error-message.visible {
+            display: block;
+        }
+
         .btn-login {
             width: 100%;
-            height: 56px;
+            height: 52px;
             background: var(--primary);
             color: white;
             border: none;
             border-radius: 12px;
-            font-size: 18px;
+            font-size: 17px;
             font-weight: 600;
             cursor: pointer;
             transition: background 0.2s;
         }
-        
+
         .btn-login:active {
             background: var(--primary-dark);
         }
-        
+
+        .btn-login:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
         .login-footer {
             text-align: center;
             margin-top: 24px;
             color: rgba(255,255,255,0.7);
-            font-size: 14px;
-        }
-        
-        .biometric-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            width: 100%;
-            height: 48px;
-            margin-top: 16px;
-            background: transparent;
-            border: 2px solid var(--gray-300);
-            border-radius: 12px;
-            font-size: 16px;
-            color: var(--gray-600);
-            cursor: pointer;
+            font-size: 13px;
         }
     </style>
 </head>
 <body>
     <div class="login-container">
         <div class="login-logo">
-            <h1>ODM</h1>
-            <p>Operator Driven Maintenance</p>
+            <h1>Atiman</h1>
+            <p>Asset Operations and Intelligence Platform</p>
         </div>
-        
-        <div class="login-form">
-            <div class="organization-select">
-                <label class="form-label">Organization</label>
-                <select class="form-input">
-                    <option value="">Select Organization</option>
-                    <option value="ORG-001">Demo Organization</option>
-                </select>
-            </div>
-            
+
+        <form class="login-form" id="login-form" novalidate>
             <div class="form-group">
-                <label class="form-label">Email</label>
-                <input type="email" class="form-input" placeholder="your@email.com">
+                <label class="form-label" for="username">Username or Email</label>
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    class="form-input"
+                    placeholder="Enter your username or email"
+                    autocomplete="username"
+                    required
+                >
+                <div class="form-error-message" id="username-error">Please enter your username or email</div>
             </div>
-            
+
             <div class="form-group">
-                <label class="form-label">Password</label>
-                <input type="password" class="form-input" placeholder="Enter password">
+                <label class="form-label" for="password">Password</label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    class="form-input"
+                    placeholder="Enter your password"
+                    autocomplete="current-password"
+                    required
+                >
+                <div class="form-error-message" id="password-error">Please enter your password</div>
             </div>
-            
-            <button class="btn-login" onclick="location.href='/mobile/today'">Sign In</button>
-            
-            <button class="biometric-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 2a10 10 0 0 0-10 10c0 5.523 4.477 10 10 10s10-4.477 10-10A10 10 0 0 0 12 2zm0 16a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm0-4a1 1 0 0 1-1-1V7a1 1 0 0 1 2 0v6a1 1 0 0 1-1 1z"/>
-                </svg>
-                Use Biometric
-            </button>
-        </div>
-        
+
+            <div class="form-group">
+                <button type="submit" class="btn-login" id="login-btn">Sign In</button>
+                <div class="form-error-message" id="login-error" style="text-align: center; margin-top: 10px;"></div>
+            </div>
+        </form>
+
         <div class="login-footer">
-            <p>v1.0.0 • Terms of Service • Privacy</p>
+            <p>v2.0.0 &#183; Atiman</p>
         </div>
     </div>
+
+    <script>
+        (function() {
+            const form = document.getElementById('login-form');
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const loginBtn = document.getElementById('login-btn');
+            const loginError = document.getElementById('login-error');
+
+            function showFieldError(inputId, errorId, message) {
+                const input = document.getElementById(inputId);
+                const error = document.getElementById(errorId);
+                input.classList.add('error');
+                error.textContent = message;
+                error.classList.add('visible');
+            }
+
+            function clearFieldError(inputId, errorId) {
+                const input = document.getElementById(inputId);
+                const error = document.getElementById(errorId);
+                input.classList.remove('error');
+                error.classList.remove('visible');
+            }
+
+            function clearErrors() {
+                clearFieldError('username', 'username-error');
+                clearFieldError('password', 'password-error');
+                loginError.textContent = '';
+                loginError.classList.remove('visible');
+            }
+
+            function validate() {
+                let isValid = true;
+                if (!usernameInput.value.trim()) {
+                    showFieldError('username', 'username-error', 'Please enter your username or email');
+                    isValid = false;
+                }
+                if (!passwordInput.value) {
+                    showFieldError('password', 'password-error', 'Please enter your password');
+                    isValid = false;
+                }
+                return isValid;
+            }
+
+            usernameInput.addEventListener('input', () => clearFieldError('username', 'username-error'));
+            passwordInput.addEventListener('input', () => clearFieldError('password', 'password-error'));
+
+            form.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                clearErrors();
+
+                if (!validate()) {
+                    return;
+                }
+
+                loginBtn.disabled = true;
+                loginBtn.textContent = 'Signing in...';
+
+                try {
+                    const response = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({
+                            username: usernameInput.value.trim(),
+                            password: passwordInput.value
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        // The backend sets the httpOnly auth cookie.
+                        // We do NOT store the JWT in localStorage.
+                        window.location.replace('/mobile/today');
+                    } else {
+                        loginError.textContent = data.message || 'Sign in failed. Please try again.';
+                        loginError.classList.add('visible');
+                        loginBtn.disabled = false;
+                        loginBtn.textContent = 'Sign In';
+                    }
+                } catch (err) {
+                    loginError.textContent = 'Network error. Please try again.';
+                    loginError.classList.add('visible');
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = 'Sign In';
+                }
+            });
+        })();
+    </script>
 </body>
 </html>
