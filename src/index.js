@@ -1,5 +1,5 @@
 /**
- * ODM-CMMS Server Entry Point
+ * Atiman Server Entry Point
  */
 
 require('dotenv').config();
@@ -15,7 +15,7 @@ const HOST = process.env.HOST || '127.0.0.1';
 const server = app.listen(PORT, HOST, () => {
   console.log(`
 ╔════════════════════════════════════════════════════════════╗
-║                    ODM-CMMS Server                         ║
+║                    Atiman Server                         ║
 ╠════════════════════════════════════════════════════════════╣
 ║  Server running at: http://${HOST}:${PORT}                   ║
 ║  Environment: ${process.env.NODE_ENV || 'development'}                                ║

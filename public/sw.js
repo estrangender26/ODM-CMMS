@@ -1,8 +1,8 @@
 /**
- * Service Worker for ODM-CMMS PWA
+ * Service Worker for Atiman PWA
  */
 
-const CACHE_NAME = 'odm-cmms-v5-enterprise-24';
+const CACHE_NAME = 'atiman-v5-enterprise-24';
 const STATIC_ASSETS = [
   '/',
   '/login',

@@ -9,7 +9,7 @@
 class EmailService {
   constructor() {
     this.isDevelopment = process.env.NODE_ENV === 'development';
-    this.fromEmail = process.env.FROM_EMAIL || 'noreply@odm-cmms.com';
+    this.fromEmail = process.env.FROM_EMAIL || 'noreply@example.com';
     this.appUrl = process.env.APP_URL || `http://${process.env.HOST || 'localhost'}:${process.env.PORT || 3000}`;
   }
 
@@ -25,17 +25,17 @@ class EmailService {
   async sendInvitation({ to, organizationName, role, token, invitedBy }) {
     const signupUrl = `${this.appUrl}/signup?token=${token}`;
     
-    const subject = `You've been invited to join ${organizationName} on ODM-CMMS`;
+    const subject = `You've been invited to join ${organizationName} on Atiman`;
     
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #1976d2;">You're Invited!</h2>
         <p>Hello,</p>
-        <p><strong>${invitedBy}</strong> has invited you to join <strong>${organizationName}</strong> as a <strong>${role}</strong> on ODM-CMMS.</p>
+        <p><strong>${invitedBy}</strong> has invited you to join <strong>${organizationName}</strong> as a <strong>${role}</strong> on Atiman.</p>
         
         <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="margin-top: 0;">What is ODM-CMMS?</h3>
-          <p>Operator-Driven Maintenance Computerized Maintenance Management System - A mobile-first maintenance platform for managing equipment, inspections, and work orders.</p>
+          <h3 style="margin-top: 0;">What is Atiman?</h3>
+          <p>Atiman is an Asset Operations and Intelligence Platform that helps frontline teams collect asset condition information and turn it into actionable engineering intelligence.</p>
         </div>
         
         <p style="text-align: center; margin: 30px 0;">
@@ -57,7 +57,7 @@ class EmailService {
     `;
 
     const text = `
-You've been invited to join ${organizationName} on ODM-CMMS!
+You've been invited to join ${organizationName} on Atiman!
 
 ${invitedBy} has invited you to join as a ${role}.
 
