@@ -86,13 +86,14 @@ Defines how knowledge is grouped into reusable, versioned packs.
 
 | Entity | Purpose | Retain / Refactor / Remove |
 |--------|---------|---------------------------|
-| `template_families` | Named families of maintenance templates (e.g., Pump Monthly, Motor Annual). | **Retain** |
-| `template_family_rules` | Default rules per family (frequency, duration, task kind). | **Retain** |
-| `equipment_type_family_mappings` | Maps equipment types to template families. | **Retain** |
-| `smp_families` | Standard Maintenance Procedure families. | **Retain** |
-| `smp_tasks` | Tasks within an SMP family. | **Retain** |
+| `task_template_equipment_types` | **Proposed.** Many-to-many applicability between task templates and equipment types. | **Add** — replaces family-based mapping. |
 | `seed_batches` / `seed_batch_entities` | Legacy batch tracking for template seeding. | **Remove** — replace with explicit Knowledge Pack provenance. |
 | `equipment_type_family_proposals` | Customer proposals for new family mappings. | **Remove** — replace with governed knowledge contribution workflow. |
+| `template_families` | Named families of maintenance templates. | **Remove** — legacy Manila Water organization construct; not Atiman architecture. |
+| `template_family_rules` | Default rules per family. | **Remove** — depends on removed `template_families`. |
+| `equipment_type_family_mappings` | Maps equipment types to template families. | **Remove** — replaced by `task_template_equipment_types`. |
+| `smp_families` | Standard Maintenance Procedure families. | **Remove** — associated with the excluded legacy family/SMP architecture; not retained. |
+| `smp_tasks` | Tasks within an SMP family. | **Remove** — depends on removed `smp_families`. |
 
 ### 3.4 Maintenance Knowledge
 
@@ -101,9 +102,10 @@ Defines the actual executable maintenance content.
 | Entity | Purpose | Retain / Refactor / Remove |
 |--------|---------|---------------------------|
 | `task_master` | Canonical master task definitions. | **Retain and refactor** — must become organization-agnostic or scoped to Atiman shared knowledge. |
-| `task_templates` | Maintenance procedures for an equipment type / family. | **Retain** |
+| `task_templates` | Maintenance procedures applicable to one or more equipment types. | **Retain** |
 | `task_template_steps` | Individual steps within a template. | **Retain** |
 | `task_template_safety_controls` | Safety controls linked to a template. | **Retain** |
+| `task_template_equipment_types` | **Proposed.** Many-to-many mapping of task templates to equipment types. | **Add** — replaces family-based and SMP-based task grouping. |
 
 ---
 
@@ -145,10 +147,6 @@ Several knowledge tables currently carry `organization_id` and `created_by` colu
 - `task_master.created_by`
 - `task_templates.organization_id`
 - `task_templates.created_by`
-- `smp_families.organization_id`
-- `smp_families.created_by`
-- `smp_tasks.organization_id`
-- `smp_tasks.created_by`
 
 **Refactor:**
 
@@ -200,7 +198,7 @@ equipment_categories
   └─ equipment_classes
        ├─ equipment_types
        │    ├─ equipment_type_industries → industries
-       │    ├─ equipment_type_family_mappings → template_families
+       │    ├─ task_template_equipment_types → task_templates
        │    ├─ failure_modes
        │    ├─ subunits
        │    │    └─ maintainable_items
@@ -211,19 +209,34 @@ equipment_categories
        ├─ damage_codes
        ├─ object_parts
        └─ cause_codes (nullable)
-
-template_families
-  └─ template_family_rules
-
-smp_families
-  └─ smp_tasks
 ```
 
-All relationships are many-to-one within the knowledge graph. There are no cyclic FK dependencies within the Knowledge Foundation.
+Most relationships within the Knowledge Foundation are many-to-one. Task-template-to-equipment-type applicability is intentionally many-to-many. There are no cyclic FK dependencies within the Knowledge Foundation.
 
 Cross-boundary references (e.g., operational findings referencing `task_template_id`) are allowed from operational layers upward, but operational data does not reside in the Knowledge Foundation.
 
 ---
+
+
+### 5.1 Proposed Physical Schema: `task_template_equipment_types`
+
+The legacy family-based indirection (`equipment_type_family_mappings` → `template_families` → `template_family_rules`) is removed. In its place, Atiman uses a direct many-to-many applicability table:
+
+```sql
+CREATE TABLE task_template_equipment_types (
+    task_template_id INTEGER NOT NULL REFERENCES task_templates(id) ON DELETE CASCADE,
+    equipment_type_id INTEGER NOT NULL REFERENCES equipment_types(id) ON DELETE CASCADE,
+    PRIMARY KEY (task_template_id, equipment_type_id)
+);
+```
+
+Rationale:
+- A task template may apply to multiple equipment types.
+- An equipment type may have multiple applicable task templates.
+- No legacy family or SMP constructs are retained.
+- Scope and lifecycle of the applicability row follow the referenced task template.
+
+This table is **proposed physical schema** pending ATM-003 / platform-foundation decisions on schema organization.
 
 ## 6. Knowledge Packs
 
@@ -236,7 +249,7 @@ A pack may contain:
 - A subset of engineering taxonomy.
 - Reliability taxonomy.
 - Maintenance knowledge (task master, templates, steps, safety controls).
-- Knowledge organization (template families, rules, SMP families, mappings).
+- Equipment-type applicability for templates (`task_template_equipment_types`).
 
 ### 6.2 Pack Metadata
 
@@ -472,6 +485,8 @@ The Knowledge Foundation imposes these requirements on AI (Intelligence Layer):
 |----------------|-------------------------|-------------|
 | `seed_batches` / `seed_batch_entities` | One-time operational import artifact. | Knowledge Pack provenance. |
 | `equipment_type_family_proposals` | Ad-hoc customer proposal table. | Governed knowledge contribution workflow. |
+| `template_families` / `template_family_rules` / `equipment_type_family_mappings` | Legacy family construct associated with the excluded SMP architecture; couples templates to operational groupings. | `task_template_equipment_types` many-to-many applicability. |
+| `smp_families` / `smp_tasks` | Legacy SMP construct associated with the excluded family architecture; not retained in Atiman. | Excluded from architecture. |
 | `equipment` in knowledge schema | Installed assets are operational data. | Operational tenant schema. |
 | `organization_id` on shared knowledge | Ties shared knowledge to a tenant. | Knowledge scope discriminator. |
 | `is_active` as only lifecycle flag | Insufficient for draft/review/published/retired. | Full lifecycle state + effective dates. |
@@ -495,15 +510,11 @@ The following tables are structurally sound and require only additive changes (l
 - `cause_codes`
 - `damage_codes`
 - `failure_modes`
-- `template_families`
-- `template_family_rules`
-- `equipment_type_family_mappings`
 - `task_templates`
 - `task_template_steps`
+- `task_template_equipment_types` *(proposed many-to-many applicability)*
 - `task_template_safety_controls`
 - `task_master`
-- `smp_families`
-- `smp_tasks`
 
 ---
 
@@ -521,6 +532,7 @@ The following tables are structurally sound and require only additive changes (l
 | Review / approval workflow | Governance. |
 | Knowledge-to-knowledge dependencies | Pack dependency resolution. |
 | Contribution request entity | Replacing `equipment_type_family_proposals`. |
+| Task-template-to-equipment-type applicability | Replacing family mappings with direct many-to-many relationship. |
 
 ---
 
