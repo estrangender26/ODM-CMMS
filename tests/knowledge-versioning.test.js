@@ -13,6 +13,21 @@ async function query(sql, params = []) {
   return rows;
 }
 
+const isForbiddenError = (err) => {
+  const msg = (err.message || '').toLowerCase();
+  return msg.includes('immutable') || msg.includes('cannot be') || msg.includes('insufficient privilege');
+};
+
+const isUpdateForbiddenError = (err) => {
+  const msg = (err.message || '').toLowerCase();
+  return msg.includes('immutable') || msg.includes('cannot be updated') || msg.includes('insufficient privilege');
+};
+
+const isSupersessionError = (err) => {
+  const msg = (err.message || '').toLowerCase();
+  return msg.includes('supersede') || msg.includes('same knowledge_pack') || msg.includes('same task_template') || msg.includes('check_violation');
+};
+
 describe('Knowledge Versioning Foundation', () => {
   it('creates required knowledge versioning tables', async () => {
     const tables = await query(`
@@ -22,7 +37,6 @@ describe('Knowledge Versioning Foundation', () => {
         AND table_name IN (
           'knowledge_packs',
           'knowledge_pack_versions',
-          'knowledge_pack_version_items',
           'task_template_versions',
           'task_template_step_versions'
         )
@@ -31,9 +45,29 @@ describe('Knowledge Versioning Foundation', () => {
     const names = tables.map(t => t.table_name);
     assert.ok(names.includes('knowledge_packs'));
     assert.ok(names.includes('knowledge_pack_versions'));
-    assert.ok(names.includes('knowledge_pack_version_items'));
     assert.ok(names.includes('task_template_versions'));
     assert.ok(names.includes('task_template_step_versions'));
+  });
+
+  it('does not create deferred knowledge_pack_version_items table', async () => {
+    const tables = await query(`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = 'knowledge_pack_version_items'
+    `);
+    assert.strictEqual(tables.length, 0, 'knowledge_pack_version_items should not exist yet');
+  });
+
+  it('task_template_versions has no knowledge_pack_version_id column', async () => {
+    const cols = await query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'task_template_versions'
+        AND column_name = 'knowledge_pack_version_id'
+    `);
+    assert.strictEqual(cols.length, 0, 'knowledge_pack_version_id column should not exist on task_template_versions');
   });
 
   it('enforces unique pack code on knowledge_packs', async () => {
@@ -80,65 +114,39 @@ describe('Knowledge Versioning Foundation', () => {
     assert.ok(names.some(n => n.includes('task_template_step_versions_version_step_no')));
   });
 
-  it('can insert and query a pack/version/template-version/step-version chain', async () => {
+  it('task_template_versions only accepts post-publication lifecycle states', async () => {
     const conn = await getConnection();
     try {
-      // Create a pack
-      const [packRow] = await conn.query(`
-        INSERT INTO knowledge_packs (pack_code, pack_name, description)
-        VALUES ('test-pack', 'Test Pack', 'For testing only')
-        RETURNING id
-      `);
-      const packId = packRow.id;
-
-      // Create a pack version
-      const [packVersionRow] = await conn.query(`
-        INSERT INTO knowledge_pack_versions (
-          knowledge_pack_id, version_number, lifecycle_state,
-          author_user_id, published_at
-        )
-        VALUES ($1, '1.0.0', 'published', NULL, NOW())
-        RETURNING id
-      `, [packId]);
-      const packVersionId = packVersionRow.id;
-
-      // Find an existing template and step to version
       const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
-      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
-
       assert.ok(template, 'Need at least one task_templates row');
-      assert.ok(step, 'Need at least one task_template_steps row for that template');
 
-      // Create a template version
-      const [templateVersion] = await conn.query(`
+      // published is valid
+      const [valid] = await conn.query(`
         INSERT INTO task_template_versions (
           task_template_id, version_number, equipment_type_id,
-          template_name, maintenance_type, knowledge_pack_version_id
+          template_name, maintenance_type, lifecycle_state_at_publish
         )
-        VALUES ($1, 1, $2, 'Test Template v1', 'preventive', $3)
+        VALUES ($1, 1, $2, 'Valid State', 'preventive', 'published')
         RETURNING id
-      `, [template.id, template.equipment_type_id, packVersionId]);
+      `, [template.id, template.equipment_type_id]);
+      assert.ok(valid.id);
 
-      // Create a step version
-      const [stepVersion] = await conn.query(`
-        INSERT INTO task_template_step_versions (
-          task_template_version_id, step_no, task_template_step_id,
-          step_type, instruction
-        )
-        VALUES ($1, 1, $2, 'instruction', 'Test instruction')
-        RETURNING id
-      `, [templateVersion.id, step.id]);
+      // draft is invalid for a publication record
+      let rejected = false;
+      try {
+        await conn.query(`
+          INSERT INTO task_template_versions (
+            task_template_id, version_number, equipment_type_id,
+            template_name, maintenance_type, lifecycle_state_at_publish
+          )
+          VALUES ($1, 2, $2, 'Draft State', 'preventive', 'draft')
+        `, [template.id, template.equipment_type_id]);
+      } catch (err) {
+        rejected = /check.*constraint|violates check constraint|new row.*violates/i.test(err.message || '');
+      }
+      assert.ok(rejected, 'draft lifecycle_state_at_publish should be rejected');
 
-      assert.ok(templateVersion.id > 0);
-      assert.ok(stepVersion.id > 0);
-
-      // Clean up
-      await conn.query('DELETE FROM task_template_step_versions WHERE id = $1', [stepVersion.id]);
-      await conn.query('DELETE FROM task_template_versions WHERE id = $1', [templateVersion.id]);
-      await conn.query('DELETE FROM knowledge_pack_versions WHERE id = $1', [packVersionId]);
-      await conn.query('DELETE FROM knowledge_packs WHERE id = $1', [packId]);
-
-      await conn.commit();
+      await conn.rollback();
     } catch (err) {
       await conn.rollback();
       throw err;
@@ -146,4 +154,640 @@ describe('Knowledge Versioning Foundation', () => {
       conn.release();
     }
   });
+
+  it('can insert and query a pack/version/template-version/step-version chain', async () => {
+    const conn = await getConnection();
+    try {
+      const [packRow] = await conn.query(`
+        INSERT INTO knowledge_packs (pack_code, pack_name)
+        VALUES ('chain-test-pack', 'Chain Test Pack')
+        RETURNING id
+      `);
+      const packId = packRow.id;
+
+      const [packVersionRow] = await conn.query(`
+        INSERT INTO knowledge_pack_versions (knowledge_pack_id, version_number, lifecycle_state)
+        VALUES ($1, '0.1.0', 'draft')
+        RETURNING id
+      `, [packId]);
+      const packVersionId = packVersionRow.id;
+
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+
+      assert.ok(template, 'Need at least one task_templates row');
+      assert.ok(step, 'Need at least one task_template_steps row for that template');
+
+      const [templateVersion] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type
+        )
+        VALUES ($1, 1, $2, 'Chain Test Template', 'preventive')
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      const [stepVersion] = await conn.query(`
+        INSERT INTO task_template_step_versions (
+          task_template_version_id, step_no, task_template_step_id, step_type, instruction
+        )
+        VALUES ($1, 1, $2, 'instruction', 'Chain test instruction')
+        RETURNING id
+      `, [templateVersion.id, step.id]);
+
+      assert.ok(templateVersion.id > 0);
+      assert.ok(stepVersion.id > 0);
+
+      // Clean up: use rollback because step versions are always immutable.
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('blocks UPDATE of content columns on published knowledge_pack_versions', async () => {
+    const conn = await getConnection();
+    try {
+      const [pack] = await conn.query(`
+        INSERT INTO knowledge_packs (pack_code, pack_name)
+        VALUES ('immutable-pack', 'Immutable Pack')
+        RETURNING id
+      `);
+
+      const [packVersion] = await conn.query(`
+        INSERT INTO knowledge_pack_versions (knowledge_pack_id, version_number, lifecycle_state, published_at)
+        VALUES ($1, '1.0.0', 'published', NOW())
+        RETURNING id
+      `, [pack.id]);
+
+      let blocked = false;
+      try {
+        await conn.query(`
+          UPDATE knowledge_pack_versions SET change_summary = 'tampered' WHERE id = $1
+        `, [packVersion.id]);
+      } catch (err) {
+        blocked = isUpdateForbiddenError(err);
+      }
+      assert.ok(blocked, 'UPDATE of published pack version content should be blocked');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('blocks DELETE of published knowledge_pack_versions', async () => {
+    const conn = await getConnection();
+    try {
+      const [pack] = await conn.query(`
+        INSERT INTO knowledge_packs (pack_code, pack_name)
+        VALUES ('delete-test-pack', 'Delete Test Pack')
+        RETURNING id
+      `);
+
+      const [packVersion] = await conn.query(`
+        INSERT INTO knowledge_pack_versions (knowledge_pack_id, version_number, lifecycle_state, published_at)
+        VALUES ($1, '1.0.0', 'published', NOW())
+        RETURNING id
+      `, [pack.id]);
+
+      let blocked = false;
+      try {
+        await conn.query(`DELETE FROM knowledge_pack_versions WHERE id = $1`, [packVersion.id]);
+      } catch (err) {
+        blocked = isForbiddenError(err);
+      }
+      assert.ok(blocked, 'DELETE of published pack version should be blocked');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('allows only supersession/retirement metadata transitions on published task_template_versions', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+
+      const [templateVersionV1] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish
+        )
+        VALUES ($1, 1, $2, 'Transition Template v1', 'preventive', 'published')
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      const [templateVersionV2] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish
+        )
+        VALUES ($1, 2, $2, 'Transition Template v2', 'preventive', 'published')
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      // Allowed: supersede v1 with the later version of the same template.
+      await conn.query(`
+        UPDATE task_template_versions
+        SET lifecycle_state_at_publish = 'superseded', superseded_by_version_id = $1
+        WHERE id = $2
+      `, [templateVersionV2.id, templateVersionV1.id]);
+
+      // Once superseded, content changes remain blocked.
+      let blocked = false;
+      try {
+        await conn.query(`
+          UPDATE task_template_versions SET template_name = 'Tampered' WHERE id = $1
+        `, [templateVersionV1.id]);
+      } catch (err) {
+        blocked = isUpdateForbiddenError(err);
+      }
+      assert.ok(blocked, 'UPDATE of superseded template version content should be blocked');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('rejects self-supersession for knowledge_pack_versions and task_template_versions', async () => {
+    const conn = await getConnection();
+    try {
+      const [pack] = await conn.query(`
+        INSERT INTO knowledge_packs (pack_code, pack_name)
+        VALUES ('self-super-pack', 'Self Supersession Pack')
+        RETURNING id
+      `);
+      const [packVersion] = await conn.query(`
+        INSERT INTO knowledge_pack_versions (knowledge_pack_id, version_number, lifecycle_state, published_at)
+        VALUES ($1, '1.0.0', 'published', NOW())
+        RETURNING id
+      `, [pack.id]);
+
+      let packBlocked = false;
+      await conn.query('SAVEPOINT self_super_pack');
+      try {
+        await conn.query(`
+          UPDATE knowledge_pack_versions
+          SET superseded_by_version_id = $1
+          WHERE id = $1
+        `, [packVersion.id]);
+      } catch (err) {
+        packBlocked = isSupersessionError(err);
+        await conn.query('ROLLBACK TO SAVEPOINT self_super_pack');
+      }
+      assert.ok(packBlocked, 'Self-supersession of pack version should be rejected');
+
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const [templateVersion] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish
+        )
+        VALUES ($1, 1, $2, 'Self Super Template', 'preventive', 'published')
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      let templateBlocked = false;
+      await conn.query('SAVEPOINT self_super_template');
+      try {
+        await conn.query(`
+          UPDATE task_template_versions
+          SET superseded_by_version_id = $1
+          WHERE id = $1
+        `, [templateVersion.id]);
+      } catch (err) {
+        templateBlocked = isSupersessionError(err);
+        await conn.query('ROLLBACK TO SAVEPOINT self_super_template');
+      }
+      assert.ok(templateBlocked, 'Self-supersession of template version should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('requires pack-version supersession to stay within the same pack', async () => {
+    const conn = await getConnection();
+    try {
+      const [packA] = await conn.query(`
+        INSERT INTO knowledge_packs (pack_code, pack_name)
+        VALUES ('same-pack-a', 'Pack A')
+        RETURNING id
+      `);
+      const [packB] = await conn.query(`
+        INSERT INTO knowledge_packs (pack_code, pack_name)
+        VALUES ('same-pack-b', 'Pack B')
+        RETURNING id
+      `);
+
+      const [packVersionA] = await conn.query(`
+        INSERT INTO knowledge_pack_versions (knowledge_pack_id, version_number, lifecycle_state, published_at)
+        VALUES ($1, '1.0.0', 'published', NOW())
+        RETURNING id
+      `, [packA.id]);
+
+      const [packVersionB] = await conn.query(`
+        INSERT INTO knowledge_pack_versions (knowledge_pack_id, version_number, lifecycle_state, published_at)
+        VALUES ($1, '1.0.0', 'published', NOW())
+        RETURNING id
+      `, [packB.id]);
+
+      // Attempting to supersede pack version A with a version from pack B must fail.
+      let blocked = false;
+      await conn.query('SAVEPOINT cross_pack_test');
+      try {
+        await conn.query(`
+          UPDATE knowledge_pack_versions
+          SET superseded_by_version_id = $1, lifecycle_state = 'superseded'
+          WHERE id = $2
+        `, [packVersionB.id, packVersionA.id]);
+      } catch (err) {
+        blocked = isSupersessionError(err);
+        await conn.query('ROLLBACK TO SAVEPOINT cross_pack_test');
+      }
+      assert.ok(blocked, 'Cross-pack supersession should be rejected');
+
+      // Superseding A with a second version from the SAME pack should succeed.
+      const [packVersionA2] = await conn.query(`
+        INSERT INTO knowledge_pack_versions (knowledge_pack_id, version_number, lifecycle_state, published_at)
+        VALUES ($1, '2.0.0', 'published', NOW())
+        RETURNING id
+      `, [packA.id]);
+
+      await conn.query(`
+        UPDATE knowledge_pack_versions
+        SET superseded_by_version_id = $1, lifecycle_state = 'superseded'
+        WHERE id = $2
+      `, [packVersionA2.id, packVersionA.id]);
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('requires task-template-version supersession to stay within the same task template', async () => {
+    const conn = await getConnection();
+    try {
+      const [templateA] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const [templateB] = await conn.query(`
+        SELECT id, equipment_type_id FROM task_templates
+        WHERE id != $1 LIMIT 1
+      `, [templateA.id]);
+      assert.ok(templateB, 'Need at least two distinct task_templates rows');
+
+      const [versionA1] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish
+        )
+        VALUES ($1, 1, $2, 'Template A v1', 'preventive', 'published')
+        RETURNING id
+      `, [templateA.id, templateA.equipment_type_id]);
+
+      const [versionB1] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish
+        )
+        VALUES ($1, 1, $2, 'Template B v1', 'preventive', 'published')
+        RETURNING id
+      `, [templateB.id, templateB.equipment_type_id]);
+
+      // Cross-template supersession must fail.
+      let blocked = false;
+      await conn.query('SAVEPOINT cross_template_test');
+      try {
+        await conn.query(`
+          UPDATE task_template_versions
+          SET superseded_by_version_id = $1, lifecycle_state_at_publish = 'superseded'
+          WHERE id = $2
+        `, [versionB1.id, versionA1.id]);
+      } catch (err) {
+        blocked = isSupersessionError(err);
+        await conn.query('ROLLBACK TO SAVEPOINT cross_template_test');
+      }
+      assert.ok(blocked, 'Cross-template supersession should be rejected');
+
+      // Same-template supersession must succeed.
+      const [versionA2] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish
+        )
+        VALUES ($1, 2, $2, 'Template A v2', 'preventive', 'published')
+        RETURNING id
+      `, [templateA.id, templateA.equipment_type_id]);
+
+      await conn.query(`
+        UPDATE task_template_versions
+        SET superseded_by_version_id = $1, lifecycle_state_at_publish = 'superseded'
+        WHERE id = $2
+      `, [versionA2.id, versionA1.id]);
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('blocks UPDATE of task_template_step_versions', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const [templateVersion] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish
+        )
+        VALUES ($1, 1, $2, 'Step Update Template', 'preventive', 'published')
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      const [stepVersion] = await conn.query(`
+        INSERT INTO task_template_step_versions (
+          task_template_version_id, step_no, task_template_step_id, step_type, instruction
+        )
+        VALUES ($1, 1, $2, 'instruction', 'Step to remain immutable')
+        RETURNING id
+      `, [templateVersion.id, step.id]);
+
+      let blocked = false;
+      try {
+        await conn.query(`UPDATE task_template_step_versions SET instruction = 'changed' WHERE id = $1`, [stepVersion.id]);
+      } catch (err) {
+        blocked = isForbiddenError(err);
+      }
+      assert.ok(blocked, 'UPDATE of task_template_step_versions should be blocked');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('blocks DELETE of task_template_step_versions', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const [templateVersion] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish
+        )
+        VALUES ($1, 1, $2, 'Step Delete Template', 'preventive', 'published')
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      const [stepVersion] = await conn.query(`
+        INSERT INTO task_template_step_versions (
+          task_template_version_id, step_no, task_template_step_id, step_type, instruction
+        )
+        VALUES ($1, 1, $2, 'instruction', 'Step to remain immutable')
+        RETURNING id
+      `, [templateVersion.id, step.id]);
+
+      let blocked = false;
+      try {
+        await conn.query(`DELETE FROM task_template_step_versions WHERE id = $1`, [stepVersion.id]);
+      } catch (err) {
+        blocked = isForbiddenError(err);
+      }
+      assert.ok(blocked, 'DELETE of task_template_step_versions should be blocked');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+  it('seals published template step sets and blocks later step changes', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const [templateVersion] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish, is_step_set_sealed
+        )
+        VALUES ($1, 1, $2, 'Sealed Step Set Template', 'preventive', 'published', FALSE)
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+
+      const [stepVersion] = await conn.query(`
+        INSERT INTO task_template_step_versions (
+          task_template_version_id, step_no, task_template_step_id, step_type, instruction
+        )
+        VALUES ($1, 1, $2, 'instruction', 'Step to be sealed')
+        RETURNING id
+      `, [templateVersion.id, step.id]);
+
+      // Seal the step set.
+      await conn.query(`
+        UPDATE task_template_versions SET is_step_set_sealed = TRUE WHERE id = $1
+      `, [templateVersion.id]);
+
+      // INSERT blocked
+      let blockedInsert = false;
+      await conn.query('SAVEPOINT seal_insert_test');
+      try {
+        await conn.query(`
+          INSERT INTO task_template_step_versions (
+            task_template_version_id, step_no, task_template_step_id, step_type, instruction
+          )
+          VALUES ($1, 2, $2, 'instruction', 'Should not be added')
+        `, [templateVersion.id, step.id]);
+      } catch (err) {
+        blockedInsert = isForbiddenError(err);
+        await conn.query('ROLLBACK TO SAVEPOINT seal_insert_test');
+      }
+      assert.ok(blockedInsert, 'INSERT into sealed step set should be blocked');
+
+      // UPDATE blocked
+      let blockedUpdate = false;
+      await conn.query('SAVEPOINT seal_update_test');
+      try {
+        await conn.query(`UPDATE task_template_step_versions SET instruction = 'changed' WHERE id = $1`, [stepVersion.id]);
+      } catch (err) {
+        blockedUpdate = isForbiddenError(err);
+        await conn.query('ROLLBACK TO SAVEPOINT seal_update_test');
+      }
+      assert.ok(blockedUpdate, 'UPDATE of sealed step set should be blocked');
+
+      // DELETE blocked
+      let blockedDelete = false;
+      await conn.query('SAVEPOINT seal_delete_test');
+      try {
+        await conn.query(`DELETE FROM task_template_step_versions WHERE id = $1`, [stepVersion.id]);
+      } catch (err) {
+        blockedDelete = isForbiddenError(err);
+        await conn.query('ROLLBACK TO SAVEPOINT seal_delete_test');
+      }
+      assert.ok(blockedDelete, 'DELETE from sealed step set should be blocked');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('allows step set assembly before sealing', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const [templateVersion] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish, is_step_set_sealed
+        )
+        VALUES ($1, 1, $2, 'Unsealed Step Set Template', 'preventive', 'published', FALSE)
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+
+      const [stepVersion] = await conn.query(`
+        INSERT INTO task_template_step_versions (
+          task_template_version_id, step_no, task_template_step_id, step_type, instruction
+        )
+        VALUES ($1, 1, $2, 'instruction', 'Step before seal')
+        RETURNING id
+      `, [templateVersion.id, step.id]);
+
+      assert.ok(stepVersion.id > 0);
+
+      await conn.query(`
+        UPDATE task_template_versions SET is_step_set_sealed = TRUE WHERE id = $1
+      `, [templateVersion.id]);
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('requires successor to be a valid published or superseded version', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+
+      const [v1] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish
+        )
+        VALUES ($1, 1, $2, 'Successor Valid v1', 'preventive', 'published')
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      const [v2Retired] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish
+        )
+        VALUES ($1, 2, $2, 'Successor Retired', 'preventive', 'retired')
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      // Attempting to supersede v1 with a retired version should fail.
+      let blocked = false;
+      await conn.query('SAVEPOINT retired_successor_test');
+      try {
+        await conn.query(`
+          UPDATE task_template_versions
+          SET superseded_by_version_id = $1
+          WHERE id = $2
+        `, [v2Retired.id, v1.id]);
+      } catch (err) {
+        blocked = isSupersessionError(err) || /successor.*published or superseded/i.test(err.message || '');
+        await conn.query('ROLLBACK TO SAVEPOINT retired_successor_test');
+      }
+      assert.ok(blocked, 'Supersession by a retired successor should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('requires superseded state to have a successor', async () => {
+    const conn = await getConnection();
+    try {
+      const [pack] = await conn.query(`
+        INSERT INTO knowledge_packs (pack_code, pack_name)
+        VALUES ('orphan-super-pack', 'Orphan Supersession Pack')
+        RETURNING id
+      `);
+      const [packVersion] = await conn.query(`
+        INSERT INTO knowledge_pack_versions (knowledge_pack_id, version_number, lifecycle_state, published_at)
+        VALUES ($1, '1.0.0', 'published', NOW())
+        RETURNING id
+      `, [pack.id]);
+
+      let blocked = false;
+      await conn.query('SAVEPOINT orphan_super_test');
+      try {
+        await conn.query(`
+          UPDATE knowledge_pack_versions
+          SET lifecycle_state = 'superseded'
+          WHERE id = $1
+        `, [packVersion.id]);
+      } catch (err) {
+        blocked = isSupersessionError(err) || /must specify superseded_by_version_id/i.test(err.message || '');
+        await conn.query('ROLLBACK TO SAVEPOINT orphan_super_test');
+      }
+      assert.ok(blocked, 'Superseded state without successor should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
 });

@@ -15,9 +15,6 @@ CREATE INDEX IF NOT EXISTS idx_task_template_versions_template
 CREATE INDEX IF NOT EXISTS idx_task_template_versions_equipment_type
     ON task_template_versions (equipment_type_id);
 
-CREATE INDEX IF NOT EXISTS idx_task_template_versions_pack_version
-    ON task_template_versions (knowledge_pack_version_id);
-
 CREATE INDEX IF NOT EXISTS idx_task_template_versions_superseded
     ON task_template_versions (superseded_by_version_id);
 
@@ -26,9 +23,3 @@ CREATE INDEX IF NOT EXISTS idx_task_template_step_versions_template_version
 
 CREATE INDEX IF NOT EXISTS idx_task_template_step_versions_task_template_step
     ON task_template_step_versions (task_template_step_id);
-
-CREATE INDEX IF NOT EXISTS idx_knowledge_pack_version_items_pack
-    ON knowledge_pack_version_items (knowledge_pack_version_id);
-
-CREATE INDEX IF NOT EXISTS idx_knowledge_pack_version_items_item
-    ON knowledge_pack_version_items (item_type, item_version_id);
