@@ -54,7 +54,7 @@
 <!-- Supervisor Today -->
 <div class="dashboard-stats">
     <div class="stat-card">
-        <div class="stat-value">—</div>
+        <div class="stat-value"><%= typeof openFindingsCount === 'number' ? openFindingsCount : '—' %></div>
         <div class="stat-label">Needs Assessment</div>
     </div>
     <div class="stat-card">
@@ -63,8 +63,34 @@
     </div>
 </div>
 
+<% if (openFindingsCount > 0) { %>
+<div class="alert-banner">
+    <span class="alert-icon">⚠️</span>
+    <div class="alert-content">
+        <div class="alert-title"><%= openFindingsCount %> finding<%= openFindingsCount === 1 ? '' : 's' %> awaiting assessment</div>
+        <div class="alert-subtitle">Review and decide next action</div>
+    </div>
+</div>
+<% } %>
+
 <div class="card">
     <div class="card-title">Assessment Queue</div>
+    <% if (openFindings && openFindings.length > 0) { %>
+        <% openFindings.forEach(function(finding) { %>
+        <a href="/mobile/dashboard/findings" class="wo-card card" style="margin-bottom: 8px; display: block; text-decoration: none; color: inherit;">
+            <div class="wo-header">
+                <div>
+                    <div class="wo-title"><%= finding.asset_name || finding.equipment_name || 'Unnamed asset' %></div>
+                    <div class="wo-meta">
+                        <%= finding.facility_name || 'Unknown facility' %>
+                        <% if (finding.severity) { %> · Severity: <%= finding.severity %><% } %>
+                    </div>
+                </div>
+                <span class="status-badge status-released">Open</span>
+            </div>
+        </a>
+        <% }); %>
+    <% } else { %>
     <div class="wo-card card" style="margin-bottom: 8px; opacity: 0.7;">
         <div class="wo-header">
             <div>
@@ -73,6 +99,7 @@
             </div>
         </div>
     </div>
+    <% } %>
     <a href="/mobile/dashboard/findings" class="btn btn-secondary" style="width: 100%; margin-top: 8px;">View Findings</a>
 </div>
 <% } %>
@@ -81,14 +108,24 @@
 <!-- Operator Today -->
 <div class="dashboard-stats">
     <div class="stat-card">
-        <div class="stat-value">—</div>
+        <div class="stat-value"><%= typeof todayCount === 'number' ? todayCount : '—' %></div>
         <div class="stat-label">Today's Tasks</div>
     </div>
     <div class="stat-card">
-        <div class="stat-value">—</div>
+        <div class="stat-value" style="<%= overdueCount > 0 ? 'color: var(--danger);' : '' %>"><%= typeof overdueCount === 'number' ? overdueCount : '—' %></div>
         <div class="stat-label">Overdue</div>
     </div>
 </div>
+
+<% if (overdueCount > 0) { %>
+<div class="alert-banner">
+    <span class="alert-icon">⚠️</span>
+    <div class="alert-content">
+        <div class="alert-title"><%= overdueCount %> overdue task<%= overdueCount === 1 ? '' : 's' %></div>
+        <div class="alert-subtitle">Review overdue work first</div>
+    </div>
+</div>
+<% } %>
 
 <button class="btn-scan-large" onclick="openQRScanner()">
     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -102,6 +139,22 @@
 
 <div class="card">
     <div class="card-title">Priority Tasks</div>
+    <% if (todayTasks && todayTasks.length > 0) { %>
+        <% todayTasks.forEach(function(task) { %>
+        <div class="wo-card card" style="margin-bottom: 8px;">
+            <div class="wo-header">
+                <div>
+                    <div class="wo-title"><%= task.equipment_name || 'Unnamed asset' %></div>
+                    <div class="wo-meta">
+                        <%= task.task_title || 'Untitled task' %>
+                        <% if (task.equipment_code) { %> · <%= task.equipment_code %><% } %>
+                    </div>
+                </div>
+                <span class="status-badge status-released">Today</span>
+            </div>
+        </div>
+        <% }); %>
+    <% } else { %>
     <div class="wo-card card" style="margin-bottom: 8px; opacity: 0.7;">
         <div class="wo-header">
             <div>
@@ -110,6 +163,7 @@
             </div>
         </div>
     </div>
+    <% } %>
 </div>
 <% } %>
 
