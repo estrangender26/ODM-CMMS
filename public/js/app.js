@@ -1,5 +1,5 @@
 /**
- * ODM-CMMS Application JavaScript
+ * Atiman Application JavaScript
  */
 
 // Service Worker Registration for PWA

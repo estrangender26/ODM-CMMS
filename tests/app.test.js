@@ -1,5 +1,5 @@
 /**
- * ODM-CMMS Application Tests
+ * Atiman Application Tests
  *
  * Test suite for the Express application using Node.js built-in test runner.
  */
@@ -10,7 +10,7 @@ const http = require('http');
 const app = require('../src/app');
 const { pool } = require('../src/config/database');
 
-describe('ODM-CMMS API', () => {
+describe('Atiman API', () => {
   let server;
   let baseUrl;
 

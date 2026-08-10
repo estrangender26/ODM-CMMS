@@ -1,5 +1,5 @@
 /**
- * ODM-CMMS Application
+ * Atiman Application
  * Main Express application setup
  */
 
@@ -102,21 +102,21 @@ app.use(optionalAuth);
 // Web routes (render views)
 app.get('/', (req, res) => {
   res.render('index', { 
-    title: 'ODM-CMMS',
+    title: 'Atiman',
     user: req.user 
   });
 });
 
 app.get('/login', (req, res) => {
   res.render('login', { 
-    title: 'Login - ODM-CMMS',
+    title: 'Login - Atiman',
     error: null 
   });
 });
 
 app.get('/signup', (req, res) => {
   res.render('signup', { 
-    title: 'Sign Up - ODM-CMMS',
+    title: 'Sign Up - Atiman',
     error: null 
   });
 });

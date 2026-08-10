@@ -4,10 +4,10 @@
   <div class="login-container">
     <div class="logo-section">
       <div class="logo">
-        <img src="/img/logo.png?v=4" alt="ODM-CMMS Logo">
+        <img src="/img/logo.png?v=4" alt="Atiman Logo">
       </div>
       <h1>Create Account</h1>
-      <p id="signup-subtitle">Join ODM-CMMS Maintenance System</p>
+      <p id="signup-subtitle">Join Atiman Maintenance System</p>
     </div>
 
     <!-- Toggle between Join Existing vs Create New (hidden by default, shown only with invitation) -->
@@ -216,7 +216,7 @@
     </div>
     <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
       <p style="font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.6;">
-        By using ODM-CMMS, you agree to:
+        By using Atiman, you agree to:
       </p>
       <ul style="font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.8; margin-top: var(--space-3); padding-left: var(--space-5);">
         <li>Use the system for authorized maintenance operations only</li>
@@ -428,7 +428,7 @@ function setSignupMode(mode) {
     // Make industry not required in join mode
     document.getElementById('industry').removeAttribute('required');
     
-    subtitle.textContent = 'Join an existing ODM-CMMS organization';
+    subtitle.textContent = 'Join an existing Atiman organization';
     submitBtn.querySelector('.btn-text').textContent = 'Create Account';
     
     // Make organization_name not required
@@ -452,7 +452,7 @@ function setSignupMode(mode) {
     // Make industry required in create mode
     document.getElementById('industry').setAttribute('required', '');
     
-    subtitle.textContent = 'Create your own ODM-CMMS organization';
+    subtitle.textContent = 'Create your own Atiman organization';
     submitBtn.querySelector('.btn-text').textContent = 'Create Organization & Account';
     
     // Make organization_name required

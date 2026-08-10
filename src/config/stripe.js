@@ -1,6 +1,6 @@
 /**
  * Stripe Configuration
- * Payment processing for ODM-CMMS subscriptions
+ * Payment processing for Atiman subscriptions
  */
 
 const Stripe = require('stripe');
@@ -9,7 +9,7 @@ const Stripe = require('stripe');
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
   apiVersion: '2023-10-16',
   appInfo: {
-    name: 'ODM-CMMS',
+    name: 'Atiman',
     version: '2.0.0'
   }
 });
