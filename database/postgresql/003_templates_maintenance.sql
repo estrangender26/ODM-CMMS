@@ -271,31 +271,423 @@ CREATE TABLE IF NOT EXISTS smp_tasks (
     CONSTRAINT uq_smp_tasks_unique_task_code_org UNIQUE (organization_id, task_code)
 );
 
-ALTER TABLE template_family_rules ADD CONSTRAINT fk_template_family_rules_template_family_rules_ibfk_1 FOREIGN KEY (family_code) REFERENCES template_families(family_code) ON DELETE CASCADE;
-ALTER TABLE equipment_type_family_mappings ADD CONSTRAINT fk_etfm_equip_type_id FOREIGN KEY (equipment_type_id) REFERENCES equipment_types(id) ON DELETE CASCADE;
-ALTER TABLE equipment_type_family_mappings ADD CONSTRAINT fk_etfm_family_code FOREIGN KEY (family_code) REFERENCES template_families(family_code) ON DELETE CASCADE;
-ALTER TABLE equipment_type_family_proposals ADD CONSTRAINT fk_equipment_type_family_proposals_fk_equip_proposal_type FOREIGN KEY (equipment_type_id) REFERENCES equipment_types(id) ON DELETE CASCADE;
-ALTER TABLE equipment_type_family_proposals ADD CONSTRAINT fk_equipment_type_family_proposals_fk_equip_proposal_family FOREIGN KEY (proposed_family_code) REFERENCES template_families(family_code) ON DELETE CASCADE;
-ALTER TABLE equipment_type_family_proposals ADD CONSTRAINT fk_equipment_type_family_proposals_fk_equip_proposal_by FOREIGN KEY (proposed_by) REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE equipment_type_family_proposals ADD CONSTRAINT fk_equipment_type_family_proposals_fk_equip_proposal_rev_by FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE seed_batch_entities ADD CONSTRAINT fk_seed_batch_entities_seed_batch_entities_ibfk_1 FOREIGN KEY (batch_id) REFERENCES seed_batches(batch_id) ON DELETE CASCADE;
-ALTER TABLE task_templates ADD CONSTRAINT fk_task_templates_fk_task_template_activity FOREIGN KEY (activity_code_id) REFERENCES activity_codes(id) ON DELETE SET NULL;
-ALTER TABLE task_templates ADD CONSTRAINT fk_task_templates_fk_task_template_seed_batch FOREIGN KEY (seed_batch_id) REFERENCES seed_batches(batch_id) ON DELETE SET NULL;
-ALTER TABLE task_templates ADD CONSTRAINT fk_task_templates_task_templates_ibfk_1 FOREIGN KEY (equipment_type_id) REFERENCES equipment_types(id) ON DELETE CASCADE;
-ALTER TABLE task_templates ADD CONSTRAINT fk_task_templates_task_templates_ibfk_2 FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE task_templates ADD CONSTRAINT fk_task_templates_task_templates_ibfk_3 FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE task_templates ADD CONSTRAINT fk_task_templates_fk_task_template_industry_mig FOREIGN KEY (industry_id) REFERENCES industries(id) ON DELETE SET NULL;
-ALTER TABLE task_templates ADD CONSTRAINT fk_task_templates_fk_task_template_parent_mig FOREIGN KEY (parent_template_id) REFERENCES task_templates(id) ON DELETE SET NULL;
-ALTER TABLE task_template_steps ADD CONSTRAINT fk_task_template_steps_fk_step_activity FOREIGN KEY (activity_code_id) REFERENCES activity_codes(id) ON DELETE SET NULL;
-ALTER TABLE task_template_steps ADD CONSTRAINT fk_task_template_steps_task_template_steps_ibfk_1 FOREIGN KEY (task_template_id) REFERENCES task_templates(id) ON DELETE CASCADE;
-ALTER TABLE task_template_safety_controls ADD CONSTRAINT fk_task_template_safety_controls_task_template_safety_controls_ibfk_1 FOREIGN KEY (task_template_id) REFERENCES task_templates(id) ON DELETE CASCADE;
-ALTER TABLE task_master ADD CONSTRAINT fk_task_master_fk_task_master_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE task_master ADD CONSTRAINT fk_task_master_task_master_ibfk_1 FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE schedules ADD CONSTRAINT fk_schedules_fk_schedules_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE schedules ADD CONSTRAINT fk_schedules_schedules_ibfk_1 FOREIGN KEY (equipment_id) REFERENCES equipment(id) ON DELETE CASCADE;
-ALTER TABLE schedules ADD CONSTRAINT fk_schedules_schedules_ibfk_2 FOREIGN KEY (task_master_id) REFERENCES task_master(id) ON DELETE CASCADE;
-ALTER TABLE schedules ADD CONSTRAINT fk_schedules_schedules_ibfk_3 FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE schedules ADD CONSTRAINT fk_schedules_schedules_ibfk_4 FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE plan_equipment ADD CONSTRAINT fk_plan_equipment_fk_plan_equipment_plan FOREIGN KEY (maintenance_plan_id) REFERENCES maintenance_plans(id) ON DELETE CASCADE;
-ALTER TABLE plan_equipment ADD CONSTRAINT fk_plan_equipment_fk_plan_equipment_equip FOREIGN KEY (equipment_id) REFERENCES equipment(id) ON DELETE CASCADE;
-ALTER TABLE smp_tasks ADD CONSTRAINT fk_smp_tasks_smp_tasks_ibfk_1 FOREIGN KEY (family_id) REFERENCES smp_families(id) ON DELETE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_template_family_rules_template_family_rules_ibfk_1'
+          AND conrelid = 'template_family_rules'::regclass
+    ) THEN
+        ALTER TABLE template_family_rules
+            ADD CONSTRAINT fk_template_family_rules_template_family_rules_ibfk_1
+            FOREIGN KEY (family_code)
+            REFERENCES template_families(family_code) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_etfm_equip_type_id'
+          AND conrelid = 'equipment_type_family_mappings'::regclass
+    ) THEN
+        ALTER TABLE equipment_type_family_mappings
+            ADD CONSTRAINT fk_etfm_equip_type_id
+            FOREIGN KEY (equipment_type_id)
+            REFERENCES equipment_types(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_etfm_family_code'
+          AND conrelid = 'equipment_type_family_mappings'::regclass
+    ) THEN
+        ALTER TABLE equipment_type_family_mappings
+            ADD CONSTRAINT fk_etfm_family_code
+            FOREIGN KEY (family_code)
+            REFERENCES template_families(family_code) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_equipment_type_family_proposals_fk_equip_proposal_type'
+          AND conrelid = 'equipment_type_family_proposals'::regclass
+    ) THEN
+        ALTER TABLE equipment_type_family_proposals
+            ADD CONSTRAINT fk_equipment_type_family_proposals_fk_equip_proposal_type
+            FOREIGN KEY (equipment_type_id)
+            REFERENCES equipment_types(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_equipment_type_family_proposals_fk_equip_proposal_family'
+          AND conrelid = 'equipment_type_family_proposals'::regclass
+    ) THEN
+        ALTER TABLE equipment_type_family_proposals
+            ADD CONSTRAINT fk_equipment_type_family_proposals_fk_equip_proposal_family
+            FOREIGN KEY (proposed_family_code)
+            REFERENCES template_families(family_code) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_equipment_type_family_proposals_fk_equip_proposal_by'
+          AND conrelid = 'equipment_type_family_proposals'::regclass
+    ) THEN
+        ALTER TABLE equipment_type_family_proposals
+            ADD CONSTRAINT fk_equipment_type_family_proposals_fk_equip_proposal_by
+            FOREIGN KEY (proposed_by)
+            REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_equipment_type_family_proposals_fk_equip_proposal_rev_by'
+          AND conrelid = 'equipment_type_family_proposals'::regclass
+    ) THEN
+        ALTER TABLE equipment_type_family_proposals
+            ADD CONSTRAINT fk_equipment_type_family_proposals_fk_equip_proposal_rev_by
+            FOREIGN KEY (reviewed_by)
+            REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_seed_batch_entities_seed_batch_entities_ibfk_1'
+          AND conrelid = 'seed_batch_entities'::regclass
+    ) THEN
+        ALTER TABLE seed_batch_entities
+            ADD CONSTRAINT fk_seed_batch_entities_seed_batch_entities_ibfk_1
+            FOREIGN KEY (batch_id)
+            REFERENCES seed_batches(batch_id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_task_templates_fk_task_template_activity'
+          AND conrelid = 'task_templates'::regclass
+    ) THEN
+        ALTER TABLE task_templates
+            ADD CONSTRAINT fk_task_templates_fk_task_template_activity
+            FOREIGN KEY (activity_code_id)
+            REFERENCES activity_codes(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_task_templates_fk_task_template_seed_batch'
+          AND conrelid = 'task_templates'::regclass
+    ) THEN
+        ALTER TABLE task_templates
+            ADD CONSTRAINT fk_task_templates_fk_task_template_seed_batch
+            FOREIGN KEY (seed_batch_id)
+            REFERENCES seed_batches(batch_id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_task_templates_task_templates_ibfk_1'
+          AND conrelid = 'task_templates'::regclass
+    ) THEN
+        ALTER TABLE task_templates
+            ADD CONSTRAINT fk_task_templates_task_templates_ibfk_1
+            FOREIGN KEY (equipment_type_id)
+            REFERENCES equipment_types(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_task_templates_task_templates_ibfk_2'
+          AND conrelid = 'task_templates'::regclass
+    ) THEN
+        ALTER TABLE task_templates
+            ADD CONSTRAINT fk_task_templates_task_templates_ibfk_2
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_task_templates_task_templates_ibfk_3'
+          AND conrelid = 'task_templates'::regclass
+    ) THEN
+        ALTER TABLE task_templates
+            ADD CONSTRAINT fk_task_templates_task_templates_ibfk_3
+            FOREIGN KEY (created_by)
+            REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_task_templates_fk_task_template_industry_mig'
+          AND conrelid = 'task_templates'::regclass
+    ) THEN
+        ALTER TABLE task_templates
+            ADD CONSTRAINT fk_task_templates_fk_task_template_industry_mig
+            FOREIGN KEY (industry_id)
+            REFERENCES industries(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_task_templates_fk_task_template_parent_mig'
+          AND conrelid = 'task_templates'::regclass
+    ) THEN
+        ALTER TABLE task_templates
+            ADD CONSTRAINT fk_task_templates_fk_task_template_parent_mig
+            FOREIGN KEY (parent_template_id)
+            REFERENCES task_templates(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_task_template_steps_fk_step_activity'
+          AND conrelid = 'task_template_steps'::regclass
+    ) THEN
+        ALTER TABLE task_template_steps
+            ADD CONSTRAINT fk_task_template_steps_fk_step_activity
+            FOREIGN KEY (activity_code_id)
+            REFERENCES activity_codes(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_task_template_steps_task_template_steps_ibfk_1'
+          AND conrelid = 'task_template_steps'::regclass
+    ) THEN
+        ALTER TABLE task_template_steps
+            ADD CONSTRAINT fk_task_template_steps_task_template_steps_ibfk_1
+            FOREIGN KEY (task_template_id)
+            REFERENCES task_templates(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_task_template_safety_controls_task_template_safety_controls_ibfk_1'
+          AND conrelid = 'task_template_safety_controls'::regclass
+    ) THEN
+        ALTER TABLE task_template_safety_controls
+            ADD CONSTRAINT fk_task_template_safety_controls_task_template_safety_controls_ibfk_1
+            FOREIGN KEY (task_template_id)
+            REFERENCES task_templates(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_task_master_fk_task_master_organization'
+          AND conrelid = 'task_master'::regclass
+    ) THEN
+        ALTER TABLE task_master
+            ADD CONSTRAINT fk_task_master_fk_task_master_organization
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_task_master_task_master_ibfk_1'
+          AND conrelid = 'task_master'::regclass
+    ) THEN
+        ALTER TABLE task_master
+            ADD CONSTRAINT fk_task_master_task_master_ibfk_1
+            FOREIGN KEY (created_by)
+            REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_schedules_fk_schedules_organization'
+          AND conrelid = 'schedules'::regclass
+    ) THEN
+        ALTER TABLE schedules
+            ADD CONSTRAINT fk_schedules_fk_schedules_organization
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_schedules_schedules_ibfk_1'
+          AND conrelid = 'schedules'::regclass
+    ) THEN
+        ALTER TABLE schedules
+            ADD CONSTRAINT fk_schedules_schedules_ibfk_1
+            FOREIGN KEY (equipment_id)
+            REFERENCES equipment(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_schedules_schedules_ibfk_2'
+          AND conrelid = 'schedules'::regclass
+    ) THEN
+        ALTER TABLE schedules
+            ADD CONSTRAINT fk_schedules_schedules_ibfk_2
+            FOREIGN KEY (task_master_id)
+            REFERENCES task_master(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_schedules_schedules_ibfk_3'
+          AND conrelid = 'schedules'::regclass
+    ) THEN
+        ALTER TABLE schedules
+            ADD CONSTRAINT fk_schedules_schedules_ibfk_3
+            FOREIGN KEY (assigned_to)
+            REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_schedules_schedules_ibfk_4'
+          AND conrelid = 'schedules'::regclass
+    ) THEN
+        ALTER TABLE schedules
+            ADD CONSTRAINT fk_schedules_schedules_ibfk_4
+            FOREIGN KEY (created_by)
+            REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_plan_equipment_fk_plan_equipment_plan'
+          AND conrelid = 'plan_equipment'::regclass
+    ) THEN
+        ALTER TABLE plan_equipment
+            ADD CONSTRAINT fk_plan_equipment_fk_plan_equipment_plan
+            FOREIGN KEY (maintenance_plan_id)
+            REFERENCES maintenance_plans(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_plan_equipment_fk_plan_equipment_equip'
+          AND conrelid = 'plan_equipment'::regclass
+    ) THEN
+        ALTER TABLE plan_equipment
+            ADD CONSTRAINT fk_plan_equipment_fk_plan_equipment_equip
+            FOREIGN KEY (equipment_id)
+            REFERENCES equipment(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_smp_tasks_smp_tasks_ibfk_1'
+          AND conrelid = 'smp_tasks'::regclass
+    ) THEN
+        ALTER TABLE smp_tasks
+            ADD CONSTRAINT fk_smp_tasks_smp_tasks_ibfk_1
+            FOREIGN KEY (family_id)
+            REFERENCES smp_families(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;

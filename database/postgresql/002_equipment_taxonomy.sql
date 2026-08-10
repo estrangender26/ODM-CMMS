@@ -217,21 +217,273 @@ CREATE TABLE IF NOT EXISTS equipment_mapping_change_log (
     PRIMARY KEY (id)
 );
 
-ALTER TABLE equipment_classes ADD CONSTRAINT fk_equipment_classes_equipment_classes_ibfk_1 FOREIGN KEY (category_id) REFERENCES equipment_categories(id) ON DELETE CASCADE;
-ALTER TABLE equipment_types ADD CONSTRAINT fk_equipment_types_equipment_types_ibfk_1 FOREIGN KEY (class_id) REFERENCES equipment_classes(id) ON DELETE CASCADE;
-ALTER TABLE equipment_type_industries ADD CONSTRAINT fk_equipment_type_industries_equipment_type_industries_ibfk_1 FOREIGN KEY (equipment_type_id) REFERENCES equipment_types(id) ON DELETE CASCADE;
-ALTER TABLE equipment_type_industries ADD CONSTRAINT fk_equipment_type_industries_equipment_type_industries_ibfk_2 FOREIGN KEY (industry_id) REFERENCES industries(id) ON DELETE CASCADE;
-ALTER TABLE subunits ADD CONSTRAINT fk_subunits_subunits_ibfk_1 FOREIGN KEY (equipment_type_id) REFERENCES equipment_types(id) ON DELETE CASCADE;
-ALTER TABLE equipment_subunits ADD CONSTRAINT fk_equipment_subunits_equipment_subunits_ibfk_1 FOREIGN KEY (equipment_type_id) REFERENCES equipment_types(id) ON DELETE CASCADE;
-ALTER TABLE maintainable_items ADD CONSTRAINT fk_maintainable_items_maintainable_items_ibfk_1 FOREIGN KEY (subunit_id) REFERENCES equipment_subunits(id) ON DELETE CASCADE;
-ALTER TABLE object_parts ADD CONSTRAINT fk_object_parts_object_parts_ibfk_1 FOREIGN KEY (equipment_class_id) REFERENCES equipment_classes(id) ON DELETE CASCADE;
-ALTER TABLE damage_codes ADD CONSTRAINT fk_damage_codes_damage_codes_ibfk_1 FOREIGN KEY (equipment_class_id) REFERENCES equipment_classes(id) ON DELETE CASCADE;
-ALTER TABLE failure_modes ADD CONSTRAINT fk_failure_modes_failure_modes_ibfk_1 FOREIGN KEY (equipment_type_id) REFERENCES equipment_types(id) ON DELETE CASCADE;
-ALTER TABLE equipment ADD CONSTRAINT fk_equipment_equipment_ibfk_1 FOREIGN KEY (facility_id) REFERENCES facilities(id) ON DELETE CASCADE;
-ALTER TABLE equipment ADD CONSTRAINT fk_equipment_equipment_ibfk_2 FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE equipment ADD CONSTRAINT fk_equipment_fk_equip_category FOREIGN KEY (equipment_category_id) REFERENCES equipment_categories(id) ON DELETE SET NULL;
-ALTER TABLE equipment ADD CONSTRAINT fk_equipment_fk_equip_class FOREIGN KEY (equipment_class_id) REFERENCES equipment_classes(id) ON DELETE SET NULL;
-ALTER TABLE equipment ADD CONSTRAINT fk_equipment_fk_equip_item FOREIGN KEY (maintainable_item_id) REFERENCES maintainable_items(id) ON DELETE SET NULL;
-ALTER TABLE equipment ADD CONSTRAINT fk_equipment_fk_equip_subunit FOREIGN KEY (subunit_id) REFERENCES subunits(id) ON DELETE SET NULL;
-ALTER TABLE equipment ADD CONSTRAINT fk_equipment_fk_equip_type FOREIGN KEY (equipment_type_id) REFERENCES equipment_types(id) ON DELETE SET NULL;
-ALTER TABLE equipment ADD CONSTRAINT fk_equipment_fk_equipment_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_equipment_classes_equipment_classes_ibfk_1'
+          AND conrelid = 'equipment_classes'::regclass
+    ) THEN
+        ALTER TABLE equipment_classes
+            ADD CONSTRAINT fk_equipment_classes_equipment_classes_ibfk_1
+            FOREIGN KEY (category_id)
+            REFERENCES equipment_categories(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_equipment_types_equipment_types_ibfk_1'
+          AND conrelid = 'equipment_types'::regclass
+    ) THEN
+        ALTER TABLE equipment_types
+            ADD CONSTRAINT fk_equipment_types_equipment_types_ibfk_1
+            FOREIGN KEY (class_id)
+            REFERENCES equipment_classes(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_equipment_type_industries_equipment_type_industries_ibfk_1'
+          AND conrelid = 'equipment_type_industries'::regclass
+    ) THEN
+        ALTER TABLE equipment_type_industries
+            ADD CONSTRAINT fk_equipment_type_industries_equipment_type_industries_ibfk_1
+            FOREIGN KEY (equipment_type_id)
+            REFERENCES equipment_types(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_equipment_type_industries_equipment_type_industries_ibfk_2'
+          AND conrelid = 'equipment_type_industries'::regclass
+    ) THEN
+        ALTER TABLE equipment_type_industries
+            ADD CONSTRAINT fk_equipment_type_industries_equipment_type_industries_ibfk_2
+            FOREIGN KEY (industry_id)
+            REFERENCES industries(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_subunits_subunits_ibfk_1'
+          AND conrelid = 'subunits'::regclass
+    ) THEN
+        ALTER TABLE subunits
+            ADD CONSTRAINT fk_subunits_subunits_ibfk_1
+            FOREIGN KEY (equipment_type_id)
+            REFERENCES equipment_types(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_equipment_subunits_equipment_subunits_ibfk_1'
+          AND conrelid = 'equipment_subunits'::regclass
+    ) THEN
+        ALTER TABLE equipment_subunits
+            ADD CONSTRAINT fk_equipment_subunits_equipment_subunits_ibfk_1
+            FOREIGN KEY (equipment_type_id)
+            REFERENCES equipment_types(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_maintainable_items_maintainable_items_ibfk_1'
+          AND conrelid = 'maintainable_items'::regclass
+    ) THEN
+        ALTER TABLE maintainable_items
+            ADD CONSTRAINT fk_maintainable_items_maintainable_items_ibfk_1
+            FOREIGN KEY (subunit_id)
+            REFERENCES equipment_subunits(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_object_parts_object_parts_ibfk_1'
+          AND conrelid = 'object_parts'::regclass
+    ) THEN
+        ALTER TABLE object_parts
+            ADD CONSTRAINT fk_object_parts_object_parts_ibfk_1
+            FOREIGN KEY (equipment_class_id)
+            REFERENCES equipment_classes(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_damage_codes_damage_codes_ibfk_1'
+          AND conrelid = 'damage_codes'::regclass
+    ) THEN
+        ALTER TABLE damage_codes
+            ADD CONSTRAINT fk_damage_codes_damage_codes_ibfk_1
+            FOREIGN KEY (equipment_class_id)
+            REFERENCES equipment_classes(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_failure_modes_failure_modes_ibfk_1'
+          AND conrelid = 'failure_modes'::regclass
+    ) THEN
+        ALTER TABLE failure_modes
+            ADD CONSTRAINT fk_failure_modes_failure_modes_ibfk_1
+            FOREIGN KEY (equipment_type_id)
+            REFERENCES equipment_types(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_equipment_equipment_ibfk_1'
+          AND conrelid = 'equipment'::regclass
+    ) THEN
+        ALTER TABLE equipment
+            ADD CONSTRAINT fk_equipment_equipment_ibfk_1
+            FOREIGN KEY (facility_id)
+            REFERENCES facilities(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_equipment_equipment_ibfk_2'
+          AND conrelid = 'equipment'::regclass
+    ) THEN
+        ALTER TABLE equipment
+            ADD CONSTRAINT fk_equipment_equipment_ibfk_2
+            FOREIGN KEY (created_by)
+            REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_equipment_fk_equip_category'
+          AND conrelid = 'equipment'::regclass
+    ) THEN
+        ALTER TABLE equipment
+            ADD CONSTRAINT fk_equipment_fk_equip_category
+            FOREIGN KEY (equipment_category_id)
+            REFERENCES equipment_categories(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_equipment_fk_equip_class'
+          AND conrelid = 'equipment'::regclass
+    ) THEN
+        ALTER TABLE equipment
+            ADD CONSTRAINT fk_equipment_fk_equip_class
+            FOREIGN KEY (equipment_class_id)
+            REFERENCES equipment_classes(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_equipment_fk_equip_item'
+          AND conrelid = 'equipment'::regclass
+    ) THEN
+        ALTER TABLE equipment
+            ADD CONSTRAINT fk_equipment_fk_equip_item
+            FOREIGN KEY (maintainable_item_id)
+            REFERENCES maintainable_items(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_equipment_fk_equip_subunit'
+          AND conrelid = 'equipment'::regclass
+    ) THEN
+        ALTER TABLE equipment
+            ADD CONSTRAINT fk_equipment_fk_equip_subunit
+            FOREIGN KEY (subunit_id)
+            REFERENCES subunits(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_equipment_fk_equip_type'
+          AND conrelid = 'equipment'::regclass
+    ) THEN
+        ALTER TABLE equipment
+            ADD CONSTRAINT fk_equipment_fk_equip_type
+            FOREIGN KEY (equipment_type_id)
+            REFERENCES equipment_types(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_equipment_fk_equipment_organization'
+          AND conrelid = 'equipment'::regclass
+    ) THEN
+        ALTER TABLE equipment
+            ADD CONSTRAINT fk_equipment_fk_equipment_organization
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;

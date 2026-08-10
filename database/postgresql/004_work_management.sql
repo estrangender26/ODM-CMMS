@@ -172,52 +172,738 @@ CREATE TABLE IF NOT EXISTS findings (
     PRIMARY KEY (id)
 );
 
-ALTER TABLE work_orders ADD CONSTRAINT fk_work_orders_fk_work_orders_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE work_orders ADD CONSTRAINT fk_work_orders_work_orders_ibfk_1 FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE SET NULL;
-ALTER TABLE work_orders ADD CONSTRAINT fk_work_orders_work_orders_ibfk_2 FOREIGN KEY (equipment_id) REFERENCES equipment(id) ON DELETE CASCADE;
-ALTER TABLE work_orders ADD CONSTRAINT fk_work_orders_work_orders_ibfk_3 FOREIGN KEY (task_master_id) REFERENCES task_master(id) ON DELETE SET NULL;
-ALTER TABLE work_orders ADD CONSTRAINT fk_work_orders_work_orders_ibfk_4 FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE work_orders ADD CONSTRAINT fk_work_orders_work_orders_ibfk_5 FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE work_orders ADD CONSTRAINT fk_work_orders_work_orders_ibfk_6 FOREIGN KEY (parent_wo_id) REFERENCES work_orders(id) ON DELETE SET NULL;
-ALTER TABLE work_orders ADD CONSTRAINT fk_work_orders_fk_wo_task_template_mig FOREIGN KEY (task_template_id) REFERENCES task_templates(id) ON DELETE SET NULL;
-ALTER TABLE work_orders ADD CONSTRAINT fk_work_orders_fk_wo_maintenance_plan_mig FOREIGN KEY (maintenance_plan_id) REFERENCES maintenance_plans(id) ON DELETE SET NULL;
-ALTER TABLE work_order_notes ADD CONSTRAINT fk_work_order_notes_fk_work_order_notes_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE work_order_notes ADD CONSTRAINT fk_work_order_notes_work_order_notes_ibfk_1 FOREIGN KEY (work_order_id) REFERENCES work_orders(id) ON DELETE CASCADE;
-ALTER TABLE work_order_notes ADD CONSTRAINT fk_work_order_notes_work_order_notes_ibfk_2 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_1 FOREIGN KEY (work_order_id) REFERENCES work_orders(id) ON DELETE CASCADE;
-ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_10 FOREIGN KEY (activity_code_id) REFERENCES activity_codes(id) ON DELETE SET NULL;
-ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_11 FOREIGN KEY (detected_by_user_id) REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_2 FOREIGN KEY (asset_id) REFERENCES equipment(id) ON DELETE CASCADE;
-ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_3 FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_4 FOREIGN KEY (equipment_type_id) REFERENCES equipment_types(id) ON DELETE SET NULL;
-ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_5 FOREIGN KEY (subunit_id) REFERENCES subunits(id) ON DELETE SET NULL;
-ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_6 FOREIGN KEY (maintainable_item_id) REFERENCES maintainable_items(id) ON DELETE SET NULL;
-ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_7 FOREIGN KEY (object_part_id) REFERENCES object_parts(id) ON DELETE SET NULL;
-ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_8 FOREIGN KEY (damage_code_id) REFERENCES damage_codes(id) ON DELETE SET NULL;
-ALTER TABLE work_order_failures ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_9 FOREIGN KEY (cause_code_id) REFERENCES cause_codes(id) ON DELETE SET NULL;
-ALTER TABLE inspection_points ADD CONSTRAINT fk_inspection_points_fk_inspection_points_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE inspection_points ADD CONSTRAINT fk_inspection_points_inspection_points_ibfk_1 FOREIGN KEY (task_master_id) REFERENCES task_master(id) ON DELETE CASCADE;
-ALTER TABLE inspection_readings ADD CONSTRAINT fk_inspection_readings_fk_inspection_cause FOREIGN KEY (cause_code_id) REFERENCES cause_codes(id) ON DELETE SET NULL;
-ALTER TABLE inspection_readings ADD CONSTRAINT fk_inspection_readings_fk_inspection_damage FOREIGN KEY (damage_code_id) REFERENCES damage_codes(id) ON DELETE SET NULL;
-ALTER TABLE inspection_readings ADD CONSTRAINT fk_inspection_readings_fk_inspection_object_part FOREIGN KEY (object_part_id) REFERENCES object_parts(id) ON DELETE SET NULL;
-ALTER TABLE inspection_readings ADD CONSTRAINT fk_inspection_readings_fk_inspection_readings_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE inspection_readings ADD CONSTRAINT fk_inspection_readings_inspection_readings_ibfk_1 FOREIGN KEY (work_order_id) REFERENCES work_orders(id) ON DELETE CASCADE;
-ALTER TABLE inspection_readings ADD CONSTRAINT fk_inspection_readings_inspection_readings_ibfk_2 FOREIGN KEY (inspection_point_id) REFERENCES inspection_points(id) ON DELETE CASCADE;
-ALTER TABLE inspection_readings ADD CONSTRAINT fk_inspection_readings_inspection_readings_ibfk_3 FOREIGN KEY (equipment_id) REFERENCES equipment(id) ON DELETE CASCADE;
-ALTER TABLE inspection_readings ADD CONSTRAINT fk_inspection_readings_inspection_readings_ibfk_4 FOREIGN KEY (taken_by) REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE inspection_results ADD CONSTRAINT fk_inspection_results_inspection_results_ibfk_1 FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE inspection_results ADD CONSTRAINT fk_inspection_results_inspection_results_ibfk_2 FOREIGN KEY (facility_id) REFERENCES facilities(id) ON DELETE CASCADE;
-ALTER TABLE inspection_results ADD CONSTRAINT fk_inspection_results_inspection_results_ibfk_3 FOREIGN KEY (asset_id) REFERENCES equipment(id) ON DELETE CASCADE;
-ALTER TABLE inspection_results ADD CONSTRAINT fk_inspection_results_inspection_results_ibfk_4 FOREIGN KEY (task_template_id) REFERENCES task_templates(id) ON DELETE CASCADE;
-ALTER TABLE inspection_results ADD CONSTRAINT fk_inspection_results_inspection_results_ibfk_5 FOREIGN KEY (task_template_step_id) REFERENCES task_template_steps(id) ON DELETE CASCADE;
-ALTER TABLE inspection_results ADD CONSTRAINT fk_inspection_results_inspection_results_ibfk_6 FOREIGN KEY (recorded_by_user_id) REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE findings ADD CONSTRAINT fk_findings_findings_ibfk_1 FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE findings ADD CONSTRAINT fk_findings_findings_ibfk_10 FOREIGN KEY (reported_by_user_id) REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE findings ADD CONSTRAINT fk_findings_findings_ibfk_2 FOREIGN KEY (facility_id) REFERENCES facilities(id) ON DELETE CASCADE;
-ALTER TABLE findings ADD CONSTRAINT fk_findings_findings_ibfk_3 FOREIGN KEY (asset_id) REFERENCES equipment(id) ON DELETE CASCADE;
-ALTER TABLE findings ADD CONSTRAINT fk_findings_findings_ibfk_4 FOREIGN KEY (task_template_id) REFERENCES task_templates(id) ON DELETE SET NULL;
-ALTER TABLE findings ADD CONSTRAINT fk_findings_findings_ibfk_5 FOREIGN KEY (task_template_step_id) REFERENCES task_template_steps(id) ON DELETE SET NULL;
-ALTER TABLE findings ADD CONSTRAINT fk_findings_findings_ibfk_6 FOREIGN KEY (object_part_id) REFERENCES object_parts(id) ON DELETE SET NULL;
-ALTER TABLE findings ADD CONSTRAINT fk_findings_findings_ibfk_7 FOREIGN KEY (damage_code_id) REFERENCES damage_codes(id) ON DELETE SET NULL;
-ALTER TABLE findings ADD CONSTRAINT fk_findings_findings_ibfk_8 FOREIGN KEY (cause_code_id) REFERENCES cause_codes(id) ON DELETE SET NULL;
-ALTER TABLE findings ADD CONSTRAINT fk_findings_findings_ibfk_9 FOREIGN KEY (activity_code_id) REFERENCES activity_codes(id) ON DELETE SET NULL;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_orders_fk_work_orders_organization'
+          AND conrelid = 'work_orders'::regclass
+    ) THEN
+        ALTER TABLE work_orders
+            ADD CONSTRAINT fk_work_orders_fk_work_orders_organization
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_orders_work_orders_ibfk_1'
+          AND conrelid = 'work_orders'::regclass
+    ) THEN
+        ALTER TABLE work_orders
+            ADD CONSTRAINT fk_work_orders_work_orders_ibfk_1
+            FOREIGN KEY (schedule_id)
+            REFERENCES schedules(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_orders_work_orders_ibfk_2'
+          AND conrelid = 'work_orders'::regclass
+    ) THEN
+        ALTER TABLE work_orders
+            ADD CONSTRAINT fk_work_orders_work_orders_ibfk_2
+            FOREIGN KEY (equipment_id)
+            REFERENCES equipment(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_orders_work_orders_ibfk_3'
+          AND conrelid = 'work_orders'::regclass
+    ) THEN
+        ALTER TABLE work_orders
+            ADD CONSTRAINT fk_work_orders_work_orders_ibfk_3
+            FOREIGN KEY (task_master_id)
+            REFERENCES task_master(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_orders_work_orders_ibfk_4'
+          AND conrelid = 'work_orders'::regclass
+    ) THEN
+        ALTER TABLE work_orders
+            ADD CONSTRAINT fk_work_orders_work_orders_ibfk_4
+            FOREIGN KEY (assigned_to)
+            REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_orders_work_orders_ibfk_5'
+          AND conrelid = 'work_orders'::regclass
+    ) THEN
+        ALTER TABLE work_orders
+            ADD CONSTRAINT fk_work_orders_work_orders_ibfk_5
+            FOREIGN KEY (requested_by)
+            REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_orders_work_orders_ibfk_6'
+          AND conrelid = 'work_orders'::regclass
+    ) THEN
+        ALTER TABLE work_orders
+            ADD CONSTRAINT fk_work_orders_work_orders_ibfk_6
+            FOREIGN KEY (parent_wo_id)
+            REFERENCES work_orders(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_orders_fk_wo_task_template_mig'
+          AND conrelid = 'work_orders'::regclass
+    ) THEN
+        ALTER TABLE work_orders
+            ADD CONSTRAINT fk_work_orders_fk_wo_task_template_mig
+            FOREIGN KEY (task_template_id)
+            REFERENCES task_templates(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_orders_fk_wo_maintenance_plan_mig'
+          AND conrelid = 'work_orders'::regclass
+    ) THEN
+        ALTER TABLE work_orders
+            ADD CONSTRAINT fk_work_orders_fk_wo_maintenance_plan_mig
+            FOREIGN KEY (maintenance_plan_id)
+            REFERENCES maintenance_plans(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_order_notes_fk_work_order_notes_organization'
+          AND conrelid = 'work_order_notes'::regclass
+    ) THEN
+        ALTER TABLE work_order_notes
+            ADD CONSTRAINT fk_work_order_notes_fk_work_order_notes_organization
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_order_notes_work_order_notes_ibfk_1'
+          AND conrelid = 'work_order_notes'::regclass
+    ) THEN
+        ALTER TABLE work_order_notes
+            ADD CONSTRAINT fk_work_order_notes_work_order_notes_ibfk_1
+            FOREIGN KEY (work_order_id)
+            REFERENCES work_orders(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_order_notes_work_order_notes_ibfk_2'
+          AND conrelid = 'work_order_notes'::regclass
+    ) THEN
+        ALTER TABLE work_order_notes
+            ADD CONSTRAINT fk_work_order_notes_work_order_notes_ibfk_2
+            FOREIGN KEY (user_id)
+            REFERENCES users(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_order_failures_work_order_failures_ibfk_1'
+          AND conrelid = 'work_order_failures'::regclass
+    ) THEN
+        ALTER TABLE work_order_failures
+            ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_1
+            FOREIGN KEY (work_order_id)
+            REFERENCES work_orders(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_order_failures_work_order_failures_ibfk_10'
+          AND conrelid = 'work_order_failures'::regclass
+    ) THEN
+        ALTER TABLE work_order_failures
+            ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_10
+            FOREIGN KEY (activity_code_id)
+            REFERENCES activity_codes(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_order_failures_work_order_failures_ibfk_11'
+          AND conrelid = 'work_order_failures'::regclass
+    ) THEN
+        ALTER TABLE work_order_failures
+            ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_11
+            FOREIGN KEY (detected_by_user_id)
+            REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_order_failures_work_order_failures_ibfk_2'
+          AND conrelid = 'work_order_failures'::regclass
+    ) THEN
+        ALTER TABLE work_order_failures
+            ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_2
+            FOREIGN KEY (asset_id)
+            REFERENCES equipment(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_order_failures_work_order_failures_ibfk_3'
+          AND conrelid = 'work_order_failures'::regclass
+    ) THEN
+        ALTER TABLE work_order_failures
+            ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_3
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_order_failures_work_order_failures_ibfk_4'
+          AND conrelid = 'work_order_failures'::regclass
+    ) THEN
+        ALTER TABLE work_order_failures
+            ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_4
+            FOREIGN KEY (equipment_type_id)
+            REFERENCES equipment_types(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_order_failures_work_order_failures_ibfk_5'
+          AND conrelid = 'work_order_failures'::regclass
+    ) THEN
+        ALTER TABLE work_order_failures
+            ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_5
+            FOREIGN KEY (subunit_id)
+            REFERENCES subunits(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_order_failures_work_order_failures_ibfk_6'
+          AND conrelid = 'work_order_failures'::regclass
+    ) THEN
+        ALTER TABLE work_order_failures
+            ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_6
+            FOREIGN KEY (maintainable_item_id)
+            REFERENCES maintainable_items(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_order_failures_work_order_failures_ibfk_7'
+          AND conrelid = 'work_order_failures'::regclass
+    ) THEN
+        ALTER TABLE work_order_failures
+            ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_7
+            FOREIGN KEY (object_part_id)
+            REFERENCES object_parts(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_order_failures_work_order_failures_ibfk_8'
+          AND conrelid = 'work_order_failures'::regclass
+    ) THEN
+        ALTER TABLE work_order_failures
+            ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_8
+            FOREIGN KEY (damage_code_id)
+            REFERENCES damage_codes(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_work_order_failures_work_order_failures_ibfk_9'
+          AND conrelid = 'work_order_failures'::regclass
+    ) THEN
+        ALTER TABLE work_order_failures
+            ADD CONSTRAINT fk_work_order_failures_work_order_failures_ibfk_9
+            FOREIGN KEY (cause_code_id)
+            REFERENCES cause_codes(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_inspection_points_fk_inspection_points_organization'
+          AND conrelid = 'inspection_points'::regclass
+    ) THEN
+        ALTER TABLE inspection_points
+            ADD CONSTRAINT fk_inspection_points_fk_inspection_points_organization
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_inspection_points_inspection_points_ibfk_1'
+          AND conrelid = 'inspection_points'::regclass
+    ) THEN
+        ALTER TABLE inspection_points
+            ADD CONSTRAINT fk_inspection_points_inspection_points_ibfk_1
+            FOREIGN KEY (task_master_id)
+            REFERENCES task_master(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_inspection_readings_fk_inspection_cause'
+          AND conrelid = 'inspection_readings'::regclass
+    ) THEN
+        ALTER TABLE inspection_readings
+            ADD CONSTRAINT fk_inspection_readings_fk_inspection_cause
+            FOREIGN KEY (cause_code_id)
+            REFERENCES cause_codes(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_inspection_readings_fk_inspection_damage'
+          AND conrelid = 'inspection_readings'::regclass
+    ) THEN
+        ALTER TABLE inspection_readings
+            ADD CONSTRAINT fk_inspection_readings_fk_inspection_damage
+            FOREIGN KEY (damage_code_id)
+            REFERENCES damage_codes(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_inspection_readings_fk_inspection_object_part'
+          AND conrelid = 'inspection_readings'::regclass
+    ) THEN
+        ALTER TABLE inspection_readings
+            ADD CONSTRAINT fk_inspection_readings_fk_inspection_object_part
+            FOREIGN KEY (object_part_id)
+            REFERENCES object_parts(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_inspection_readings_fk_inspection_readings_organization'
+          AND conrelid = 'inspection_readings'::regclass
+    ) THEN
+        ALTER TABLE inspection_readings
+            ADD CONSTRAINT fk_inspection_readings_fk_inspection_readings_organization
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_inspection_readings_inspection_readings_ibfk_1'
+          AND conrelid = 'inspection_readings'::regclass
+    ) THEN
+        ALTER TABLE inspection_readings
+            ADD CONSTRAINT fk_inspection_readings_inspection_readings_ibfk_1
+            FOREIGN KEY (work_order_id)
+            REFERENCES work_orders(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_inspection_readings_inspection_readings_ibfk_2'
+          AND conrelid = 'inspection_readings'::regclass
+    ) THEN
+        ALTER TABLE inspection_readings
+            ADD CONSTRAINT fk_inspection_readings_inspection_readings_ibfk_2
+            FOREIGN KEY (inspection_point_id)
+            REFERENCES inspection_points(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_inspection_readings_inspection_readings_ibfk_3'
+          AND conrelid = 'inspection_readings'::regclass
+    ) THEN
+        ALTER TABLE inspection_readings
+            ADD CONSTRAINT fk_inspection_readings_inspection_readings_ibfk_3
+            FOREIGN KEY (equipment_id)
+            REFERENCES equipment(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_inspection_readings_inspection_readings_ibfk_4'
+          AND conrelid = 'inspection_readings'::regclass
+    ) THEN
+        ALTER TABLE inspection_readings
+            ADD CONSTRAINT fk_inspection_readings_inspection_readings_ibfk_4
+            FOREIGN KEY (taken_by)
+            REFERENCES users(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_inspection_results_inspection_results_ibfk_1'
+          AND conrelid = 'inspection_results'::regclass
+    ) THEN
+        ALTER TABLE inspection_results
+            ADD CONSTRAINT fk_inspection_results_inspection_results_ibfk_1
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_inspection_results_inspection_results_ibfk_2'
+          AND conrelid = 'inspection_results'::regclass
+    ) THEN
+        ALTER TABLE inspection_results
+            ADD CONSTRAINT fk_inspection_results_inspection_results_ibfk_2
+            FOREIGN KEY (facility_id)
+            REFERENCES facilities(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_inspection_results_inspection_results_ibfk_3'
+          AND conrelid = 'inspection_results'::regclass
+    ) THEN
+        ALTER TABLE inspection_results
+            ADD CONSTRAINT fk_inspection_results_inspection_results_ibfk_3
+            FOREIGN KEY (asset_id)
+            REFERENCES equipment(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_inspection_results_inspection_results_ibfk_4'
+          AND conrelid = 'inspection_results'::regclass
+    ) THEN
+        ALTER TABLE inspection_results
+            ADD CONSTRAINT fk_inspection_results_inspection_results_ibfk_4
+            FOREIGN KEY (task_template_id)
+            REFERENCES task_templates(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_inspection_results_inspection_results_ibfk_5'
+          AND conrelid = 'inspection_results'::regclass
+    ) THEN
+        ALTER TABLE inspection_results
+            ADD CONSTRAINT fk_inspection_results_inspection_results_ibfk_5
+            FOREIGN KEY (task_template_step_id)
+            REFERENCES task_template_steps(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_inspection_results_inspection_results_ibfk_6'
+          AND conrelid = 'inspection_results'::regclass
+    ) THEN
+        ALTER TABLE inspection_results
+            ADD CONSTRAINT fk_inspection_results_inspection_results_ibfk_6
+            FOREIGN KEY (recorded_by_user_id)
+            REFERENCES users(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_findings_findings_ibfk_1'
+          AND conrelid = 'findings'::regclass
+    ) THEN
+        ALTER TABLE findings
+            ADD CONSTRAINT fk_findings_findings_ibfk_1
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_findings_findings_ibfk_10'
+          AND conrelid = 'findings'::regclass
+    ) THEN
+        ALTER TABLE findings
+            ADD CONSTRAINT fk_findings_findings_ibfk_10
+            FOREIGN KEY (reported_by_user_id)
+            REFERENCES users(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_findings_findings_ibfk_2'
+          AND conrelid = 'findings'::regclass
+    ) THEN
+        ALTER TABLE findings
+            ADD CONSTRAINT fk_findings_findings_ibfk_2
+            FOREIGN KEY (facility_id)
+            REFERENCES facilities(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_findings_findings_ibfk_3'
+          AND conrelid = 'findings'::regclass
+    ) THEN
+        ALTER TABLE findings
+            ADD CONSTRAINT fk_findings_findings_ibfk_3
+            FOREIGN KEY (asset_id)
+            REFERENCES equipment(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_findings_findings_ibfk_4'
+          AND conrelid = 'findings'::regclass
+    ) THEN
+        ALTER TABLE findings
+            ADD CONSTRAINT fk_findings_findings_ibfk_4
+            FOREIGN KEY (task_template_id)
+            REFERENCES task_templates(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_findings_findings_ibfk_5'
+          AND conrelid = 'findings'::regclass
+    ) THEN
+        ALTER TABLE findings
+            ADD CONSTRAINT fk_findings_findings_ibfk_5
+            FOREIGN KEY (task_template_step_id)
+            REFERENCES task_template_steps(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_findings_findings_ibfk_6'
+          AND conrelid = 'findings'::regclass
+    ) THEN
+        ALTER TABLE findings
+            ADD CONSTRAINT fk_findings_findings_ibfk_6
+            FOREIGN KEY (object_part_id)
+            REFERENCES object_parts(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_findings_findings_ibfk_7'
+          AND conrelid = 'findings'::regclass
+    ) THEN
+        ALTER TABLE findings
+            ADD CONSTRAINT fk_findings_findings_ibfk_7
+            FOREIGN KEY (damage_code_id)
+            REFERENCES damage_codes(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_findings_findings_ibfk_8'
+          AND conrelid = 'findings'::regclass
+    ) THEN
+        ALTER TABLE findings
+            ADD CONSTRAINT fk_findings_findings_ibfk_8
+            FOREIGN KEY (cause_code_id)
+            REFERENCES cause_codes(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_findings_findings_ibfk_9'
+          AND conrelid = 'findings'::regclass
+    ) THEN
+        ALTER TABLE findings
+            ADD CONSTRAINT fk_findings_findings_ibfk_9
+            FOREIGN KEY (activity_code_id)
+            REFERENCES activity_codes(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;

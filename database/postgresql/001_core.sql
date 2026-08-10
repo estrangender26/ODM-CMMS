@@ -211,19 +211,243 @@ CREATE TABLE IF NOT EXISTS sso_sessions (
     PRIMARY KEY (id)
 );
 
-ALTER TABLE organization_industries ADD CONSTRAINT fk_organization_industries_organization_industries_ibfk_1 FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE organization_industries ADD CONSTRAINT fk_organization_industries_organization_industries_ibfk_2 FOREIGN KEY (industry_id) REFERENCES industries(id) ON DELETE CASCADE;
-ALTER TABLE users ADD CONSTRAINT fk_users_fk_user_facility FOREIGN KEY (facility_id) REFERENCES facilities(id) ON DELETE SET NULL;
-ALTER TABLE users ADD CONSTRAINT fk_users_fk_users_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE facilities ADD CONSTRAINT fk_facilities_facilities_ibfk_1 FOREIGN KEY (manager_id) REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE facilities ADD CONSTRAINT fk_facilities_fk_facilities_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE facilities ADD CONSTRAINT fk_facilities_fk_facilities_default_operator_mig FOREIGN KEY (default_operator_id) REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE invitations ADD CONSTRAINT fk_invitations_invitations_ibfk_1 FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE invitations ADD CONSTRAINT fk_invitations_invitations_ibfk_2 FOREIGN KEY (invited_by) REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE sso_configurations ADD CONSTRAINT fk_sso_configurations_sso_configurations_ibfk_1 FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE sso_configurations ADD CONSTRAINT fk_sso_configurations_sso_configurations_ibfk_2 FOREIGN KEY (default_facility_id) REFERENCES facilities(id) ON DELETE SET NULL;
-ALTER TABLE sso_user_mappings ADD CONSTRAINT fk_sso_user_mappings_sso_user_mappings_ibfk_1 FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE sso_user_mappings ADD CONSTRAINT fk_sso_user_mappings_sso_user_mappings_ibfk_2 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE sso_sessions ADD CONSTRAINT fk_sso_sessions_sso_sessions_ibfk_1 FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE sso_sessions ADD CONSTRAINT fk_sso_sessions_sso_sessions_ibfk_2 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE sso_sessions ADD CONSTRAINT fk_sso_sessions_sso_sessions_ibfk_3 FOREIGN KEY (sso_config_id) REFERENCES sso_configurations(id) ON DELETE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_organization_industries_organization_industries_ibfk_1'
+          AND conrelid = 'organization_industries'::regclass
+    ) THEN
+        ALTER TABLE organization_industries
+            ADD CONSTRAINT fk_organization_industries_organization_industries_ibfk_1
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_organization_industries_organization_industries_ibfk_2'
+          AND conrelid = 'organization_industries'::regclass
+    ) THEN
+        ALTER TABLE organization_industries
+            ADD CONSTRAINT fk_organization_industries_organization_industries_ibfk_2
+            FOREIGN KEY (industry_id)
+            REFERENCES industries(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_users_fk_user_facility'
+          AND conrelid = 'users'::regclass
+    ) THEN
+        ALTER TABLE users
+            ADD CONSTRAINT fk_users_fk_user_facility
+            FOREIGN KEY (facility_id)
+            REFERENCES facilities(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_users_fk_users_organization'
+          AND conrelid = 'users'::regclass
+    ) THEN
+        ALTER TABLE users
+            ADD CONSTRAINT fk_users_fk_users_organization
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_facilities_facilities_ibfk_1'
+          AND conrelid = 'facilities'::regclass
+    ) THEN
+        ALTER TABLE facilities
+            ADD CONSTRAINT fk_facilities_facilities_ibfk_1
+            FOREIGN KEY (manager_id)
+            REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_facilities_fk_facilities_organization'
+          AND conrelid = 'facilities'::regclass
+    ) THEN
+        ALTER TABLE facilities
+            ADD CONSTRAINT fk_facilities_fk_facilities_organization
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_facilities_fk_facilities_default_operator_mig'
+          AND conrelid = 'facilities'::regclass
+    ) THEN
+        ALTER TABLE facilities
+            ADD CONSTRAINT fk_facilities_fk_facilities_default_operator_mig
+            FOREIGN KEY (default_operator_id)
+            REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_invitations_invitations_ibfk_1'
+          AND conrelid = 'invitations'::regclass
+    ) THEN
+        ALTER TABLE invitations
+            ADD CONSTRAINT fk_invitations_invitations_ibfk_1
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_invitations_invitations_ibfk_2'
+          AND conrelid = 'invitations'::regclass
+    ) THEN
+        ALTER TABLE invitations
+            ADD CONSTRAINT fk_invitations_invitations_ibfk_2
+            FOREIGN KEY (invited_by)
+            REFERENCES users(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_sso_configurations_sso_configurations_ibfk_1'
+          AND conrelid = 'sso_configurations'::regclass
+    ) THEN
+        ALTER TABLE sso_configurations
+            ADD CONSTRAINT fk_sso_configurations_sso_configurations_ibfk_1
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_sso_configurations_sso_configurations_ibfk_2'
+          AND conrelid = 'sso_configurations'::regclass
+    ) THEN
+        ALTER TABLE sso_configurations
+            ADD CONSTRAINT fk_sso_configurations_sso_configurations_ibfk_2
+            FOREIGN KEY (default_facility_id)
+            REFERENCES facilities(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_sso_user_mappings_sso_user_mappings_ibfk_1'
+          AND conrelid = 'sso_user_mappings'::regclass
+    ) THEN
+        ALTER TABLE sso_user_mappings
+            ADD CONSTRAINT fk_sso_user_mappings_sso_user_mappings_ibfk_1
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_sso_user_mappings_sso_user_mappings_ibfk_2'
+          AND conrelid = 'sso_user_mappings'::regclass
+    ) THEN
+        ALTER TABLE sso_user_mappings
+            ADD CONSTRAINT fk_sso_user_mappings_sso_user_mappings_ibfk_2
+            FOREIGN KEY (user_id)
+            REFERENCES users(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_sso_sessions_sso_sessions_ibfk_1'
+          AND conrelid = 'sso_sessions'::regclass
+    ) THEN
+        ALTER TABLE sso_sessions
+            ADD CONSTRAINT fk_sso_sessions_sso_sessions_ibfk_1
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_sso_sessions_sso_sessions_ibfk_2'
+          AND conrelid = 'sso_sessions'::regclass
+    ) THEN
+        ALTER TABLE sso_sessions
+            ADD CONSTRAINT fk_sso_sessions_sso_sessions_ibfk_2
+            FOREIGN KEY (user_id)
+            REFERENCES users(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_sso_sessions_sso_sessions_ibfk_3'
+          AND conrelid = 'sso_sessions'::regclass
+    ) THEN
+        ALTER TABLE sso_sessions
+            ADD CONSTRAINT fk_sso_sessions_sso_sessions_ibfk_3
+            FOREIGN KEY (sso_config_id)
+            REFERENCES sso_configurations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
