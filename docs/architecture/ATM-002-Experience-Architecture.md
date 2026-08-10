@@ -36,7 +36,7 @@ The Experience Architecture exists to:
 
 | Axiom | Experience Architecture Contribution |
 |-------|--------------------------------------|
-| **Knowledge Before Transactions** | Knowledge is surfaced before a user creates a finding or escalation. |
+| **Knowledge Before Transactions** | Knowledge is surfaced to guide findings and escalations; it does not block ad-hoc operator observations. A missing knowledge match becomes a knowledge gap, not a blocked workflow. |
 | **Findings Before Work Orders** | The primary create-flow is Finding; work-order preparation is a later, explicit escalation step. |
 | **Operators Are the First Sensors** | The operator workflow is the most important and most carefully optimized path. |
 | **Integrate Rather Than Replace** | Escalation handoffs to EAM are clearly framed; Atiman does not pretend to be the EAM UI. |
@@ -129,8 +129,9 @@ Scan Asset / Select Asset
     → View Current Context (open findings, due inspections)
     → Start Task (inspection or guided maintenance)
     → Execute Step (read knowledge, capture evidence)
-    → Report Finding (if needed)
-    → Decide Outcome (Operator Corrected / Monitor / Escalate)
+    → Report Finding (always allowed, even if knowledge is incomplete)
+    → Recommend Outcome (Operator Corrected / Monitor / Escalate)
+    → Submit for Assessment (eligible minor findings may be corrected immediately)
     → Done
 ```
 
@@ -176,9 +177,9 @@ The Finding is the natural output of operator work. The UI makes this explicit:
 ### 7.2 Finding Creation Flow
 
 1. **Trigger:** Operator observes condition during inspection, or ad-hoc reporting.
-2. **Classify:** Select equipment, component, failure mode, and evidence from governed knowledge.
-3. **Assess:** System suggests recommended outcome based on knowledge and evidence.
-4. **Decide:** Operator or supervisor selects Operator Corrected, Monitor, or Escalate.
+2. **Classify:** Select equipment, component, failure mode, and evidence from governed knowledge where available. A missing match is recorded as a knowledge gap.
+3. **Assess:** System suggests a recommended outcome based on knowledge and evidence.
+4. **Recommend:** Operator recommends Operator Corrected, Monitor, or Escalate; accountable assessment/approval confirms the outcome.
 5. **Act:** Capture resolution, set monitor interval, or prepare EAM escalation package.
 6. **Close:** Record closure evidence and outcome.
 
@@ -186,9 +187,9 @@ The Finding is the natural output of operator work. The UI makes this explicit:
 
 | Outcome | UI Behavior |
 |---------|-------------|
-| **Operator Corrected** | Operator records what was done; supervisor may review asynchronously. |
-| **Monitor** | System creates a monitor reminder; user sees it in "Today" at the due time. |
-| **Escalate** | UI prepares an escalation package and hands it to the Enterprise Integration layer. |
+| **Operator Corrected** | Operator records an eligible minor correction; accountable party approves or reviews. |
+| **Monitor** | Operator/supervisor recommends monitor; accountable assessment confirms; system creates a reminder. |
+| **Escalate** | Operator/supervisor recommends escalation; accountable assessment confirms; UI prepares an escalation package. |
 
 ### 7.4 Finding Stream
 
@@ -291,7 +292,7 @@ Safety controls are not a separate document. They appear:
 
 AI is not a persistent chat panel. It appears when it can add value:
 
-- Suggesting a failure mode based on evidence and equipment type.
+- Suggesting a failure mode and recommended outcome based on evidence and equipment type.
 - Summarizing a finding's evidence for a supervisor.
 - Drafting a knowledge update from a cluster of similar findings.
 - Predicting monitor urgency based on trend data.
