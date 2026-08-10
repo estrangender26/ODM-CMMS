@@ -30,8 +30,15 @@ class BaseModel {
     
     // Phase 2: pg adapter returns normalized array directly (no destructuring [rows])
     const results = await this.pool.execute(sql, validParams);
+
+    // The patched pool.execute returns a MySQL-style [rows, fields] tuple.
+    // BaseModel consumers expect the plain rows array, so unwrap it here.
+    if (Array.isArray(results) && results.length === 2 && Array.isArray(results[0])) {
+      return results[0];
+    }
+
     // Support both old mysql [rows] and new normalized shape
-    return Array.isArray(results) && results.length && !results.insertId ? results : results;
+    return results;
   }
 
   /**
