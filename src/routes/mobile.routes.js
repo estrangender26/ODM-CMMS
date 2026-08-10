@@ -5,55 +5,61 @@
 
 const express = require('express');
 const router = express.Router();
-const jwt = require('jsonwebtoken');
 const qrLabelController = require('../controllers/qr-label.controller');
-const { User, Schedule, Finding } = require('../models');
-const authConfig = require('../config/auth');
+const { Schedule, Finding } = require('../models');
 
 // Middleware to check authentication
 const { authenticate, requireAdmin, requireSupervisor } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/rbac');
 
 // Mobile HTML auth wrapper.
-// Verifies the JWT cookie independently and redirects browser/HTML clients to /mobile/login
-// when unauthenticated. Mobile API routes (Accept: application/json or no HTML) still get 401 JSON.
+// Reuses the existing authenticate middleware for all verification and user-loading logic.
+// Wraps Express response methods before invoking authenticate so that an unauthenticated
+// 401 JSON response can be converted into a redirect for HTML clients. Non-HTML clients
+// keep the original 401 JSON response from authenticate.
 const requireAuth = async (req, res, next) => {
-  try {
-    const token = req.cookies?.[authConfig.cookie.name] ||
-                  req.headers.authorization?.replace('Bearer ', '');
+  let handled = false;
+  const originalSend = res.send.bind(res);
+  const originalJson = res.json.bind(res);
+  const originalRedirect = res.redirect.bind(res);
 
-    if (!token) {
-      if (req.accepts('html')) {
-        return res.redirect('/mobile/login');
-      }
-      return res.status(401).json({ success: false, message: 'Authentication required' });
-    }
-
-    const decoded = jwt.verify(token, authConfig.jwt.secret);
-
-    const sql = `
-      SELECT u.*, o.organization_name, o.industry
-      FROM users u
-      LEFT JOIN organizations o ON u.organization_id = o.id
-      WHERE u.id = ?
-    `;
-    const [user] = await User.query(sql, [decoded.userId]);
-
-    if (!user || !user.is_active) {
-      if (req.accepts('html')) {
-        return res.redirect('/mobile/login');
-      }
-      return res.status(401).json({ success: false, message: 'User not found or inactive' });
-    }
-
-    req.user = user;
-    req.organization_id = user.organization_id;
-    next();
-  } catch (error) {
+  const handleUnauthenticated = () => {
+    if (handled) return;
+    handled = true;
     if (req.accepts('html')) {
-      return res.redirect('/mobile/login');
+      return originalRedirect('/mobile/login');
     }
-    return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+    // Restore native response methods and emit the same JSON 401 authenticate would send.
+    res.send = originalSend;
+    res.json = originalJson;
+    return res.status(401).json({ success: false, message: 'Authentication required' });
+  };
+
+  res.send = (...args) => {
+    if (!handled && res.statusCode === 401) {
+      return handleUnauthenticated();
+    }
+    return originalSend(...args);
+  };
+
+  res.json = (...args) => {
+    if (!handled && res.statusCode === 401) {
+      return handleUnauthenticated();
+    }
+    return originalJson(...args);
+  };
+
+  try {
+    await authenticate(req, res, (err) => {
+      if (err) return next(err);
+      // authenticate succeeded; restore methods in case they were wrapped and proceed.
+      res.send = originalSend;
+      res.json = originalJson;
+      next();
+    });
+  } catch (error) {
+    // authenticate is async but catches its own errors; this guard is defensive.
+    next(error);
   }
 };
 
