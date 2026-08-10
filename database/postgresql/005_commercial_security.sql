@@ -229,14 +229,168 @@ CREATE TABLE IF NOT EXISTS audit_logs_archive (
     PRIMARY KEY (id)
 );
 
-ALTER TABLE organization_subscriptions ADD CONSTRAINT fk_organization_subscriptions_organization_subscriptions_ibfk_1 FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE organization_subscriptions ADD CONSTRAINT fk_organization_subscriptions_organization_subscriptions_ibfk_2 FOREIGN KEY (plan_id) REFERENCES subscription_plans(id);
-ALTER TABLE stripe_customers ADD CONSTRAINT fk_stripe_customers_stripe_customers_ibfk_1 FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE payments ADD CONSTRAINT fk_payments_payments_ibfk_1 FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE api_keys ADD CONSTRAINT fk_api_keys_api_keys_ibfk_1 FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE api_keys ADD CONSTRAINT fk_api_keys_api_keys_ibfk_2 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE api_rate_limit_tracking ADD CONSTRAINT fk_api_rate_limit_tracking_fk_api_rate_limit_api_key FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE CASCADE;
-ALTER TABLE audit_configurations ADD CONSTRAINT fk_audit_configurations_audit_configurations_ibfk_1 FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE audit_retention_policies ADD CONSTRAINT fk_audit_retention_policies_audit_retention_policies_ibfk_1 FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE audit_log ADD CONSTRAINT fk_audit_log_audit_log_ibfk_1 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE audit_log ADD CONSTRAINT fk_audit_log_fk_audit_log_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_organization_subscriptions_organization_subscriptions_ibfk_1'
+          AND conrelid = 'organization_subscriptions'::regclass
+    ) THEN
+        ALTER TABLE organization_subscriptions
+            ADD CONSTRAINT fk_organization_subscriptions_organization_subscriptions_ibfk_1
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_organization_subscriptions_organization_subscriptions_ibfk_2'
+          AND conrelid = 'organization_subscriptions'::regclass
+    ) THEN
+        ALTER TABLE organization_subscriptions
+            ADD CONSTRAINT fk_organization_subscriptions_organization_subscriptions_ibfk_2
+            FOREIGN KEY (plan_id)
+            REFERENCES subscription_plans(id);
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_stripe_customers_stripe_customers_ibfk_1'
+          AND conrelid = 'stripe_customers'::regclass
+    ) THEN
+        ALTER TABLE stripe_customers
+            ADD CONSTRAINT fk_stripe_customers_stripe_customers_ibfk_1
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_payments_payments_ibfk_1'
+          AND conrelid = 'payments'::regclass
+    ) THEN
+        ALTER TABLE payments
+            ADD CONSTRAINT fk_payments_payments_ibfk_1
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_api_keys_api_keys_ibfk_1'
+          AND conrelid = 'api_keys'::regclass
+    ) THEN
+        ALTER TABLE api_keys
+            ADD CONSTRAINT fk_api_keys_api_keys_ibfk_1
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_api_keys_api_keys_ibfk_2'
+          AND conrelid = 'api_keys'::regclass
+    ) THEN
+        ALTER TABLE api_keys
+            ADD CONSTRAINT fk_api_keys_api_keys_ibfk_2
+            FOREIGN KEY (user_id)
+            REFERENCES users(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_api_rate_limit_tracking_fk_api_rate_limit_api_key'
+          AND conrelid = 'api_rate_limit_tracking'::regclass
+    ) THEN
+        ALTER TABLE api_rate_limit_tracking
+            ADD CONSTRAINT fk_api_rate_limit_tracking_fk_api_rate_limit_api_key
+            FOREIGN KEY (api_key_id)
+            REFERENCES api_keys(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_audit_configurations_audit_configurations_ibfk_1'
+          AND conrelid = 'audit_configurations'::regclass
+    ) THEN
+        ALTER TABLE audit_configurations
+            ADD CONSTRAINT fk_audit_configurations_audit_configurations_ibfk_1
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_audit_retention_policies_audit_retention_policies_ibfk_1'
+          AND conrelid = 'audit_retention_policies'::regclass
+    ) THEN
+        ALTER TABLE audit_retention_policies
+            ADD CONSTRAINT fk_audit_retention_policies_audit_retention_policies_ibfk_1
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_audit_log_audit_log_ibfk_1'
+          AND conrelid = 'audit_log'::regclass
+    ) THEN
+        ALTER TABLE audit_log
+            ADD CONSTRAINT fk_audit_log_audit_log_ibfk_1
+            FOREIGN KEY (user_id)
+            REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_audit_log_fk_audit_log_organization'
+          AND conrelid = 'audit_log'::regclass
+    ) THEN
+        ALTER TABLE audit_log
+            ADD CONSTRAINT fk_audit_log_fk_audit_log_organization
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;

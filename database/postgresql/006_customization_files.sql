@@ -110,14 +110,168 @@ CREATE TABLE IF NOT EXISTS asset_import_logs (
     PRIMARY KEY (id)
 );
 
-ALTER TABLE custom_field_definitions ADD CONSTRAINT fk_custom_field_definitions_custom_field_definitions_ibfk_1 FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE custom_field_definitions ADD CONSTRAINT fk_custom_field_definitions_custom_field_definitions_ibfk_2 FOREIGN KEY (created_by) REFERENCES users(id);
-ALTER TABLE custom_field_values ADD CONSTRAINT fk_custom_field_values_custom_field_values_ibfk_1 FOREIGN KEY (field_definition_id) REFERENCES custom_field_definitions(id) ON DELETE CASCADE;
-ALTER TABLE custom_field_history ADD CONSTRAINT fk_custom_field_history_custom_field_history_ibfk_1 FOREIGN KEY (field_definition_id) REFERENCES custom_field_definitions(id);
-ALTER TABLE custom_field_history ADD CONSTRAINT fk_custom_field_history_custom_field_history_ibfk_2 FOREIGN KEY (changed_by) REFERENCES users(id);
-ALTER TABLE attachments ADD CONSTRAINT fk_attachments_attachments_ibfk_1 FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE attachments ADD CONSTRAINT fk_attachments_fk_attachments_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE asset_template_links ADD CONSTRAINT fk_asset_template_links_fk_asset_template_links_asset FOREIGN KEY (asset_id) REFERENCES equipment(id) ON DELETE CASCADE;
-ALTER TABLE asset_template_links ADD CONSTRAINT fk_asset_template_links_fk_asset_template_links_template FOREIGN KEY (template_id) REFERENCES task_templates(id) ON DELETE CASCADE;
-ALTER TABLE asset_import_logs ADD CONSTRAINT fk_asset_import_logs_fk_asset_import_logs_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE asset_import_logs ADD CONSTRAINT fk_asset_import_logs_fk_asset_import_logs_user FOREIGN KEY (imported_by) REFERENCES users(id) ON DELETE SET NULL;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_custom_field_definitions_custom_field_definitions_ibfk_1'
+          AND conrelid = 'custom_field_definitions'::regclass
+    ) THEN
+        ALTER TABLE custom_field_definitions
+            ADD CONSTRAINT fk_custom_field_definitions_custom_field_definitions_ibfk_1
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_custom_field_definitions_custom_field_definitions_ibfk_2'
+          AND conrelid = 'custom_field_definitions'::regclass
+    ) THEN
+        ALTER TABLE custom_field_definitions
+            ADD CONSTRAINT fk_custom_field_definitions_custom_field_definitions_ibfk_2
+            FOREIGN KEY (created_by)
+            REFERENCES users(id);
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_custom_field_values_custom_field_values_ibfk_1'
+          AND conrelid = 'custom_field_values'::regclass
+    ) THEN
+        ALTER TABLE custom_field_values
+            ADD CONSTRAINT fk_custom_field_values_custom_field_values_ibfk_1
+            FOREIGN KEY (field_definition_id)
+            REFERENCES custom_field_definitions(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_custom_field_history_custom_field_history_ibfk_1'
+          AND conrelid = 'custom_field_history'::regclass
+    ) THEN
+        ALTER TABLE custom_field_history
+            ADD CONSTRAINT fk_custom_field_history_custom_field_history_ibfk_1
+            FOREIGN KEY (field_definition_id)
+            REFERENCES custom_field_definitions(id);
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_custom_field_history_custom_field_history_ibfk_2'
+          AND conrelid = 'custom_field_history'::regclass
+    ) THEN
+        ALTER TABLE custom_field_history
+            ADD CONSTRAINT fk_custom_field_history_custom_field_history_ibfk_2
+            FOREIGN KEY (changed_by)
+            REFERENCES users(id);
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_attachments_attachments_ibfk_1'
+          AND conrelid = 'attachments'::regclass
+    ) THEN
+        ALTER TABLE attachments
+            ADD CONSTRAINT fk_attachments_attachments_ibfk_1
+            FOREIGN KEY (uploaded_by)
+            REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_attachments_fk_attachments_organization'
+          AND conrelid = 'attachments'::regclass
+    ) THEN
+        ALTER TABLE attachments
+            ADD CONSTRAINT fk_attachments_fk_attachments_organization
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_asset_template_links_fk_asset_template_links_asset'
+          AND conrelid = 'asset_template_links'::regclass
+    ) THEN
+        ALTER TABLE asset_template_links
+            ADD CONSTRAINT fk_asset_template_links_fk_asset_template_links_asset
+            FOREIGN KEY (asset_id)
+            REFERENCES equipment(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_asset_template_links_fk_asset_template_links_template'
+          AND conrelid = 'asset_template_links'::regclass
+    ) THEN
+        ALTER TABLE asset_template_links
+            ADD CONSTRAINT fk_asset_template_links_fk_asset_template_links_template
+            FOREIGN KEY (template_id)
+            REFERENCES task_templates(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_asset_import_logs_fk_asset_import_logs_org'
+          AND conrelid = 'asset_import_logs'::regclass
+    ) THEN
+        ALTER TABLE asset_import_logs
+            ADD CONSTRAINT fk_asset_import_logs_fk_asset_import_logs_org
+            FOREIGN KEY (organization_id)
+            REFERENCES organizations(id) ON DELETE CASCADE;
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_asset_import_logs_fk_asset_import_logs_user'
+          AND conrelid = 'asset_import_logs'::regclass
+    ) THEN
+        ALTER TABLE asset_import_logs
+            ADD CONSTRAINT fk_asset_import_logs_fk_asset_import_logs_user
+            FOREIGN KEY (imported_by)
+            REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
