@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const qrLabelController = require('../controllers/qr-label.controller');
+const { Schedule, Finding } = require('../models');
 
 // Middleware to check authentication
 const { authenticate, requireAdmin, requireSupervisor } = require('../middleware/auth');
@@ -75,9 +76,10 @@ router.get('/home', requireAuth, (req, res) => {
 });
 
 // Today - role-aware landing destination
-router.get('/today', requireAuth, (req, res) => {
+router.get('/today', requireAuth, async (req, res) => {
   const userRole = req.user?.role;
   const { checkPermission } = require('../config/permissions');
+  const organizationId = req.organization_id;
 
   const data = {
     title: 'Today',
@@ -88,9 +90,41 @@ router.get('/today', requireAuth, (req, res) => {
     canInspect: checkPermission(userRole, 'INSPECTIONS', 'SUBMIT') !== 'none',
     canReport: checkPermission(userRole, 'FINDINGS', 'CREATE') !== 'none',
     canAssess: checkPermission(userRole, 'FINDINGS', 'MANAGE') !== 'none',
-    todayCount: 5,
-    overdueCount: 2
+    dueScheduleCount: null,
+    overdueScheduleCount: null,
+    dueScheduleItems: [],
+    openFindingsCount: null,
+    openFindings: []
   };
+
+  if (organizationId) {
+    try {
+      const operatorVisible = userRole === 'operator' || userRole === 'supervisor' || userRole === 'admin';
+      if (operatorVisible) {
+        const dueToday = await Schedule.getDueToday(organizationId);
+        const overdue = await Schedule.getOverdue(organizationId);
+        data.dueScheduleCount = Array.isArray(dueToday) ? dueToday.length : null;
+        data.overdueScheduleCount = Array.isArray(overdue) ? overdue.length : null;
+        data.dueScheduleItems = (Array.isArray(dueToday) ? dueToday : []).slice(0, 5);
+      }
+
+      const assessVisible = userRole === 'supervisor' || userRole === 'admin';
+      if (assessVisible) {
+        const openFindings = await Finding.getFindingsWithDetails(organizationId, { status: 'open', limit: 5 });
+        data.openFindings = Array.isArray(openFindings) ? openFindings : [];
+        // Count is the returned page size unless a dedicated count method exists.
+        data.openFindingsCount = data.openFindings.length;
+      }
+    } catch (err) {
+      console.error('[Today] Error loading dashboard data:', err);
+      data.dueScheduleCount = null;
+      data.overdueScheduleCount = null;
+      data.dueScheduleItems = [];
+      data.openFindingsCount = null;
+      data.openFindings = [];
+    }
+  }
+
   renderMobile(res, 'today', data, req);
 });
 

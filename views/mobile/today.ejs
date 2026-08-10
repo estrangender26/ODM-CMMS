@@ -5,6 +5,7 @@
 <% const isAdmin = typeof userRole !== 'undefined' && userRole === 'admin'; %>
 <% const isSupervisor = typeof userRole !== 'undefined' && userRole === 'supervisor'; %>
 <% const isOperator = typeof userRole !== 'undefined' && userRole === 'operator'; %>
+<% function formatCount(value) { return (typeof value === 'number') ? value.toString() : '—'; } %>
 
 <!-- Organization Card -->
 <div id="orgCard" class="card" style="margin-bottom: 16px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark, #1565c0) 100%); color: white; display: none;">
@@ -54,25 +55,52 @@
 <!-- Supervisor Today -->
 <div class="dashboard-stats">
     <div class="stat-card">
-        <div class="stat-value">—</div>
-        <div class="stat-label">Needs Assessment</div>
+        <div class="stat-value"><%= formatCount(openFindingsCount) %></div>
+        <div class="stat-label">Open Findings</div>
     </div>
     <div class="stat-card">
-        <div class="stat-value">—</div>
-        <div class="stat-label">Overdue</div>
+        <div class="stat-value"><%= formatCount(overdueScheduleCount) %></div>
+        <div class="stat-label">Overdue Schedules</div>
     </div>
 </div>
 
+<% if (openFindingsCount > 0) { %>
+<div class="alert-banner">
+    <span class="alert-icon">⚠️</span>
+    <div class="alert-content">
+        <div class="alert-title"><%= openFindingsCount %> open finding<%= openFindingsCount === 1 ? '' : 's' %></div>
+        <div class="alert-subtitle">Review and decide next action</div>
+    </div>
+</div>
+<% } %>
+
 <div class="card">
-    <div class="card-title">Assessment Queue</div>
+    <div class="card-title">Open Findings</div>
+    <% if (openFindings && openFindings.length > 0) { %>
+        <% openFindings.forEach(function(finding) { %>
+        <a href="/mobile/dashboard/findings" class="wo-card card" style="margin-bottom: 8px; display: block; text-decoration: none; color: inherit;">
+            <div class="wo-header">
+                <div>
+                    <div class="wo-title"><%= finding.asset_name || finding.equipment_name || 'Unnamed asset' %></div>
+                    <div class="wo-meta">
+                        <%= finding.facility_name || 'Unknown facility' %>
+                        <% if (finding.severity) { %> · Severity: <%= finding.severity %><% } %>
+                    </div>
+                </div>
+                <span class="status-badge status-released">Open</span>
+            </div>
+        </a>
+        <% }); %>
+    <% } else { %>
     <div class="wo-card card" style="margin-bottom: 8px; opacity: 0.7;">
         <div class="wo-header">
             <div>
-                <div class="wo-title">No findings awaiting assessment</div>
+                <div class="wo-title">No open findings</div>
                 <div class="wo-meta">Submitted findings will appear here once data is connected</div>
             </div>
         </div>
     </div>
+    <% } %>
     <a href="/mobile/dashboard/findings" class="btn btn-secondary" style="width: 100%; margin-top: 8px;">View Findings</a>
 </div>
 <% } %>
@@ -81,14 +109,24 @@
 <!-- Operator Today -->
 <div class="dashboard-stats">
     <div class="stat-card">
-        <div class="stat-value">—</div>
-        <div class="stat-label">Today's Tasks</div>
+        <div class="stat-value"><%= formatCount(dueScheduleCount) %></div>
+        <div class="stat-label">Due Schedules</div>
     </div>
     <div class="stat-card">
-        <div class="stat-value">—</div>
-        <div class="stat-label">Overdue</div>
+        <div class="stat-value" style="<%= (typeof overdueScheduleCount === 'number' && overdueScheduleCount > 0) ? 'color: var(--danger);' : '' %>"><%= formatCount(overdueScheduleCount) %></div>
+        <div class="stat-label">Overdue Schedules</div>
     </div>
 </div>
+
+<% if (typeof overdueScheduleCount === 'number' && overdueScheduleCount > 0) { %>
+<div class="alert-banner">
+    <span class="alert-icon">⚠️</span>
+    <div class="alert-content">
+        <div class="alert-title"><%= overdueScheduleCount %> overdue schedule<%= overdueScheduleCount === 1 ? '' : 's' %></div>
+        <div class="alert-subtitle">Review overdue work first</div>
+    </div>
+</div>
+<% } %>
 
 <button class="btn-scan-large" onclick="openQRScanner()">
     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -101,15 +139,32 @@
 </button>
 
 <div class="card">
-    <div class="card-title">Priority Tasks</div>
+    <div class="card-title">Due Schedule Items</div>
+    <% if (dueScheduleItems && dueScheduleItems.length > 0) { %>
+        <% dueScheduleItems.forEach(function(item) { %>
+        <div class="wo-card card" style="margin-bottom: 8px;">
+            <div class="wo-header">
+                <div>
+                    <div class="wo-title"><%= item.equipment_name || 'Unnamed asset' %></div>
+                    <div class="wo-meta">
+                        <%= item.task_title || 'Untitled task' %>
+                        <% if (item.equipment_code) { %> · <%= item.equipment_code %><% } %>
+                    </div>
+                </div>
+                <span class="status-badge status-released">Today</span>
+            </div>
+        </div>
+        <% }); %>
+    <% } else { %>
     <div class="wo-card card" style="margin-bottom: 8px; opacity: 0.7;">
         <div class="wo-header">
             <div>
-                <div class="wo-title">No tasks available</div>
-                <div class="wo-meta">Assigned tasks will appear once work is scheduled</div>
+                <div class="wo-title">No due schedule items</div>
+                <div class="wo-meta">Schedule items will appear once work is scheduled</div>
             </div>
         </div>
     </div>
+    <% } %>
 </div>
 <% } %>
 

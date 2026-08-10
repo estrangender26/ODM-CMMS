@@ -42,6 +42,7 @@ describe('ODM Workflow Validation', () => {
   const uiRoutes = [
     { name: 'Mobile Login', url: '/mobile/login' },
     { name: 'Mobile Home', url: '/mobile/home' },
+    { name: 'Mobile Today', url: '/mobile/today' },
     { name: 'Work Order List', url: '/mobile/work-orders' },
     { name: 'Work Order Detail', url: '/mobile/work-orders/WO-2026-0042' },
     { name: 'Inspection', url: '/mobile/inspection/WO-2026-0042' },
