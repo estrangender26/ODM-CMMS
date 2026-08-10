@@ -92,7 +92,7 @@ Defines how knowledge is grouped into reusable, versioned packs.
 | `template_families` | Named families of maintenance templates. | **Remove** — legacy Manila Water organization construct; not Atiman architecture. |
 | `template_family_rules` | Default rules per family. | **Remove** — depends on removed `template_families`. |
 | `equipment_type_family_mappings` | Maps equipment types to template families. | **Remove** — replaced by `task_template_equipment_types`. |
-| `smp_families` | Standard Maintenance Procedure families. | **Remove** — Manila Water operational construct; must not be reused. |
+| `smp_families` | Standard Maintenance Procedure families. | **Remove** — associated with the excluded legacy family/SMP architecture; not retained. |
 | `smp_tasks` | Tasks within an SMP family. | **Remove** — depends on removed `smp_families`. |
 
 ### 3.4 Maintenance Knowledge
@@ -102,7 +102,7 @@ Defines the actual executable maintenance content.
 | Entity | Purpose | Retain / Refactor / Remove |
 |--------|---------|---------------------------|
 | `task_master` | Canonical master task definitions. | **Retain and refactor** — must become organization-agnostic or scoped to Atiman shared knowledge. |
-| `task_templates` | Maintenance procedures for an equipment type / family. | **Retain** — description updated to remove family coupling; applicability moved to `task_template_equipment_types`. |
+| `task_templates` | Maintenance procedures applicable to one or more equipment types. | **Retain** |
 | `task_template_steps` | Individual steps within a template. | **Retain** |
 | `task_template_safety_controls` | Safety controls linked to a template. | **Retain** |
 | `task_template_equipment_types` | **Proposed.** Many-to-many mapping of task templates to equipment types. | **Add** — replaces family-based and SMP-based task grouping. |
@@ -211,7 +211,7 @@ equipment_categories
        └─ cause_codes (nullable)
 ```
 
-All relationships are many-to-one within the knowledge graph. There are no cyclic FK dependencies within the Knowledge Foundation.
+Most relationships within the Knowledge Foundation are many-to-one. Task-template-to-equipment-type applicability is intentionally many-to-many. There are no cyclic FK dependencies within the Knowledge Foundation.
 
 Cross-boundary references (e.g., operational findings referencing `task_template_id`) are allowed from operational layers upward, but operational data does not reside in the Knowledge Foundation.
 
@@ -226,8 +226,6 @@ The legacy family-based indirection (`equipment_type_family_mappings` → `templ
 CREATE TABLE task_template_equipment_types (
     task_template_id INTEGER NOT NULL REFERENCES task_templates(id) ON DELETE CASCADE,
     equipment_type_id INTEGER NOT NULL REFERENCES equipment_types(id) ON DELETE CASCADE,
-    is_primary BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (task_template_id, equipment_type_id)
 );
 ```
@@ -235,7 +233,7 @@ CREATE TABLE task_template_equipment_types (
 Rationale:
 - A task template may apply to multiple equipment types.
 - An equipment type may have multiple applicable task templates.
-- No Manila Water SMP or family constructs are retained.
+- No legacy family or SMP constructs are retained.
 - Scope and lifecycle of the applicability row follow the referenced task template.
 
 This table is **proposed physical schema** pending ATM-003 / platform-foundation decisions on schema organization.
@@ -487,8 +485,8 @@ The Knowledge Foundation imposes these requirements on AI (Intelligence Layer):
 |----------------|-------------------------|-------------|
 | `seed_batches` / `seed_batch_entities` | One-time operational import artifact. | Knowledge Pack provenance. |
 | `equipment_type_family_proposals` | Ad-hoc customer proposal table. | Governed knowledge contribution workflow. |
-| `template_families` / `template_family_rules` / `equipment_type_family_mappings` | Manila Water legacy family construct; couples templates to operational groupings. | `task_template_equipment_types` many-to-many applicability. |
-| `smp_families` / `smp_tasks` | Manila Water operational SMP construct; not reusable Atiman knowledge. | Excluded from architecture. |
+| `template_families` / `template_family_rules` / `equipment_type_family_mappings` | Legacy family construct associated with the excluded SMP architecture; couples templates to operational groupings. | `task_template_equipment_types` many-to-many applicability. |
+| `smp_families` / `smp_tasks` | Legacy SMP construct associated with the excluded family architecture; not retained in Atiman. | Excluded from architecture. |
 | `equipment` in knowledge schema | Installed assets are operational data. | Operational tenant schema. |
 | `organization_id` on shared knowledge | Ties shared knowledge to a tenant. | Knowledge scope discriminator. |
 | `is_active` as only lifecycle flag | Insufficient for draft/review/published/retired. | Full lifecycle state + effective dates. |
