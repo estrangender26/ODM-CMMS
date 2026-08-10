@@ -109,9 +109,9 @@ Defines the actual executable maintenance content.
 
 ## 4. Refactoring Requirements
 
-### 4.1 Remove operational data from knowledge schema
+### 4.1 Separate operational data from knowledge domain
 
-The following tables must be removed from the Knowledge Foundation schema and relocated to operational/tenant schemas:
+The following tables belong to the operational/transactional domain, not the Knowledge Foundation. They must be conceptually separated and should not be treated as knowledge entities. The physical implementation (same schema with tenant discriminator, separate schema, or separate database) is an open implementation decision for ATM-003 / platform foundation.
 
 - `equipment`
 - `equipment_subunits`
@@ -260,10 +260,15 @@ Draft → Review → Published → Deprecated → Retired
 
 ### 6.4 Pack Deployment
 
-- A pack is deployed to a tenant workspace as a snapshot.
-- The tenant receives a copy of the pack's knowledge scoped as `customer`.
-- Updates to the shared pack may be offered to subscribers.
-- Customer customizations do not affect the shared pack.
+*Open architectural question — pending ATM-002 / implementation review.*
+
+Possible deployment models include:
+
+- **Snapshot copy:** The tenant receives a point-in-time copy scoped as customer knowledge. Updates to the shared pack are offered separately.
+- **Reference with overlay:** The tenant references shared knowledge and stores only customizations as customer knowledge.
+- **Hybrid:** Core shared knowledge is referenced; adopted templates are copied for customization.
+
+The exact model will be decided during platform-foundation and experience-architecture design.
 
 ### 6.5 Future Marketplace
 
@@ -350,10 +355,11 @@ Every knowledge entity must pass automated checks before publication:
 
 ### 10.1 Shared Knowledge
 
-- Owned by Atiman or designated authoritative sources.
-- No `organization_id`.
+- Scoped globally (no `organization_id`).
 - Available to all tenants for reference and adoption.
 - Immutable to tenants.
+
+*Ownership, licensing, and intellectual-property models for shared knowledge are **Proposed Future Architecture** — not established policy.*
 
 ### 10.2 Customer Knowledge
 
@@ -362,11 +368,15 @@ Every knowledge entity must pass automated checks before publication:
 - Subject to the same lifecycle and validation rules as shared knowledge.
 - Does not leak to other tenants.
 
+*Whether tenants hold intellectual-property rights in their customizations is **Proposed Future Architecture** — not established policy.*
+
 ### 10.3 Knowledge Adoption
 
-- A tenant adopts shared knowledge by deploying a Knowledge Pack snapshot.
-- The adopted knowledge becomes customer knowledge scoped to the tenant.
+- A tenant adopts shared knowledge by deploying a Knowledge Pack.
+- The tenant receives a scoped view or copy of the pack's knowledge as customer knowledge.
 - The tenant may customize it without affecting the shared original.
+
+*Whether adoption is implemented as a snapshot copy, a reference, or a hybrid is an **open architectural question** pending ATM-002 / implementation review.*
 
 ---
 
@@ -376,9 +386,9 @@ Every knowledge entity must pass automated checks before publication:
 
 - Knowledge quality is measurable and enforced.
 - Changes to published knowledge require review.
-- Knowledge authors are accountable for correctness.
 - Customer customizations are governed by the tenant.
-- Shared knowledge is governed by Atiman or certified contributors.
+
+*Ownership of shared knowledge, contributor certification, and marketplace governance are **Proposed Future Architecture** — not established policy.*
 
 ### 11.2 Governance Roles
 
@@ -386,7 +396,7 @@ Every knowledge entity must pass automated checks before publication:
 |------|----------------|
 | Knowledge Author | Creates and updates knowledge. |
 | Knowledge Reviewer | Validates knowledge for publication. |
-| Knowledge Steward | Owns a domain or pack; decides deprecation/retirement. |
+| Knowledge Steward | Responsible for a domain or pack; decides deprecation/retirement. |
 | Tenant Admin | Manages customer knowledge and pack adoption. |
 
 ### 11.3 Quality Metrics
@@ -419,13 +429,15 @@ Every knowledge entity must pass automated checks before publication:
 
 These references are upward-pointing only. Knowledge does not depend on operational data.
 
-### 12.3 Data Ownership
+### 12.3 Data Scope and Lifespan
 
-| Type | Owner | Lifespan |
+| Type | Scope | Lifespan |
 |------|-------|----------|
-| Shared knowledge | Atiman / authoritative source | Long-term, versioned. |
-| Customer knowledge | Tenant | Tenant lifetime, versioned. |
-| Operational evidence | Tenant | Tenant-defined retention. |
+| Shared knowledge | Global / no `organization_id` | Long-term, versioned. |
+| Customer knowledge | Tenant-scoped via `organization_id` | Tenant lifetime, versioned. |
+| Operational evidence | Tenant-scoped | Tenant-defined retention. |
+
+*Ownership, licensing, and data-residency policy for any of the above are **Proposed Future Architecture** — not established policy.*
 
 ---
 
