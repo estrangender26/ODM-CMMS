@@ -25,7 +25,12 @@ const isUpdateForbiddenError = (err) => {
 
 const isSupersessionError = (err) => {
   const msg = (err.message || '').toLowerCase();
-  return msg.includes('supersede') || msg.includes('same knowledge_pack') || msg.includes('same task_template') || msg.includes('check_violation');
+  return msg.includes('supersede') || msg.includes('same knowledge_pack') || msg.includes('same task_template') || msg.includes('check_violation') || msg.includes('cycle') || msg.includes('must be published');
+};
+
+const isSealError = (err) => {
+  const msg = (err.message || '').toLowerCase();
+  return msg.includes('seal') || msg.includes('cannot be changed') || msg.includes('check_violation');
 };
 
 describe('Knowledge Versioning Foundation', () => {
@@ -706,7 +711,7 @@ describe('Knowledge Versioning Foundation', () => {
     }
   });
 
-  it('requires successor to be a valid published or superseded version', async () => {
+  it('requires successor to be a valid published version', async () => {
     const conn = await getConnection();
     try {
       const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
@@ -739,7 +744,7 @@ describe('Knowledge Versioning Foundation', () => {
           WHERE id = $2
         `, [v2Retired.id, v1.id]);
       } catch (err) {
-        blocked = isSupersessionError(err) || /successor.*published or superseded/i.test(err.message || '');
+        blocked = isSupersessionError(err) || /successor.*must be published/i.test(err.message || '');
         await conn.query('ROLLBACK TO SAVEPOINT retired_successor_test');
       }
       assert.ok(blocked, 'Supersession by a retired successor should be rejected');
@@ -780,6 +785,433 @@ describe('Knowledge Versioning Foundation', () => {
         await conn.query('ROLLBACK TO SAVEPOINT orphan_super_test');
       }
       assert.ok(blocked, 'Superseded state without successor should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+
+  it('rejects unsealing a sealed task_template_version', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const [version] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish, is_step_set_sealed
+        )
+        VALUES ($1, 1, $2, 'Unseal Test Template', 'preventive', 'published', FALSE)
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      await conn.query(`
+        INSERT INTO task_template_step_versions (
+          task_template_version_id, step_no, task_template_step_id, step_type, instruction
+        )
+        VALUES ($1, 1, $2, 'instruction', 'Step to seal')
+      `, [version.id, step.id]);
+
+      await conn.query(`
+        UPDATE task_template_versions SET is_step_set_sealed = TRUE WHERE id = $1
+      `, [version.id]);
+
+      let blocked = false;
+      await conn.query('SAVEPOINT unseal_test');
+      try {
+        await conn.query(`
+          UPDATE task_template_versions SET is_step_set_sealed = FALSE WHERE id = $1
+        `, [version.id]);
+      } catch (err) {
+        blocked = isSealError(err);
+        await conn.query('ROLLBACK TO SAVEPOINT unseal_test');
+      }
+      assert.ok(blocked, 'Unsealing a sealed template version should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('rejects sealing a task_template_version with zero steps', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const [version] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish, is_step_set_sealed
+        )
+        VALUES ($1, 1, $2, 'Zero Step Seal Template', 'preventive', 'published', FALSE)
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      let blocked = false;
+      await conn.query('SAVEPOINT zero_seal_test');
+      try {
+        await conn.query(`
+          UPDATE task_template_versions SET is_step_set_sealed = TRUE WHERE id = $1
+        `, [version.id]);
+      } catch (err) {
+        blocked = isSealError(err);
+        await conn.query('ROLLBACK TO SAVEPOINT zero_seal_test');
+      }
+      assert.ok(blocked, 'Sealing a template version with zero steps should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('rejects committing a published task_template_version with an unsealed step set', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish, is_step_set_sealed
+        )
+        VALUES ($1, 1, $2, 'Unsealed Commit Template', 'preventive', 'published', FALSE)
+      `, [template.id, template.equipment_type_id]);
+
+      let blocked = false;
+      try {
+        // Force the deferred seal check to run before commit.
+        await conn.query('SET CONSTRAINTS ALL IMMEDIATE');
+      } catch (err) {
+        blocked = /must be sealed before commit|check_violation/i.test(err.message || '');
+      }
+      assert.ok(blocked, 'Committing an unsealed published template version should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('allows assemble -> seal -> commit for a task_template_version', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const [version] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish, is_step_set_sealed
+        )
+        VALUES ($1, 1, $2, 'Assemble Seal Commit Template', 'preventive', 'published', FALSE)
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      await conn.query(`
+        INSERT INTO task_template_step_versions (
+          task_template_version_id, step_no, task_template_step_id, step_type, instruction
+        )
+        VALUES ($1, 1, $2, 'instruction', 'Assembled step')
+      `, [version.id, step.id]);
+
+      await conn.query(`
+        UPDATE task_template_versions SET is_step_set_sealed = TRUE WHERE id = $1
+      `, [version.id]);
+
+      // Simulate commit-time deferred seal check without persisting test data.
+      let ok = false;
+      try {
+        await conn.query('SET CONSTRAINTS ALL IMMEDIATE');
+        ok = true;
+      } catch (err) {
+        ok = false;
+      }
+      assert.ok(ok, 'Assemble -> seal -> commit should satisfy the deferred seal check');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('blocks inserting a step after the step set is sealed', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const [version] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish, is_step_set_sealed
+        )
+        VALUES ($1, 1, $2, 'Post-Seal Insert Template', 'preventive', 'published', FALSE)
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      await conn.query(`
+        INSERT INTO task_template_step_versions (
+          task_template_version_id, step_no, task_template_step_id, step_type, instruction
+        )
+        VALUES ($1, 1, $2, 'instruction', 'Pre-seal step')
+      `, [version.id, step.id]);
+
+      await conn.query(`
+        UPDATE task_template_versions SET is_step_set_sealed = TRUE WHERE id = $1
+      `, [version.id]);
+
+      let blocked = false;
+      await conn.query('SAVEPOINT post_seal_insert_test');
+      try {
+        await conn.query(`
+          INSERT INTO task_template_step_versions (
+            task_template_version_id, step_no, task_template_step_id, step_type, instruction
+          )
+          VALUES ($1, 2, $2, 'instruction', 'Should not be added')
+        `, [version.id, step.id]);
+      } catch (err) {
+        blocked = isForbiddenError(err);
+        await conn.query('ROLLBACK TO SAVEPOINT post_seal_insert_test');
+      }
+      assert.ok(blocked, 'INSERT into a sealed step set should be blocked');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('allows v1 -> v2 -> v3 supersession chain for knowledge_pack_versions', async () => {
+    const conn = await getConnection();
+    try {
+      const [pack] = await conn.query(`
+        INSERT INTO knowledge_packs (pack_code, pack_name)
+        VALUES ('chain-pack', 'Chain Pack')
+        RETURNING id
+      `);
+
+      const [v1] = await conn.query(`
+        INSERT INTO knowledge_pack_versions (knowledge_pack_id, version_number, lifecycle_state, published_at)
+        VALUES ($1, '1.0.0', 'published', NOW())
+        RETURNING id
+      `, [pack.id]);
+
+      const [v2] = await conn.query(`
+        INSERT INTO knowledge_pack_versions (knowledge_pack_id, version_number, lifecycle_state, published_at)
+        VALUES ($1, '2.0.0', 'published', NOW())
+        RETURNING id
+      `, [pack.id]);
+
+      const [v3] = await conn.query(`
+        INSERT INTO knowledge_pack_versions (knowledge_pack_id, version_number, lifecycle_state, published_at)
+        VALUES ($1, '3.0.0', 'published', NOW())
+        RETURNING id
+      `, [pack.id]);
+
+      await conn.query(`
+        UPDATE knowledge_pack_versions
+        SET superseded_by_version_id = $1
+        WHERE id = $2
+      `, [v2.id, v1.id]);
+
+      await conn.query(`
+        UPDATE knowledge_pack_versions
+        SET superseded_by_version_id = $1
+        WHERE id = $2
+      `, [v3.id, v2.id]);
+
+      const rows = await conn.query(`
+        SELECT id, lifecycle_state FROM knowledge_pack_versions
+        WHERE id IN ($1, $2, $3)
+        ORDER BY id
+      `, [v1.id, v2.id, v3.id]);
+
+      assert.strictEqual(rows.find(r => r.id === v1.id).lifecycle_state, 'superseded');
+      assert.strictEqual(rows.find(r => r.id === v2.id).lifecycle_state, 'superseded');
+      assert.strictEqual(rows.find(r => r.id === v3.id).lifecycle_state, 'published');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('rejects back-link supersession cycles for knowledge_pack_versions', async () => {
+    const conn = await getConnection();
+    try {
+      const [pack] = await conn.query(`
+        INSERT INTO knowledge_packs (pack_code, pack_name)
+        VALUES ('backlink-pack', 'Backlink Pack')
+        RETURNING id
+      `);
+
+      const [v1] = await conn.query(`
+        INSERT INTO knowledge_pack_versions (knowledge_pack_id, version_number, lifecycle_state, published_at)
+        VALUES ($1, '1.0.0', 'published', NOW())
+        RETURNING id
+      `, [pack.id]);
+
+      const [v2] = await conn.query(`
+        INSERT INTO knowledge_pack_versions (knowledge_pack_id, version_number, lifecycle_state, published_at)
+        VALUES ($1, '2.0.0', 'published', NOW())
+        RETURNING id
+      `, [pack.id]);
+
+      await conn.query(`
+        UPDATE knowledge_pack_versions
+        SET superseded_by_version_id = $1
+        WHERE id = $2
+      `, [v2.id, v1.id]);
+
+      let blocked = false;
+      await conn.query('SAVEPOINT backlink_pack_test');
+      try {
+        await conn.query(`
+          UPDATE knowledge_pack_versions
+          SET superseded_by_version_id = $1
+          WHERE id = $2
+        `, [v1.id, v2.id]);
+      } catch (err) {
+        blocked = isSupersessionError(err);
+        await conn.query('ROLLBACK TO SAVEPOINT backlink_pack_test');
+      }
+      assert.ok(blocked, 'Back-link supersession v2 -> v1 should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('allows v1 -> v2 -> v3 supersession chain for task_template_versions', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+
+      const [v1] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish, is_step_set_sealed
+        )
+        VALUES ($1, 1, $2, 'Chain v1', 'preventive', 'published', FALSE)
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      const [v2] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish, is_step_set_sealed
+        )
+        VALUES ($1, 2, $2, 'Chain v2', 'preventive', 'published', FALSE)
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      const [v3] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish, is_step_set_sealed
+        )
+        VALUES ($1, 3, $2, 'Chain v3', 'preventive', 'published', FALSE)
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      await conn.query(`
+        UPDATE task_template_versions
+        SET superseded_by_version_id = $1
+        WHERE id = $2
+      `, [v2.id, v1.id]);
+
+      await conn.query(`
+        UPDATE task_template_versions
+        SET superseded_by_version_id = $1
+        WHERE id = $2
+      `, [v3.id, v2.id]);
+
+      const rows = await conn.query(`
+        SELECT id, lifecycle_state_at_publish FROM task_template_versions
+        WHERE id IN ($1, $2, $3)
+        ORDER BY id
+      `, [v1.id, v2.id, v3.id]);
+
+      assert.strictEqual(rows.find(r => r.id === v1.id).lifecycle_state_at_publish, 'superseded');
+      assert.strictEqual(rows.find(r => r.id === v2.id).lifecycle_state_at_publish, 'superseded');
+      assert.strictEqual(rows.find(r => r.id === v3.id).lifecycle_state_at_publish, 'published');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('rejects back-link supersession cycles for task_template_versions', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+
+      const [v1] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish, is_step_set_sealed
+        )
+        VALUES ($1, 1, $2, 'Backlink v1', 'preventive', 'published', FALSE)
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      const [v2] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish, is_step_set_sealed
+        )
+        VALUES ($1, 2, $2, 'Backlink v2', 'preventive', 'published', FALSE)
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      await conn.query(`
+        UPDATE task_template_versions
+        SET superseded_by_version_id = $1
+        WHERE id = $2
+      `, [v2.id, v1.id]);
+
+      let blocked = false;
+      await conn.query('SAVEPOINT backlink_template_test');
+      try {
+        await conn.query(`
+          UPDATE task_template_versions
+          SET superseded_by_version_id = $1
+          WHERE id = $2
+        `, [v1.id, v2.id]);
+      } catch (err) {
+        blocked = isSupersessionError(err);
+        await conn.query('ROLLBACK TO SAVEPOINT backlink_template_test');
+      }
+      assert.ok(blocked, 'Back-link supersession v2 -> v1 should be rejected');
 
       await conn.rollback();
     } catch (err) {

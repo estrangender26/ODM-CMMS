@@ -120,6 +120,43 @@ ALTER TABLE task_template_versions
 ALTER TABLE task_template_versions
     ADD COLUMN IF NOT EXISTS is_step_set_sealed BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- Deferred seal check: a published task_template_version must be sealed when the
+-- transaction commits. This permits the assembly pattern (create version,
+-- insert ordered steps, update is_step_set_sealed = TRUE) inside a single
+-- transaction while guaranteeing the version cannot be committed while still
+-- unsealed. Implemented as a deferred constraint trigger because PostgreSQL
+-- CHECK constraints cannot be deferred.
+CREATE OR REPLACE FUNCTION task_template_version_published_seal_constraint()
+RETURNS TRIGGER AS $$
+DECLARE
+    current_lifecycle TEXT;
+    current_sealed BOOLEAN;
+BEGIN
+    -- Re-read the current row state so deferred checks see the final
+    -- state after all changes in the transaction (e.g., assembly + seal).
+    SELECT lifecycle_state_at_publish, is_step_set_sealed
+    INTO current_lifecycle, current_sealed
+    FROM task_template_versions
+    WHERE id = NEW.id;
+
+    IF current_lifecycle = 'published' AND current_sealed = FALSE THEN
+        RAISE EXCEPTION 'published task_template_version % must be sealed before commit; set is_step_set_sealed = TRUE after adding steps', NEW.id
+            USING ERRCODE = 'check_violation';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_task_template_versions_published_seal_constraint
+    ON task_template_versions;
+
+CREATE CONSTRAINT TRIGGER trg_task_template_versions_published_seal_constraint
+    AFTER INSERT OR UPDATE ON task_template_versions
+    DEFERRABLE INITIALLY DEFERRED
+    FOR EACH ROW
+    EXECUTE FUNCTION task_template_version_published_seal_constraint();
+
+
 -- Immutable published step belonging to a task_template_version.
 -- Step versions are not independently versioned; they are published together with
 -- their parent template version, forming the atomic publication boundary.
@@ -168,6 +205,8 @@ RETURNS TRIGGER AS $$
 DECLARE
     successor_pack_id INTEGER;
     successor_lifecycle TEXT;
+    next_id INTEGER;
+    visited INTEGER[];
 BEGIN
     -- Coerce lifecycle when a successor is assigned.
     IF NEW.superseded_by_version_id IS NOT NULL THEN
@@ -204,10 +243,27 @@ BEGIN
             USING ERRCODE = 'check_violation';
     END IF;
 
-    IF successor_lifecycle NOT IN ('published', 'superseded') THEN
-        RAISE EXCEPTION 'successor knowledge_pack_versions must be published or superseded, not %', successor_lifecycle
+    -- A new successor must currently be published.
+    IF successor_lifecycle <> 'published' THEN
+        RAISE EXCEPTION 'successor knowledge_pack_versions must be published, not %', successor_lifecycle
             USING ERRCODE = 'check_violation';
     END IF;
+
+    -- Cycle detection: follow the successor chain from the proposed successor.
+    -- If it leads back to the current row, the assignment would create a cycle.
+    next_id := NEW.superseded_by_version_id;
+    visited := ARRAY[NEW.id];
+    LOOP
+        IF next_id = ANY(visited) THEN
+            RAISE EXCEPTION 'supersession assignment would create a cycle involving knowledge_pack_versions %', NEW.id
+                USING ERRCODE = 'check_violation';
+        END IF;
+        visited := array_append(visited, next_id);
+        SELECT superseded_by_version_id INTO next_id
+        FROM knowledge_pack_versions
+        WHERE id = next_id;
+        EXIT WHEN next_id IS NULL;
+    END LOOP;
 
     RETURN NEW;
 END;
@@ -221,6 +277,8 @@ RETURNS TRIGGER AS $$
 DECLARE
     successor_template_id INTEGER;
     successor_lifecycle TEXT;
+    next_id INTEGER;
+    visited INTEGER[];
 BEGIN
     IF NEW.superseded_by_version_id IS NOT NULL THEN
         NEW.lifecycle_state_at_publish := 'superseded';
@@ -255,10 +313,27 @@ BEGIN
             USING ERRCODE = 'check_violation';
     END IF;
 
-    IF successor_lifecycle NOT IN ('published', 'superseded') THEN
-        RAISE EXCEPTION 'successor task_template_versions must be published or superseded, not %', successor_lifecycle
+    -- A new successor must currently be published.
+    IF successor_lifecycle <> 'published' THEN
+        RAISE EXCEPTION 'successor task_template_versions must be published, not %', successor_lifecycle
             USING ERRCODE = 'check_violation';
     END IF;
+
+    -- Cycle detection: follow the successor chain from the proposed successor.
+    -- If it leads back to the current row, the assignment would create a cycle.
+    next_id := NEW.superseded_by_version_id;
+    visited := ARRAY[NEW.id];
+    LOOP
+        IF next_id = ANY(visited) THEN
+            RAISE EXCEPTION 'supersession assignment would create a cycle involving task_template_versions %', NEW.id
+                USING ERRCODE = 'check_violation';
+        END IF;
+        visited := array_append(visited, next_id);
+        SELECT superseded_by_version_id INTO next_id
+        FROM task_template_versions
+        WHERE id = next_id;
+        EXIT WHEN next_id IS NULL;
+    END LOOP;
 
     RETURN NEW;
 END;
@@ -426,6 +501,55 @@ CREATE TRIGGER trg_task_template_step_versions_immutable_delete
     BEFORE DELETE ON task_template_step_versions
     FOR EACH ROW
     EXECUTE FUNCTION immutable_version_delete_check();
+
+-- ============================================================
+-- Irreversible step-set seal for template versions
+-- ============================================================
+-- The step-set seal may only move FALSE -> TRUE. Once TRUE, it cannot be
+-- reverted. A seal is only permitted when at least one step version exists,
+-- and a template version may never be committed as published unless sealed.
+
+CREATE OR REPLACE FUNCTION task_template_version_seal_check()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        -- A version must be assembled unsealed and sealed only after steps are added.
+        IF NEW.is_step_set_sealed = TRUE THEN
+            RAISE EXCEPTION 'cannot insert task_template_versions with is_step_set_sealed = TRUE; add steps and seal via UPDATE'
+                USING ERRCODE = 'check_violation';
+        END IF;
+        RETURN NEW;
+    END IF;
+
+    -- TG_OP = 'UPDATE'
+    -- Revert is forbidden.
+    IF OLD.is_step_set_sealed = TRUE AND NEW.is_step_set_sealed = FALSE THEN
+        RAISE EXCEPTION 'is_step_set_sealed cannot be changed from TRUE to FALSE for task_template_versions'
+            USING ERRCODE = 'check_violation';
+    END IF;
+
+    -- Seal requires at least one step version.
+    IF OLD.is_step_set_sealed = FALSE AND NEW.is_step_set_sealed = TRUE THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM task_template_step_versions
+            WHERE task_template_version_id = NEW.id
+        ) THEN
+            RAISE EXCEPTION 'cannot seal task_template_version % without at least one task_template_step_versions row', NEW.id
+                USING ERRCODE = 'check_violation';
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_task_template_versions_seal_check
+    ON task_template_versions;
+
+CREATE TRIGGER trg_task_template_versions_seal_check
+    BEFORE INSERT OR UPDATE ON task_template_versions
+    FOR EACH ROW
+    EXECUTE FUNCTION task_template_version_seal_check();
 
 -- ============================================================
 -- Seal the complete template step set
