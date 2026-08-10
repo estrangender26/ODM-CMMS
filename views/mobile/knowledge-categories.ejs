@@ -1,0 +1,46 @@
+<% title = 'Know' %>
+<% showBack = false %>
+<% showNav = true %>
+<% activeNav = 'know' %>
+
+<div style="padding: 0 0 80px;">
+    <div style="margin-bottom: 20px;">
+        <h1 style="font-size: 22px; font-weight: 700; margin: 0 0 6px 0;">Knowledge</h1>
+        <p style="font-size: 14px; color: var(--text-secondary); margin: 0;">
+            Browse maintenance procedures by equipment taxonomy
+        </p>
+    </div>
+
+    <% if (!categories || categories.length === 0) { %>
+        <div class="card" style="text-align: center; padding: 48px 24px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">📚</div>
+            <div style="font-size: 17px; font-weight: 600; margin-bottom: 8px;">No knowledge available</div>
+            <div style="font-size: 14px; color: var(--text-secondary);">
+                Equipment taxonomy has not been loaded yet.
+            </div>
+        </div>
+    <% } else { %>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <% categories.forEach(function(category) { %>
+                <a href="/mobile/templates/classes/<%= category.id %>" class="card" style="display: block; text-decoration: none; color: inherit;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="font-weight: 600; font-size: 16px;"><%= category.category_name %></div>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                    </div>
+                    <% if (category.category_code) { %>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px;">
+                            <%= category.category_code %>
+                        </div>
+                    <% } %>
+                    <% if (category.description) { %>
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-top: 6px; line-height: 1.4;">
+                            <%= category.description %>
+                        </div>
+                    <% } %>
+                </a>
+            <% }); %>
+        </div>
+    <% } %>
+</div>
