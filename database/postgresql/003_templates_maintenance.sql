@@ -531,7 +531,8 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1
         FROM pg_constraint
-        WHERE conname = 'fk_task_template_safety_controls_task_template_safety_controls_ibfk_1'
+        -- PostgreSQL truncates identifiers to 63 bytes; the stored name for this constraint is the 63-byte prefix
+        WHERE conname = 'fk_task_template_safety_controls_task_template_safety_controls_'
           AND conrelid = 'task_template_safety_controls'::regclass
     ) THEN
         ALTER TABLE task_template_safety_controls
