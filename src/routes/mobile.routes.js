@@ -1554,8 +1554,10 @@ router.get('/templates/type/:equipmentTypeId', requireAuth, async (req, res) => 
     const equipmentType = await EquipmentType.getFullHierarchy(equipmentTypeId);
     let templates = [];
     if (equipmentType) {
-      templates = await TaskTemplate.findByEquipmentType(equipmentTypeId);
+      // Knowledge Browser exposes only shared/global templates
+      templates = await TaskTemplate.findByEquipmentType(equipmentTypeId, null);
       templates = Array.isArray(templates) ? templates : [];
+      templates = templates.filter(t => t.organization_id === null || t.organization_id === undefined);
       // Add step count for each template
       for (const template of templates) {
         const [countResult] = await TaskTemplate.query(
@@ -1591,7 +1593,8 @@ router.get('/templates/:templateId', requireAuth, async (req, res) => {
     const { TaskTemplate } = require('../models');
     const templateId = parseInt(req.params.templateId, 10);
 
-    const template = await TaskTemplate.getWithDetails(templateId);
+    // Knowledge Browser exposes only shared/global templates
+    const template = await TaskTemplate.getSharedWithDetails(templateId);
 
     const data = {
       title: template ? template.template_name : 'Template Detail',

@@ -155,6 +155,62 @@ class TaskTemplate extends BaseModel {
    * Get template with all details including steps and safety controls
    * @param {number} id - Template ID
    */
+  async getSharedWithDetails(id) {
+    // Get template only if it belongs to shared/global knowledge
+    const [template] = await this.query(`
+      SELECT
+        tt.*,
+        et.type_name,
+        et.type_code,
+        et.typical_components,
+        cl.class_name,
+        cl.class_code,
+        c.category_name,
+        c.category_code,
+        i.name as industry_name,
+        i.code as industry_code,
+        u.full_name as created_by_name,
+        pt.template_name as parent_template_name
+      FROM task_templates tt
+      JOIN equipment_types et ON tt.equipment_type_id = et.id
+      JOIN equipment_classes cl ON et.class_id = cl.id
+      JOIN equipment_categories c ON cl.category_id = c.id
+      LEFT JOIN industries i ON tt.industry_id = i.id
+      LEFT JOIN users u ON tt.created_by = u.id
+      LEFT JOIN task_templates pt ON tt.parent_template_id = pt.id
+      WHERE tt.id = ?
+        AND tt.organization_id IS NULL
+    `, [id]);
+
+    if (!template) return null;
+
+    // Get steps with safety metadata
+    template.steps = await this.query(`
+      SELECT
+        id, task_template_id, step_no, step_type, instruction,
+        data_type, expected_value, min_value, max_value, unit,
+        is_required, options,
+        safety_note, is_visual_only, requires_equipment_stopped,
+        prohibit_if_running, prohibit_opening_covers
+      FROM task_template_steps
+      WHERE task_template_id = ?
+      ORDER BY step_no
+    `, [id]);
+
+    // Get safety controls
+    template.safety_controls = await this.query(`
+      SELECT * FROM task_template_safety_controls
+      WHERE task_template_id = ?
+      ORDER BY id
+    `, [id]);
+
+    return template;
+  }
+
+  /**
+   * Get template with all details including steps and safety controls
+   * @param {number} id - Template ID
+   */
   async getWithDetails(id) {
     // Get template
     const [template] = await this.query(`
