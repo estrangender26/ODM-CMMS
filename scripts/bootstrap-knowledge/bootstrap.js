@@ -4,20 +4,10 @@
  * Imports approved legacy maintenance knowledge from a MySQL dump JSONL extract
  * into a clean Atiman PostgreSQL schema.
  *
- * Approved knowledge tables (per ATM-001A):
- *   industries, equipment_categories, equipment_classes, equipment_types,
- *   equipment_type_industries, activity_codes, cause_codes, damage_codes,
- *   failure_modes, object_parts, task_master, task_templates,
- *   task_template_steps, task_template_safety_controls
- *
- * Explicitly excluded (per ATM-001A):
- *   template_families, template_family_rules, equipment_type_family_mappings,
- *   smp_families, smp_tasks, and all operational/transactional data.
- *
- * Task-to-equipment applicability is derived directly from source evidence:
- *   task_templates.equipment_type_id is non-null for all source rows.
- *   A future migration to task_template_equipment_types is a separate
- *   governed design decision, not part of this bootstrap.
+ * Safety rules:
+ *   - Target tables must be empty before import.
+ *   - Any rejected row aborts the entire transaction.
+ *   - Source count must exactly equal target count for every KEEP table.
  */
 
 require('dotenv').config();
@@ -208,29 +198,35 @@ function cleanValue(value) {
   return value;
 }
 
+async function assertTablesEmpty(client) {
+  for (const table of KEEP_TABLES) {
+    const target = MAPPINGS[table].target;
+    const { rows } = await client.query(`SELECT COUNT(*) AS c FROM ${target}`);
+    const count = parseInt(rows[0].c, 10);
+    if (count !== 0) {
+      throw new Error(`First-run guard failed: ${target} already contains ${count} row(s).`);
+    }
+  }
+}
+
 async function importTable(client, sourceTable, rows, mapping) {
-  if (rows.length === 0) return { inserted: 0, rejected: [] };
+  if (rows.length === 0) return 0;
 
   const targetTable = mapping.target || sourceTable;
   const columns = mapping.columns;
   const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ');
-  const insertSql = `INSERT INTO ${targetTable} (${columns.join(', ')}) VALUES (${placeholders}) ON CONFLICT DO NOTHING`;
+  const insertSql = `INSERT INTO ${targetTable} (${columns.join(', ')}) VALUES (${placeholders})`;
 
-  const rejected = [];
   let inserted = 0;
 
   for (const sourceRow of rows) {
-    try {
-      const record = buildRecord(sourceRow, mapping);
-      const values = columns.map(col => cleanValue(record[col]));
-      const result = await client.query(insertSql, values);
-      inserted += result.rowCount || 0;
-    } catch (err) {
-      rejected.push({ row: sourceRow, error: err.message });
-    }
+    const record = buildRecord(sourceRow, mapping);
+    const values = columns.map(col => cleanValue(record[col]));
+    const result = await client.query(insertSql, values);
+    inserted += result.rowCount || 0;
   }
 
-  return { inserted, rejected };
+  return inserted;
 }
 
 const IMPORT_ORDER = [
@@ -254,18 +250,27 @@ async function runImport(client) {
   const results = {};
   for (const table of IMPORT_ORDER) {
     const rows = loadRows(table);
-    const mapping = MAPPINGS[table] || { target: table, columns: [] };
-    if (mapping.columns.length === 0) {
-      results[table] = { sourceRows: rows.length, inserted: 0, skipped: true };
-      continue;
-    }
-    const { inserted, rejected } = await importTable(client, table, rows, mapping);
-    results[table] = { sourceRows: rows.length, inserted, rejected: rejected.length };
-    if (rejected.length > 0) {
-      console.error(`[${table}] first rejected row:`, rejected[0].error);
-    }
+    const mapping = MAPPINGS[table];
+    const inserted = await importTable(client, table, rows, mapping);
+    results[table] = { sourceRows: rows.length, inserted };
   }
   return results;
+}
+
+async function validateCounts(client, results) {
+  const counts = {};
+  for (const table of KEEP_TABLES) {
+    const target = MAPPINGS[table].target;
+    const { rows } = await client.query(`SELECT COUNT(*) AS c FROM ${target}`);
+    counts[table] = parseInt(rows[0].c, 10);
+
+    const expected = results[table].sourceRows;
+    const actual = counts[table];
+    if (actual !== expected) {
+      throw new Error(`Count mismatch for ${target}: expected ${expected}, found ${actual}`);
+    }
+  }
+  return counts;
 }
 
 async function bootstrap() {
@@ -273,7 +278,9 @@ async function bootstrap() {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await assertTablesEmpty(client);
     const results = await runImport(client);
+    const counts = await validateCounts(client, results);
     await client.query('COMMIT');
     return results;
   } catch (err) {
@@ -285,49 +292,16 @@ async function bootstrap() {
   }
 }
 
-async function validate() {
-  const pool = getPool();
-  const targets = Object.values(MAPPINGS).map(m => m.target);
-  const { rows } = await pool.query(`
-    SELECT relname AS table_name, n_live_tup AS row_count
-    FROM pg_stat_user_tables
-    WHERE relname = ANY($1)
-    ORDER BY relname
-  `, [targets]);
-  const counts = {};
-  for (const r of rows) counts[r.table_name] = parseInt(r.row_count, 10);
-
-  // Applicability evidence: task_templates.equipment_type_id coverage
-  const { rows: appRows } = await pool.query(`
-    SELECT
-      COUNT(*) AS total_templates,
-      COUNT(equipment_type_id) AS templates_with_equipment_type,
-      COUNT(DISTINCT equipment_type_id) AS covered_equipment_types
-    FROM task_templates
-  `);
-
-  await pool.end();
-  return { counts, applicability: appRows[0] };
-}
-
 if (require.main === module) {
   (async () => {
     const results = await bootstrap();
-    const validation = await validate();
-
     console.log('\n=== Bootstrap Results ===');
     for (const [table, res] of Object.entries(results)) {
       const target = MAPPINGS[table]?.target || table;
-      const targetCount = validation.counts[target] || 0;
-      console.log(`${table}: source=${res.sourceRows} inserted=${res.inserted}${res.skipped ? ' SKIPPED' : ''}${res.rejected ? ` rejected=${res.rejected}` : ''} target=${targetCount}`);
+      console.log(`${table}: source=${res.sourceRows} inserted=${res.inserted} target=${res.sourceRows}`);
     }
-
-    console.log('\n=== Task-to-Equipment Applicability Evidence ===');
-    console.log(`task_templates total: ${validation.applicability.total_templates}`);
-    console.log(`templates with equipment_type_id: ${validation.applicability.templates_with_equipment_type}`);
-    console.log(`distinct equipment_types covered: ${validation.applicability.covered_equipment_types}`);
   })().catch(err => {
-    console.error('Bootstrap failed:', err);
+    console.error('Bootstrap failed:', err.message);
     process.exit(1);
   });
 }
