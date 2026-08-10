@@ -656,7 +656,7 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    location.href = '/mobile/home';
+                    location.href = '/mobile/today';
                 } else {
                     alert('Error: ' + (result.message || 'Setup failed'));
                     if (btn) {

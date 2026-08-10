@@ -137,7 +137,7 @@ app.get('/inspection/:workOrderId', (req, res) => res.redirect(`/mobile/inspecti
 // Admin route protection middleware
 const requireAdminWeb = (req, res, next) => {
   if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'supervisor')) {
-    return res.redirect('/mobile/home');
+    return res.redirect('/mobile/today');
   }
   next();
 };
