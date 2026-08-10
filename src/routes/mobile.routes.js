@@ -5,15 +5,57 @@
 
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const qrLabelController = require('../controllers/qr-label.controller');
-const { Schedule, Finding } = require('../models');
+const { User, Schedule, Finding } = require('../models');
+const authConfig = require('../config/auth');
 
 // Middleware to check authentication
 const { authenticate, requireAdmin, requireSupervisor } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/rbac');
 
-// Use the actual authenticate middleware from auth.js
-const requireAuth = authenticate;
+// Mobile HTML auth wrapper.
+// Verifies the JWT cookie independently and redirects browser/HTML clients to /mobile/login
+// when unauthenticated. Mobile API routes (Accept: application/json or no HTML) still get 401 JSON.
+const requireAuth = async (req, res, next) => {
+  try {
+    const token = req.cookies?.[authConfig.cookie.name] ||
+                  req.headers.authorization?.replace('Bearer ', '');
+
+    if (!token) {
+      if (req.accepts('html')) {
+        return res.redirect('/mobile/login');
+      }
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    const decoded = jwt.verify(token, authConfig.jwt.secret);
+
+    const sql = `
+      SELECT u.*, o.organization_name, o.industry
+      FROM users u
+      LEFT JOIN organizations o ON u.organization_id = o.id
+      WHERE u.id = ?
+    `;
+    const [user] = await User.query(sql, [decoded.userId]);
+
+    if (!user || !user.is_active) {
+      if (req.accepts('html')) {
+        return res.redirect('/mobile/login');
+      }
+      return res.status(401).json({ success: false, message: 'User not found or inactive' });
+    }
+
+    req.user = user;
+    req.organization_id = user.organization_id;
+    next();
+  } catch (error) {
+    if (req.accepts('html')) {
+      return res.redirect('/mobile/login');
+    }
+    return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+  }
+};
 
 // Middleware to require admin or supervisor role for admin routes
 const requireAdminUI = (req, res, next) => {
