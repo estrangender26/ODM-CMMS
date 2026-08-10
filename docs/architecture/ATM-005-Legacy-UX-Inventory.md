@@ -31,7 +31,7 @@ Every screen/workflow is evaluated against:
 | **Role-aware** | Is the screen appropriate for a specific Atiman role? |
 | **Operator-first / mobile-first** | Can the primary user complete the task on a mobile device in the field? |
 | **Finding-centric** | Is the primary output a Finding rather than a Work Order? |
-| **Knowledge Before Transactions** | Is knowledge surfaced before operational data is created? |
+| **Knowledge Before Transactions** | Governed knowledge should guide operational work where available, but lack of matching knowledge must never block evidence capture or ad-hoc Finding creation. |
 | **Knowledge-in-context** | Is authoritative knowledge visible inline? |
 | **Contextual AI** | Could AI add value here without disrupting the task? |
 | **EAM boundary** | Does the screen avoid EAM planning, scheduling, inventory, or financial execution? |
