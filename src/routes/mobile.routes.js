@@ -12,8 +12,56 @@ const { Schedule, Finding } = require('../models');
 const { authenticate, requireAdmin, requireSupervisor } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/rbac');
 
-// Use the actual authenticate middleware from auth.js
-const requireAuth = authenticate;
+// Mobile HTML auth wrapper.
+// Reuses the existing authenticate middleware for all verification and user-loading logic.
+// Wraps Express response methods before invoking authenticate so that an unauthenticated
+// 401 JSON response can be converted into a redirect for HTML clients. Non-HTML clients
+// keep the original 401 JSON response from authenticate.
+const requireAuth = async (req, res, next) => {
+  let handled = false;
+  const originalSend = res.send.bind(res);
+  const originalJson = res.json.bind(res);
+  const originalRedirect = res.redirect.bind(res);
+
+  const handleUnauthenticated = () => {
+    if (handled) return;
+    handled = true;
+    if (req.accepts('html')) {
+      return originalRedirect('/mobile/login');
+    }
+    // Restore native response methods and emit the same JSON 401 authenticate would send.
+    res.send = originalSend;
+    res.json = originalJson;
+    return res.status(401).json({ success: false, message: 'Authentication required' });
+  };
+
+  res.send = (...args) => {
+    if (!handled && res.statusCode === 401) {
+      return handleUnauthenticated();
+    }
+    return originalSend(...args);
+  };
+
+  res.json = (...args) => {
+    if (!handled && res.statusCode === 401) {
+      return handleUnauthenticated();
+    }
+    return originalJson(...args);
+  };
+
+  try {
+    await authenticate(req, res, (err) => {
+      if (err) return next(err);
+      // authenticate succeeded; restore methods in case they were wrapped and proceed.
+      res.send = originalSend;
+      res.json = originalJson;
+      next();
+    });
+  } catch (error) {
+    // authenticate is async but catches its own errors; this guard is defensive.
+    next(error);
+  }
+};
 
 // Middleware to require admin or supervisor role for admin routes
 const requireAdminUI = (req, res, next) => {

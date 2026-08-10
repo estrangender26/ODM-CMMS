@@ -9,12 +9,19 @@ const http = require('http');
 const app = require('../src/app');
 const { pool } = require('../src/config/database');
 
-function request(baseUrl, path) {
+function request(baseUrl, path, options = {}) {
   return new Promise((resolve, reject) => {
-    http.get(baseUrl + path, (res) => {
+    const url = new URL(path, baseUrl);
+    const reqOptions = {
+      hostname: url.hostname,
+      port: url.port,
+      path: url.pathname + url.search,
+      headers: options.headers || {}
+    };
+    http.get(reqOptions, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve({ status: res.statusCode, data }));
+      res.on('end', () => resolve({ status: res.statusCode, data, headers: res.headers }));
     }).on('error', reject);
   });
 }
@@ -61,12 +68,23 @@ describe('ODM Workflow Validation', () => {
     { name: 'Knowledge Template Detail', url: '/mobile/templates/1' }
   ];
 
+  it('unauthenticated mobile HTML request should redirect to /mobile/login', async () => {
+    const result = await request(baseUrl, '/mobile/today', { headers: { 'Accept': 'text/html' } });
+    assert.strictEqual(result.status, 302, `Expected 302 but got ${result.status}`);
+    assert.ok(result.data.includes('/mobile/login') || result.headers?.location?.includes('/mobile/login'), 'Expected redirect to /mobile/login');
+  });
+
+  it('unauthenticated mobile API request should still return 401 JSON', async () => {
+    const result = await request(baseUrl, '/api/auth/profile');
+    assert.strictEqual(result.status, 401, `Expected 401 but got ${result.status}`);
+  });
+
   for (const route of uiRoutes) {
     it(`${route.name} should respond`, async () => {
       const result = await request(baseUrl, route.url);
       
       // Login page should return 200
-      // Auth-required routes may return 401 (unauthenticated JSON) or 302 (redirect)
+      // Auth-required routes may return 401 (unauthenticated JSON) or 302 (redirect to login)
       const isOk = result.status === 200 || result.status === 302 || result.status === 401 || result.status === 403;
       
       assert.ok(isOk, `Expected 200/302/401/403 but got ${result.status} for ${route.url}`);
