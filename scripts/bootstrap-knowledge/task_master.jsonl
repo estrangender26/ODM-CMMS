@@ -1,0 +1,5 @@
+[1, "SMP-DAILY-001", "Daily Pump Inspection", null, "inspection", 30, null, null, null, null, 1, null, "2026-03-17 04:49:51", "2026-03-30 03:26:22", 1]
+[2, "SMP-WEEKLY-001", "Weekly Motor Check", null, "maintenance", 60, null, null, null, null, 1, null, "2026-03-17 04:49:51", "2026-03-30 03:26:22", 1]
+[3, "SMP-MONTHLY-001", "Monthly HVAC Service", null, "maintenance", 120, null, null, null, null, 1, null, "2026-03-17 04:49:51", "2026-03-30 03:26:22", 1]
+[4, "SMP-DAILY-002", "Forklift Safety Check", null, "inspection", 15, null, null, null, null, 1, null, "2026-03-17 04:49:51", "2026-03-30 03:26:22", 1]
+[5, "SMP-WEEKLY-002", "Generator Test Run", null, "inspection", 45, null, null, null, null, 1, null, "2026-03-17 04:49:51", "2026-03-30 03:26:22", 1]
