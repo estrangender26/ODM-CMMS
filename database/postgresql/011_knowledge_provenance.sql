@@ -81,10 +81,21 @@ CREATE TABLE IF NOT EXISTS knowledge_source_versions (
     CONSTRAINT fk_knowledge_source_versions_source
         FOREIGN KEY (knowledge_source_id) REFERENCES knowledge_sources(id) ON DELETE CASCADE,
     CONSTRAINT fk_knowledge_source_versions_uploaded_file
-        FOREIGN KEY (uploaded_file_id) REFERENCES uploaded_files(id) ON DELETE SET NULL,
+        FOREIGN KEY (uploaded_file_id) REFERENCES uploaded_files(id) ON DELETE RESTRICT,
     CONSTRAINT fk_knowledge_source_versions_created_by_user
         FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL
 );
+
+-- ============================================================
+-- Ensure knowledge_source_versions.uploaded_file_id uses RESTRICT
+-- on existing deployments that may have been created with SET NULL.
+-- ============================================================
+ALTER TABLE knowledge_source_versions
+    DROP CONSTRAINT IF EXISTS fk_knowledge_source_versions_uploaded_file;
+
+ALTER TABLE knowledge_source_versions
+    ADD CONSTRAINT fk_knowledge_source_versions_uploaded_file
+    FOREIGN KEY (uploaded_file_id) REFERENCES uploaded_files(id) ON DELETE RESTRICT;
 
 -- ============================================================
 -- knowledge_template_evidence: editable working provenance
@@ -186,6 +197,142 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_template_version_evidence_template_vers
 CREATE INDEX IF NOT EXISTS idx_knowledge_template_version_evidence_step_version
     ON knowledge_template_version_evidence (task_template_step_version_id)
     WHERE task_template_step_version_id IS NOT NULL;
+
+
+
+-- ============================================================
+-- Freeze published provenance SET: INSERT only while parent version is unsealed
+-- ============================================================
+CREATE OR REPLACE FUNCTION provenance_version_insert_guard()
+RETURNS TRIGGER AS $$
+DECLARE
+    parent_sealed BOOLEAN;
+    parent_version_id INTEGER;
+BEGIN
+    IF NEW.task_template_version_id IS NOT NULL THEN
+        parent_version_id := NEW.task_template_version_id;
+    ELSE
+        SELECT task_template_version_id INTO parent_version_id
+        FROM task_template_step_versions
+        WHERE id = NEW.task_template_step_version_id;
+    END IF;
+
+    SELECT is_step_set_sealed INTO parent_sealed
+    FROM task_template_versions
+    WHERE id = parent_version_id;
+
+    IF parent_sealed THEN
+        RAISE EXCEPTION 'cannot insert knowledge_template_version_evidence for sealed task_template_version %', parent_version_id
+            USING ERRCODE = 'check_violation';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_knowledge_template_version_evidence_insert_guard
+    ON knowledge_template_version_evidence;
+
+CREATE TRIGGER trg_knowledge_template_version_evidence_insert_guard
+    BEFORE INSERT ON knowledge_template_version_evidence
+    FOR EACH ROW
+    EXECUTE FUNCTION provenance_version_insert_guard();
+
+-- ============================================================
+-- Tenant provenance scope: source organization must match template organization
+-- ============================================================
+CREATE OR REPLACE FUNCTION provenance_tenant_scope_check()
+RETURNS TRIGGER AS $$
+DECLARE
+    source_org_id INTEGER;
+    template_org_id INTEGER;
+BEGIN
+    SELECT s.organization_id INTO source_org_id
+    FROM knowledge_source_versions v
+    JOIN knowledge_sources s ON s.id = v.knowledge_source_id
+    WHERE v.id = NEW.knowledge_source_version_id;
+
+    -- Resolve the underlying task template organization based on the table.
+    IF TG_TABLE_NAME = 'knowledge_template_evidence' THEN
+        IF NEW.task_template_id IS NOT NULL THEN
+            SELECT organization_id INTO template_org_id
+            FROM task_templates
+            WHERE id = NEW.task_template_id;
+        ELSIF NEW.task_template_step_id IS NOT NULL THEN
+            SELECT t.organization_id INTO template_org_id
+            FROM task_template_steps s
+            JOIN task_templates t ON t.id = s.task_template_id
+            WHERE s.id = NEW.task_template_step_id;
+        END IF;
+    ELSIF TG_TABLE_NAME = 'knowledge_template_version_evidence' THEN
+        IF NEW.task_template_version_id IS NOT NULL THEN
+            SELECT t.organization_id INTO template_org_id
+            FROM task_template_versions tv
+            JOIN task_templates t ON t.id = tv.task_template_id
+            WHERE tv.id = NEW.task_template_version_id;
+        ELSIF NEW.task_template_step_version_id IS NOT NULL THEN
+            SELECT t.organization_id INTO template_org_id
+            FROM task_template_step_versions sv
+            JOIN task_template_versions tv ON tv.id = sv.task_template_version_id
+            JOIN task_templates t ON t.id = tv.task_template_id
+            WHERE sv.id = NEW.task_template_step_version_id;
+        END IF;
+    END IF;
+
+    -- Global source (NULL org) supports any template.
+    -- Tenant source must match the template's organization exactly.
+    IF source_org_id IS NOT NULL AND source_org_id IS DISTINCT FROM template_org_id THEN
+        RAISE EXCEPTION 'knowledge_source_version % tenant scope does not match task organization', NEW.knowledge_source_version_id
+            USING ERRCODE = 'check_violation';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_knowledge_template_evidence_tenant_scope
+    ON knowledge_template_evidence;
+DROP TRIGGER IF EXISTS trg_knowledge_template_version_evidence_tenant_scope
+    ON knowledge_template_version_evidence;
+
+CREATE TRIGGER trg_knowledge_template_evidence_tenant_scope
+    BEFORE INSERT OR UPDATE ON knowledge_template_evidence
+    FOR EACH ROW
+    EXECUTE FUNCTION provenance_tenant_scope_check();
+
+CREATE TRIGGER trg_knowledge_template_version_evidence_tenant_scope
+    BEFORE INSERT ON knowledge_template_version_evidence
+    FOR EACH ROW
+    EXECUTE FUNCTION provenance_tenant_scope_check();
+
+-- ============================================================
+-- Source organization scope lock: once a source has versions, its
+-- organization_id may not change to another scope.
+-- ============================================================
+CREATE OR REPLACE FUNCTION knowledge_source_scope_lock_check()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.organization_id IS DISTINCT FROM NEW.organization_id THEN
+        IF EXISTS (
+            SELECT 1 FROM knowledge_source_versions
+            WHERE knowledge_source_id = OLD.id
+        ) THEN
+            RAISE EXCEPTION 'knowledge_source % organization_id cannot change after source versions exist', OLD.id
+                USING ERRCODE = 'check_violation';
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_knowledge_sources_scope_lock
+    ON knowledge_sources;
+
+CREATE TRIGGER trg_knowledge_sources_scope_lock
+    BEFORE UPDATE ON knowledge_sources
+    FOR EACH ROW
+    EXECUTE FUNCTION knowledge_source_scope_lock_check();
 
 -- ============================================================
 -- Immutability: knowledge_source_versions must not be updated or deleted

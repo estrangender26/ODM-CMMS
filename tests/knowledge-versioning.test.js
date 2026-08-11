@@ -1636,16 +1636,17 @@ describe('Knowledge Versioning Foundation', () => {
         RETURNING id
       `, [templateVersion.id, step.id]);
 
-      await conn.query(`
-        UPDATE task_template_versions SET is_step_set_sealed = TRUE WHERE id = $1
-      `, [templateVersion.id]);
-
+      // Frozen evidence must be inserted while the parent version is still unsealed.
       const [frozenEvidence] = await conn.query(`
         INSERT INTO knowledge_template_version_evidence (
           task_template_version_id, knowledge_source_version_id, confidence_level, supporting_role
         ) VALUES ($1, $2, 'established', 'primary')
         RETURNING id
       `, [templateVersion.id, version.id]);
+
+      await conn.query(`
+        UPDATE task_template_versions SET is_step_set_sealed = TRUE WHERE id = $1
+      `, [templateVersion.id]);
 
       // Frozen evidence must not be updated.
       let blockedUpdate = false;
@@ -1672,6 +1673,338 @@ describe('Knowledge Versioning Foundation', () => {
         await conn.query('ROLLBACK TO SAVEPOINT frozen_evidence_delete');
       }
       assert.ok(blockedDelete, 'DELETE of frozen version evidence should be blocked');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+
+
+  it('allows frozen evidence INSERT before seal and blocks after seal', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id, organization_id FROM task_templates LIMIT 1`);
+      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+
+      const [source] = await conn.query(`
+        INSERT INTO knowledge_sources (source_code, source_category, default_title, organization_id)
+        VALUES ('frozen-seal-source', 'manufacturer_manual', 'Frozen Seal Source', $1)
+        RETURNING id
+      `, [template.organization_id]);
+
+      const [version] = await conn.query(`
+        INSERT INTO knowledge_source_versions (knowledge_source_id, version_designation, title)
+        VALUES ($1, 'Rev 1', 'Frozen Seal Rev 1')
+        RETURNING id
+      `, [source.id]);
+
+      const [templateVersion] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish, is_step_set_sealed
+        )
+        VALUES ($1, 1, $2, 'Frozen Seal Template', 'preventive', 'published', FALSE)
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      // Insert frozen template-version evidence while unsealed must succeed.
+      await conn.query(`
+        INSERT INTO knowledge_template_version_evidence (
+          task_template_version_id, knowledge_source_version_id, confidence_level, supporting_role
+        ) VALUES ($1, $2, 'established', 'primary')
+      `, [templateVersion.id, version.id]);
+
+      const [stepVersion] = await conn.query(`
+        INSERT INTO task_template_step_versions (
+          task_template_version_id, step_no, task_template_step_id, step_type, instruction
+        )
+        VALUES ($1, 1, $2, 'instruction', 'Frozen seal step')
+        RETURNING id
+      `, [templateVersion.id, step.id]);
+
+      // Insert frozen step-version evidence while unsealed must succeed.
+      await conn.query(`
+        INSERT INTO knowledge_template_version_evidence (
+          task_template_step_version_id, knowledge_source_version_id, confidence_level, supporting_role
+        ) VALUES ($1, $2, 'established', 'supporting')
+      `, [stepVersion.id, version.id]);
+
+      // Seal the version.
+      await conn.query(`
+        UPDATE task_template_versions SET is_step_set_sealed = TRUE WHERE id = $1
+      `, [templateVersion.id]);
+
+      // After seal, INSERT into frozen evidence must fail.
+      let blockedTemplate = false;
+      await conn.query('SAVEPOINT frozen_insert_after_seal_template');
+      try {
+        await conn.query(`
+          INSERT INTO knowledge_template_version_evidence (
+            task_template_version_id, knowledge_source_version_id, confidence_level, supporting_role
+          ) VALUES ($1, $2, 'provisional', 'supporting')
+        `, [templateVersion.id, version.id]);
+      } catch (err) {
+        blockedTemplate = /cannot insert.*sealed|check_violation/i.test(err.message || '');
+        await conn.query('ROLLBACK TO SAVEPOINT frozen_insert_after_seal_template');
+      }
+      assert.ok(blockedTemplate, 'INSERT into frozen template-version evidence after seal should fail');
+
+      let blockedStep = false;
+      await conn.query('SAVEPOINT frozen_insert_after_seal_step');
+      try {
+        await conn.query(`
+          INSERT INTO knowledge_template_version_evidence (
+            task_template_step_version_id, knowledge_source_version_id, confidence_level, supporting_role
+          ) VALUES ($1, $2, 'provisional', 'supporting')
+        `, [stepVersion.id, version.id]);
+      } catch (err) {
+        blockedStep = /cannot insert.*sealed|check_violation/i.test(err.message || '');
+        await conn.query('ROLLBACK TO SAVEPOINT frozen_insert_after_seal_step');
+      }
+      assert.ok(blockedStep, 'INSERT into frozen step-version evidence after seal should fail');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('allows global source to support tenant template', async () => {
+    const conn = await getConnection();
+    try {
+      const [org] = await conn.query(`SELECT id FROM organizations ORDER BY id LIMIT 1`);
+      assert.ok(org, 'Need an organization');
+      const [baseTemplate] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+
+      const [template] = await conn.query(`
+        INSERT INTO task_templates (
+          equipment_type_id, template_name, maintenance_type, task_kind, organization_id, created_by
+        )
+        VALUES ($1, 'Global Source Tenant Template', 'preventive', 'inspection', $2, NULL)
+        RETURNING id, organization_id, equipment_type_id
+      `, [baseTemplate.equipment_type_id, org.id]);
+
+      const [globalSource] = await conn.query(`
+        INSERT INTO knowledge_sources (source_code, source_category, default_title, organization_id)
+        VALUES ('global-scope-source', 'engineering_standard', 'Global Scope Source', NULL)
+        RETURNING id
+      `);
+
+      const [globalVersion] = await conn.query(`
+        INSERT INTO knowledge_source_versions (knowledge_source_id, version_designation, title)
+        VALUES ($1, '1.0', 'Global Scope Version')
+        RETURNING id
+      `, [globalSource.id]);
+
+      const [evidence] = await conn.query(`
+        INSERT INTO knowledge_template_evidence (
+          task_template_id, knowledge_source_version_id, confidence_level, supporting_role
+        ) VALUES ($1, $2, 'established', 'primary')
+        RETURNING id
+      `, [template.id, globalVersion.id]);
+
+      assert.ok(evidence.id > 0);
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('rejects cross-tenant source association', async () => {
+    const conn = await getConnection();
+    try {
+      const [orgA] = await conn.query(`SELECT id FROM organizations ORDER BY id LIMIT 1`);
+      const [orgB] = await conn.query(`SELECT id FROM organizations ORDER BY id OFFSET 1 LIMIT 1`);
+      assert.ok(orgA && orgB, 'Need two organizations');
+      const [baseTemplate] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+
+      const [templateA] = await conn.query(`
+        INSERT INTO task_templates (
+          equipment_type_id, template_name, maintenance_type, task_kind, organization_id, created_by
+        )
+        VALUES ($1, 'Tenant A Template', 'preventive', 'inspection', $2, NULL)
+        RETURNING id, organization_id, equipment_type_id
+      `, [baseTemplate.equipment_type_id, orgA.id]);
+
+      const [templateB] = await conn.query(`
+        INSERT INTO task_templates (
+          equipment_type_id, template_name, maintenance_type, task_kind, organization_id, created_by
+        )
+        VALUES ($1, 'Tenant B Template', 'preventive', 'inspection', $2, NULL)
+        RETURNING id, organization_id
+      `, [baseTemplate.equipment_type_id, orgB.id]);
+
+      const [tenantSource] = await conn.query(`
+        INSERT INTO knowledge_sources (source_code, source_category, default_title, organization_id)
+        VALUES ('tenant-a-source', 'manufacturer_manual', 'Tenant A Source', $1)
+        RETURNING id
+      `, [templateA.organization_id]);
+
+      const [tenantVersion] = await conn.query(`
+        INSERT INTO knowledge_source_versions (knowledge_source_id, version_designation, title)
+        VALUES ($1, '1.0', 'Tenant A Version')
+        RETURNING id
+      `, [tenantSource.id]);
+
+      let blocked = false;
+      await conn.query('SAVEPOINT cross_tenant_source');
+      try {
+        await conn.query(`
+          INSERT INTO knowledge_template_evidence (
+            task_template_id, knowledge_source_version_id, confidence_level, supporting_role
+          ) VALUES ($1, $2, 'established', 'primary')
+        `, [templateB.id, tenantVersion.id]);
+      } catch (err) {
+        blocked = /tenant scope does not match|check_violation/i.test(err.message || '');
+        await conn.query('ROLLBACK TO SAVEPOINT cross_tenant_source');
+      }
+      assert.ok(blocked, 'Cross-tenant source association should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('rejects tenant source supporting global template', async () => {
+    const conn = await getConnection();
+    try {
+      const [baseTemplate] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+
+      const [globalTemplate] = await conn.query(`
+        INSERT INTO task_templates (
+          equipment_type_id, template_name, maintenance_type, task_kind, organization_id, created_by
+        )
+        VALUES ($1, 'Global Template For Tenant Source', 'preventive', 'inspection', NULL, NULL)
+        RETURNING id, organization_id
+      `, [baseTemplate.equipment_type_id]);
+      assert.ok(globalTemplate, 'Need a global task_template');
+
+      const [org] = await conn.query(`SELECT id FROM organizations ORDER BY id LIMIT 1`);
+      assert.ok(org, 'Need an organization for the source');
+
+      const [tenantSource] = await conn.query(`
+        INSERT INTO knowledge_sources (source_code, source_category, default_title, organization_id)
+        VALUES ('tenant-global-source', 'manufacturer_manual', 'Tenant Global Source', $1)
+        RETURNING id
+      `, [org.id]);
+
+      const [tenantVersion] = await conn.query(`
+        INSERT INTO knowledge_source_versions (knowledge_source_id, version_designation, title)
+        VALUES ($1, '1.0', 'Tenant Global Version')
+        RETURNING id
+      `, [tenantSource.id]);
+
+      let blocked = false;
+      await conn.query('SAVEPOINT tenant_to_global');
+      try {
+        await conn.query(`
+          INSERT INTO knowledge_template_evidence (
+            task_template_id, knowledge_source_version_id, confidence_level, supporting_role
+          ) VALUES ($1, $2, 'established', 'primary')
+        `, [globalTemplate.id, tenantVersion.id]);
+      } catch (err) {
+        blocked = /tenant scope does not match|check_violation/i.test(err.message || '');
+        await conn.query('ROLLBACK TO SAVEPOINT tenant_to_global');
+      }
+      assert.ok(blocked, 'Tenant source supporting global template should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('blocks source organization change after source versions exist', async () => {
+    const conn = await getConnection();
+    try {
+      const [org] = await conn.query(`SELECT id FROM organizations ORDER BY id LIMIT 1`);
+      assert.ok(org, 'Need an organization for the source');
+
+      const [source] = await conn.query(`
+        INSERT INTO knowledge_sources (source_code, source_category, default_title, organization_id)
+        VALUES ('scope-lock-source', 'manufacturer_manual', 'Scope Lock Source', $1)
+        RETURNING id
+      `, [org.id]);
+
+      // Create a version to lock the scope.
+      await conn.query(`
+        INSERT INTO knowledge_source_versions (knowledge_source_id, version_designation, title)
+        VALUES ($1, '1.0', 'Scope Lock Version')
+      `, [source.id]);
+
+      let blocked = false;
+      await conn.query('SAVEPOINT source_scope_change');
+      try {
+        await conn.query(`
+          UPDATE knowledge_sources SET organization_id = NULL WHERE id = $1
+        `, [source.id]);
+      } catch (err) {
+        blocked = /cannot change after source versions exist|check_violation/i.test(err.message || '');
+        await conn.query('ROLLBACK TO SAVEPOINT source_scope_change');
+      }
+      assert.ok(blocked, 'Changing source organization_id after versions exist should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('blocks deleting uploaded_file referenced by knowledge_source_versions', async () => {
+    const conn = await getConnection();
+    try {
+      const [org] = await conn.query(`SELECT id FROM organizations ORDER BY id LIMIT 1`);
+      assert.ok(org, 'Need an organization for source and uploaded file');
+
+      const [file] = await conn.query(`
+        INSERT INTO uploaded_files (organization_id, file_name, original_name, file_path)
+        VALUES ($1, 'provenance-ref.pdf', 'provenance-ref.pdf', '/uploads/provenance-ref.pdf')
+        RETURNING id
+      `, [org.id]);
+
+      const [source] = await conn.query(`
+        INSERT INTO knowledge_sources (source_code, source_category, default_title, organization_id)
+        VALUES ('file-ref-source', 'manufacturer_manual', 'File Ref Source', $1)
+        RETURNING id
+      `, [org.id]);
+
+      await conn.query(`
+        INSERT INTO knowledge_source_versions (
+          knowledge_source_id, version_designation, title, uploaded_file_id
+        ) VALUES ($1, '1.0', 'File Ref Version', $2)
+      `, [source.id, file.id]);
+
+      let blocked = false;
+      await conn.query('SAVEPOINT delete_referenced_file');
+      try {
+        await conn.query(`DELETE FROM uploaded_files WHERE id = $1`, [file.id]);
+      } catch (err) {
+        blocked = /foreign key|references|restrict/i.test(err.message || '');
+        await conn.query('ROLLBACK TO SAVEPOINT delete_referenced_file');
+      }
+      assert.ok(blocked, 'Deleting uploaded_file referenced by knowledge_source_versions should be blocked');
 
       await conn.rollback();
     } catch (err) {
