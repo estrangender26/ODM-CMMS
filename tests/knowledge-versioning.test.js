@@ -15,7 +15,7 @@ async function query(sql, params = []) {
 
 const isForbiddenError = (err) => {
   const msg = (err.message || '').toLowerCase();
-  return msg.includes('immutable') || msg.includes('cannot be') || msg.includes('insufficient privilege');
+  return msg.includes('immutable') || msg.includes('cannot be') || msg.includes('insufficient privilege') || msg.includes('cannot be deleted');
 };
 
 const isUpdateForbiddenError = (err) => {
@@ -1365,5 +1365,322 @@ describe('Knowledge Versioning Foundation', () => {
       conn.release();
     }
   });
+
+
+  it('creates required knowledge provenance tables', async () => {
+    const tables = await query(`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name IN (
+          'knowledge_sources',
+          'knowledge_source_versions',
+          'knowledge_template_evidence',
+          'knowledge_template_version_evidence'
+        )
+      ORDER BY table_name
+    `);
+    const names = tables.map(t => t.table_name);
+    assert.ok(names.includes('knowledge_sources'));
+    assert.ok(names.includes('knowledge_source_versions'));
+    assert.ok(names.includes('knowledge_template_evidence'));
+    assert.ok(names.includes('knowledge_template_version_evidence'));
+  });
+
+  it('enforces tenant/global scoped uniqueness on knowledge_sources', async () => {
+    const conn = await getConnection();
+    try {
+      // Global source with NULL organization_id
+      const [global1] = await conn.query(`
+        INSERT INTO knowledge_sources (source_code, source_category, default_title)
+        VALUES ('global-manual', 'manufacturer_manual', 'Global Manual')
+        RETURNING id
+      `);
+      assert.ok(global1.id > 0);
+
+      // Same code from the same (NULL) scope must fail.
+      let blocked = false;
+      await conn.query('SAVEPOINT source_dup_global');
+      try {
+        await conn.query(`
+          INSERT INTO knowledge_sources (source_code, source_category, default_title)
+          VALUES ('global-manual', 'engineering_standard', 'Another Global Manual')
+        `);
+      } catch (err) {
+        blocked = /unique|duplicate|violates/i.test(err.message || '');
+        await conn.query('ROLLBACK TO SAVEPOINT source_dup_global');
+      }
+      assert.ok(blocked, 'Duplicate global source_code should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('enforces exact version uniqueness on knowledge_source_versions', async () => {
+    const conn = await getConnection();
+    try {
+      const [source] = await conn.query(`
+        INSERT INTO knowledge_sources (source_code, source_category, default_title)
+        VALUES ('versioned-std', 'engineering_standard', 'Versioned Standard')
+        RETURNING id
+      `);
+
+      const [v1] = await conn.query(`
+        INSERT INTO knowledge_source_versions (knowledge_source_id, version_designation, title)
+        VALUES ($1, '2023 Edition', 'Versioned Standard 2023')
+        RETURNING id
+      `, [source.id]);
+      assert.ok(v1.id > 0);
+
+      let blocked = false;
+      await conn.query('SAVEPOINT source_version_dup');
+      try {
+        await conn.query(`
+          INSERT INTO knowledge_source_versions (knowledge_source_id, version_designation, title)
+          VALUES ($1, '2023 Edition', 'Duplicate Version')
+        `, [source.id]);
+      } catch (err) {
+        blocked = /unique|duplicate|violates/i.test(err.message || '');
+        await conn.query('ROLLBACK TO SAVEPOINT source_version_dup');
+      }
+      assert.ok(blocked, 'Duplicate source version_designation should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('blocks UPDATE of knowledge_source_versions', async () => {
+    const conn = await getConnection();
+    try {
+      const [source] = await conn.query(`
+        INSERT INTO knowledge_sources (source_code, source_category, default_title)
+        VALUES ('immutable-source', 'manufacturer_manual', 'Immutable Source')
+        RETURNING id
+      `);
+
+      const [version] = await conn.query(`
+        INSERT INTO knowledge_source_versions (knowledge_source_id, version_designation, title)
+        VALUES ($1, 'Rev A', 'Immutable Rev A')
+        RETURNING id
+      `, [source.id]);
+
+      let blocked = false;
+      await conn.query('SAVEPOINT source_version_update');
+      try {
+        await conn.query(`
+          UPDATE knowledge_source_versions SET title = 'Tampered' WHERE id = $1
+        `, [version.id]);
+      } catch (err) {
+        blocked = isForbiddenError(err);
+        await conn.query('ROLLBACK TO SAVEPOINT source_version_update');
+      }
+      assert.ok(blocked, 'UPDATE of knowledge_source_versions should be blocked');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('blocks DELETE of referenced knowledge_source_versions', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const [source] = await conn.query(`
+        INSERT INTO knowledge_sources (source_code, source_category, default_title)
+        VALUES ('referenced-source', 'manufacturer_manual', 'Referenced Source')
+        RETURNING id
+      `);
+      const [version] = await conn.query(`
+        INSERT INTO knowledge_source_versions (knowledge_source_id, version_designation, title)
+        VALUES ($1, 'Rev 1', 'Referenced Rev 1')
+        RETURNING id
+      `, [source.id]);
+
+      await conn.query(`
+        INSERT INTO knowledge_template_evidence (
+          task_template_id, knowledge_source_version_id, confidence_level, supporting_role
+        ) VALUES ($1, $2, 'established', 'primary')
+      `, [template.id, version.id]);
+
+      let blocked = false;
+      await conn.query('SAVEPOINT source_version_delete');
+      try {
+        await conn.query(`DELETE FROM knowledge_source_versions WHERE id = $1`, [version.id]);
+      } catch (err) {
+        blocked = isForbiddenError(err) || /referenced by evidence|foreign key/i.test(err.message || '');
+        await conn.query('ROLLBACK TO SAVEPOINT source_version_delete');
+      }
+      assert.ok(blocked, 'DELETE of referenced knowledge_source_versions should be blocked');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('enforces exactly-one subject on knowledge_template_evidence', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      const [source] = await conn.query(`
+        INSERT INTO knowledge_sources (source_code, source_category, default_title)
+        VALUES ('exactly-one-source', 'engineering_standard', 'Exactly One Source')
+        RETURNING id
+      `);
+      const [version] = await conn.query(`
+        INSERT INTO knowledge_source_versions (knowledge_source_id, version_designation, title)
+        VALUES ($1, '1.0', 'Exactly One Version')
+        RETURNING id
+      `, [source.id]);
+
+      let blockedBoth = false;
+      await conn.query('SAVEPOINT evidence_both_subjects');
+      try {
+        await conn.query(`
+          INSERT INTO knowledge_template_evidence (
+            task_template_id, task_template_step_id, knowledge_source_version_id
+          ) VALUES ($1, $2, $3)
+        `, [template.id, step.id, version.id]);
+      } catch (err) {
+        blockedBoth = /check.*constraint|violates check constraint/i.test(err.message || '');
+        await conn.query('ROLLBACK TO SAVEPOINT evidence_both_subjects');
+      }
+      assert.ok(blockedBoth, 'Evidence linking both template and step should be rejected');
+
+      let blockedNeither = false;
+      await conn.query('SAVEPOINT evidence_neither_subject');
+      try {
+        await conn.query(`
+          INSERT INTO knowledge_template_evidence (
+            task_template_id, task_template_step_id, knowledge_source_version_id
+          ) VALUES (NULL, NULL, $1)
+        `, [version.id]);
+      } catch (err) {
+        blockedNeither = /check.*constraint|violates check constraint|null value in column/i.test(err.message || '');
+        await conn.query('ROLLBACK TO SAVEPOINT evidence_neither_subject');
+      }
+      assert.ok(blockedNeither, 'Evidence with no subject should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('allows UPDATE of knowledge_template_evidence and blocks UPDATE of frozen version evidence', async () => {
+    const conn = await getConnection();
+    try {
+      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      const [source] = await conn.query(`
+        INSERT INTO knowledge_sources (source_code, source_category, default_title)
+        VALUES ('frozen-ev-source', 'manufacturer_manual', 'Frozen Evidence Source')
+        RETURNING id
+      `);
+      const [version] = await conn.query(`
+        INSERT INTO knowledge_source_versions (knowledge_source_id, version_designation, title)
+        VALUES ($1, 'Rev 1', 'Frozen Evidence Rev 1')
+        RETURNING id
+      `, [source.id]);
+
+      const [evidence] = await conn.query(`
+        INSERT INTO knowledge_template_evidence (
+          task_template_id, knowledge_source_version_id, confidence_level, supporting_role
+        ) VALUES ($1, $2, 'provisional', 'supporting')
+        RETURNING id
+      `, [template.id, version.id]);
+
+      // Working evidence is editable.
+      await conn.query(`
+        UPDATE knowledge_template_evidence
+        SET derivation_notes = 'Updated working note'
+        WHERE id = $1
+      `, [evidence.id]);
+
+      // Create a published template version with one step version so we can attach frozen evidence.
+      const [templateVersion] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id,
+          template_name, maintenance_type, lifecycle_state_at_publish, is_step_set_sealed
+        )
+        VALUES ($1, 1, $2, 'Frozen Evidence Template', 'preventive', 'published', FALSE)
+        RETURNING id
+      `, [template.id, template.equipment_type_id]);
+
+      const [stepVersion] = await conn.query(`
+        INSERT INTO task_template_step_versions (
+          task_template_version_id, step_no, task_template_step_id, step_type, instruction
+        )
+        VALUES ($1, 1, $2, 'instruction', 'Frozen evidence step')
+        RETURNING id
+      `, [templateVersion.id, step.id]);
+
+      await conn.query(`
+        UPDATE task_template_versions SET is_step_set_sealed = TRUE WHERE id = $1
+      `, [templateVersion.id]);
+
+      const [frozenEvidence] = await conn.query(`
+        INSERT INTO knowledge_template_version_evidence (
+          task_template_version_id, knowledge_source_version_id, confidence_level, supporting_role
+        ) VALUES ($1, $2, 'established', 'primary')
+        RETURNING id
+      `, [templateVersion.id, version.id]);
+
+      // Frozen evidence must not be updated.
+      let blockedUpdate = false;
+      await conn.query('SAVEPOINT frozen_evidence_update');
+      try {
+        await conn.query(`
+          UPDATE knowledge_template_version_evidence
+          SET derivation_notes = 'Tampered'
+          WHERE id = $1
+        `, [frozenEvidence.id]);
+      } catch (err) {
+        blockedUpdate = isForbiddenError(err);
+        await conn.query('ROLLBACK TO SAVEPOINT frozen_evidence_update');
+      }
+      assert.ok(blockedUpdate, 'UPDATE of frozen version evidence should be blocked');
+
+      // Frozen evidence must not be deleted.
+      let blockedDelete = false;
+      await conn.query('SAVEPOINT frozen_evidence_delete');
+      try {
+        await conn.query(`DELETE FROM knowledge_template_version_evidence WHERE id = $1`, [frozenEvidence.id]);
+      } catch (err) {
+        blockedDelete = isForbiddenError(err);
+        await conn.query('ROLLBACK TO SAVEPOINT frozen_evidence_delete');
+      }
+      assert.ok(blockedDelete, 'DELETE of frozen version evidence should be blocked');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
 
 });
