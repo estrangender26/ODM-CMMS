@@ -4,13 +4,30 @@
  * defined in ATM-013E.
  */
 
-const { describe, it } = require('node:test');
+const { describe, it, before, afterEach } = require('node:test');
 const assert = require('node:assert');
 const { getConnection, pool } = require('../src/config/database');
+const taskTemplateController = require('../src/controllers/task-template.controller');
 
 async function query(sql, params = []) {
   const [rows] = await pool.query(sql, params);
   return rows;
+}
+
+async function ensureTestUser(conn) {
+  const [user] = await conn.query(`
+    INSERT INTO users (username, email, password_hash, full_name, role, is_active)
+    VALUES (
+      'pub-user-' || floor(random() * 1000000000)::int::text,
+      'pub-user-' || floor(random() * 1000000000)::int::text || '@test.local',
+      'hash',
+      'Test Publisher',
+      'admin',
+      true
+    )
+    RETURNING id
+  `);
+  return user;
 }
 
 const isForbiddenError = (err) => {
@@ -63,7 +80,7 @@ async function createTestTemplate(conn) {
     VALUES ($1, 'TT' || floor(random() * 1000000000)::int::text, 'Test Template', 'corrective')
     RETURNING id, equipment_type_id
   `, [type.id]);
-  return template;
+  return { ...template, _categoryId: category.id, _classId: cls.id, _typeId: type.id };
 }
 
 const isAncestryError = (err) => {
@@ -160,7 +177,7 @@ describe('Knowledge Versioning Foundation', () => {
   it('task_template_versions only accepts post-publication lifecycle states', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const template = await createTestTemplate(conn);
       assert.ok(template, 'Need at least one task_templates row');
 
       // published is valid
@@ -215,8 +232,12 @@ describe('Knowledge Versioning Foundation', () => {
       `, [packId]);
       const packVersionId = packVersionRow.id;
 
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
-      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      const template = await createTestTemplate(conn);
+      const [step] = await conn.query(`
+        INSERT INTO task_template_steps (task_template_id, step_no, step_type, instruction)
+        VALUES ($1, 1, 'instruction', 'Chain step')
+        RETURNING id
+      `, [template.id]);
 
       assert.ok(template, 'Need at least one task_templates row');
       assert.ok(step, 'Need at least one task_template_steps row for that template');
@@ -320,7 +341,7 @@ describe('Knowledge Versioning Foundation', () => {
   it('allows only supersession/retirement metadata transitions on published task_template_versions', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const template = await createTestTemplate(conn);
 
       const [templateVersionV1] = await conn.query(`
         INSERT INTO task_template_versions (
@@ -395,7 +416,7 @@ describe('Knowledge Versioning Foundation', () => {
       }
       assert.ok(packBlocked, 'Self-supersession of pack version should be rejected');
 
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const template = await createTestTemplate(conn);
       const [templateVersion] = await conn.query(`
         INSERT INTO task_template_versions (
           task_template_id, version_number, equipment_type_id,
@@ -494,11 +515,8 @@ describe('Knowledge Versioning Foundation', () => {
   it('requires task-template-version supersession to stay within the same task template', async () => {
     const conn = await getConnection();
     try {
-      const [templateA] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
-      const [templateB] = await conn.query(`
-        SELECT id, equipment_type_id FROM task_templates
-        WHERE id != $1 LIMIT 1
-      `, [templateA.id]);
+      const templateA = await createTestTemplate(conn);
+      const templateB = await createTestTemplate(conn);
       assert.ok(templateB, 'Need at least two distinct task_templates rows');
 
       const [versionA1] = await conn.query(`
@@ -562,7 +580,7 @@ describe('Knowledge Versioning Foundation', () => {
   it('blocks UPDATE of task_template_step_versions', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const template = await createTestTemplate(conn);
       const [templateVersion] = await conn.query(`
         INSERT INTO task_template_versions (
           task_template_id, version_number, equipment_type_id,
@@ -572,7 +590,11 @@ describe('Knowledge Versioning Foundation', () => {
         RETURNING id
       `, [template.id, template.equipment_type_id]);
 
-      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      const [step] = await conn.query(`
+        INSERT INTO task_template_steps (task_template_id, step_no, step_type, instruction)
+        VALUES ($1, 1, 'instruction', 'Test step')
+        RETURNING id
+      `, [template.id]);
       const [stepVersion] = await conn.query(`
         INSERT INTO task_template_step_versions (
           task_template_version_id, step_no, task_template_step_id, step_type, instruction
@@ -601,7 +623,7 @@ describe('Knowledge Versioning Foundation', () => {
   it('blocks DELETE of task_template_step_versions', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const template = await createTestTemplate(conn);
       const [templateVersion] = await conn.query(`
         INSERT INTO task_template_versions (
           task_template_id, version_number, equipment_type_id,
@@ -611,7 +633,11 @@ describe('Knowledge Versioning Foundation', () => {
         RETURNING id
       `, [template.id, template.equipment_type_id]);
 
-      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      const [step] = await conn.query(`
+        INSERT INTO task_template_steps (task_template_id, step_no, step_type, instruction)
+        VALUES ($1, 1, 'instruction', 'Test step')
+        RETURNING id
+      `, [template.id]);
       const [stepVersion] = await conn.query(`
         INSERT INTO task_template_step_versions (
           task_template_version_id, step_no, task_template_step_id, step_type, instruction
@@ -639,7 +665,7 @@ describe('Knowledge Versioning Foundation', () => {
   it('seals published template step sets and blocks later step changes', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const template = await createTestTemplate(conn);
       const [templateVersion] = await conn.query(`
         INSERT INTO task_template_versions (
           task_template_id, version_number, equipment_type_id,
@@ -649,7 +675,11 @@ describe('Knowledge Versioning Foundation', () => {
         RETURNING id
       `, [template.id, template.equipment_type_id]);
 
-      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      const [step] = await conn.query(`
+        INSERT INTO task_template_steps (task_template_id, step_no, step_type, instruction)
+        VALUES ($1, 1, 'instruction', 'Test step')
+        RETURNING id
+      `, [template.id]);
 
       const [stepVersion] = await conn.query(`
         INSERT INTO task_template_step_versions (
@@ -714,7 +744,7 @@ describe('Knowledge Versioning Foundation', () => {
   it('allows step set assembly before sealing', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const template = await createTestTemplate(conn);
       const [templateVersion] = await conn.query(`
         INSERT INTO task_template_versions (
           task_template_id, version_number, equipment_type_id,
@@ -724,7 +754,11 @@ describe('Knowledge Versioning Foundation', () => {
         RETURNING id
       `, [template.id, template.equipment_type_id]);
 
-      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      const [step] = await conn.query(`
+        INSERT INTO task_template_steps (task_template_id, step_no, step_type, instruction)
+        VALUES ($1, 1, 'instruction', 'Test step')
+        RETURNING id
+      `, [template.id]);
 
       const [stepVersion] = await conn.query(`
         INSERT INTO task_template_step_versions (
@@ -752,7 +786,7 @@ describe('Knowledge Versioning Foundation', () => {
   it('requires successor to be a valid published version', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const template = await createTestTemplate(conn);
 
       const [v1] = await conn.query(`
         INSERT INTO task_template_versions (
@@ -837,7 +871,7 @@ describe('Knowledge Versioning Foundation', () => {
   it('rejects unsealing a sealed task_template_version', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const template = await createTestTemplate(conn);
       const [version] = await conn.query(`
         INSERT INTO task_template_versions (
           task_template_id, version_number, equipment_type_id,
@@ -847,7 +881,11 @@ describe('Knowledge Versioning Foundation', () => {
         RETURNING id
       `, [template.id, template.equipment_type_id]);
 
-      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      const [step] = await conn.query(`
+        INSERT INTO task_template_steps (task_template_id, step_no, step_type, instruction)
+        VALUES ($1, 1, 'instruction', 'Test step')
+        RETURNING id
+      `, [template.id]);
       await conn.query(`
         INSERT INTO task_template_step_versions (
           task_template_version_id, step_no, task_template_step_id, step_type, instruction
@@ -883,7 +921,7 @@ describe('Knowledge Versioning Foundation', () => {
   it('rejects sealing a task_template_version with zero steps', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const template = await createTestTemplate(conn);
       const [version] = await conn.query(`
         INSERT INTO task_template_versions (
           task_template_id, version_number, equipment_type_id,
@@ -917,7 +955,7 @@ describe('Knowledge Versioning Foundation', () => {
   it('rejects committing a published task_template_version with an unsealed step set', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const template = await createTestTemplate(conn);
       await conn.query(`
         INSERT INTO task_template_versions (
           task_template_id, version_number, equipment_type_id,
@@ -947,7 +985,7 @@ describe('Knowledge Versioning Foundation', () => {
   it('allows assemble -> seal -> commit for a task_template_version', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const template = await createTestTemplate(conn);
       const [version] = await conn.query(`
         INSERT INTO task_template_versions (
           task_template_id, version_number, equipment_type_id,
@@ -957,7 +995,11 @@ describe('Knowledge Versioning Foundation', () => {
         RETURNING id
       `, [template.id, template.equipment_type_id]);
 
-      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      const [step] = await conn.query(`
+        INSERT INTO task_template_steps (task_template_id, step_no, step_type, instruction)
+        VALUES ($1, 1, 'instruction', 'Test step')
+        RETURNING id
+      `, [template.id]);
       await conn.query(`
         INSERT INTO task_template_step_versions (
           task_template_version_id, step_no, task_template_step_id, step_type, instruction
@@ -991,7 +1033,7 @@ describe('Knowledge Versioning Foundation', () => {
   it('blocks inserting a step after the step set is sealed', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const template = await createTestTemplate(conn);
       const [version] = await conn.query(`
         INSERT INTO task_template_versions (
           task_template_id, version_number, equipment_type_id,
@@ -1001,7 +1043,11 @@ describe('Knowledge Versioning Foundation', () => {
         RETURNING id
       `, [template.id, template.equipment_type_id]);
 
-      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      const [step] = await conn.query(`
+        INSERT INTO task_template_steps (task_template_id, step_no, step_type, instruction)
+        VALUES ($1, 1, 'instruction', 'Test step')
+        RETURNING id
+      `, [template.id]);
       await conn.query(`
         INSERT INTO task_template_step_versions (
           task_template_version_id, step_no, task_template_step_id, step_type, instruction
@@ -1148,7 +1194,7 @@ describe('Knowledge Versioning Foundation', () => {
   it('allows v1 -> v2 -> v3 supersession chain for task_template_versions', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const template = await createTestTemplate(conn);
 
       const [v1] = await conn.query(`
         INSERT INTO task_template_versions (
@@ -1211,7 +1257,7 @@ describe('Knowledge Versioning Foundation', () => {
   it('rejects back-link supersession cycles for task_template_versions', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const template = await createTestTemplate(conn);
 
       const [v1] = await conn.query(`
         INSERT INTO task_template_versions (
@@ -1264,7 +1310,7 @@ describe('Knowledge Versioning Foundation', () => {
   it('rejects committing a retired task_template_version with an unsealed step set', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const template = await createTestTemplate(conn);
       await conn.query(`
         INSERT INTO task_template_versions (
           task_template_id, version_number, equipment_type_id,
@@ -1293,7 +1339,7 @@ describe('Knowledge Versioning Foundation', () => {
   it('rejects committing a superseded task_template_version with an unsealed step set', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const template = await createTestTemplate(conn);
 
       const [v1] = await conn.query(`
         INSERT INTO task_template_versions (
@@ -1315,7 +1361,11 @@ describe('Knowledge Versioning Foundation', () => {
 
       // v2 must be sealed because every committed version requires it.
       // We need at least one step for v2 before sealing.
-      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      const [step] = await conn.query(`
+        INSERT INTO task_template_steps (task_template_id, step_no, step_type, instruction)
+        VALUES ($1, 1, 'instruction', 'Test step')
+        RETURNING id
+      `, [template.id]);
       await conn.query(`
         INSERT INTO task_template_step_versions (
           task_template_version_id, step_no, task_template_step_id, step_type, instruction
@@ -1354,11 +1404,8 @@ describe('Knowledge Versioning Foundation', () => {
   it('rejects task_template_step_versions whose source step belongs to a different template', async () => {
     const conn = await getConnection();
     try {
-      const [templateA] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
-      const [templateB] = await conn.query(`
-        SELECT id, equipment_type_id FROM task_templates
-        WHERE id != $1 LIMIT 1
-      `, [templateA.id]);
+      const templateA = await createTestTemplate(conn);
+      const templateB = await createTestTemplate(conn);
       assert.ok(templateB, 'Need at least two distinct task_templates rows');
 
       const [versionA] = await conn.query(`
@@ -1371,7 +1418,9 @@ describe('Knowledge Versioning Foundation', () => {
       `, [templateA.id, templateA.equipment_type_id]);
 
       const [stepB] = await conn.query(`
-        SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1
+        INSERT INTO task_template_steps (task_template_id, step_no, step_type, instruction)
+        VALUES ($1, 1, 'instruction', 'Template B step')
+        RETURNING id
       `, [templateB.id]);
       assert.ok(stepB, 'Need at least one step for template B');
 
@@ -1531,7 +1580,7 @@ describe('Knowledge Versioning Foundation', () => {
   it('blocks DELETE of referenced knowledge_source_versions', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const template = await createTestTemplate(conn);
       const [source] = await conn.query(`
         INSERT INTO knowledge_sources (source_code, source_category, default_title)
         VALUES ('referenced-source', 'manufacturer_manual', 'Referenced Source')
@@ -1571,8 +1620,12 @@ describe('Knowledge Versioning Foundation', () => {
   it('enforces exactly-one subject on knowledge_template_evidence', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
-      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      const template = await createTestTemplate(conn);
+      const [step] = await conn.query(`
+        INSERT INTO task_template_steps (task_template_id, step_no, step_type, instruction)
+        VALUES ($1, 1, 'instruction', 'Test step')
+        RETURNING id
+      `, [template.id]);
       const [source] = await conn.query(`
         INSERT INTO knowledge_sources (source_code, source_category, default_title)
         VALUES ('exactly-one-source', 'engineering_standard', 'Exactly One Source')
@@ -1624,8 +1677,12 @@ describe('Knowledge Versioning Foundation', () => {
   it('allows UPDATE of knowledge_template_evidence and blocks UPDATE of frozen version evidence', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
-      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      const template = await createTestTemplate(conn);
+      const [step] = await conn.query(`
+        INSERT INTO task_template_steps (task_template_id, step_no, step_type, instruction)
+        VALUES ($1, 1, 'instruction', 'Test step')
+        RETURNING id
+      `, [template.id]);
       const [source] = await conn.query(`
         INSERT INTO knowledge_sources (source_code, source_category, default_title)
         VALUES ('frozen-ev-source', 'manufacturer_manual', 'Frozen Evidence Source')
@@ -1721,8 +1778,12 @@ describe('Knowledge Versioning Foundation', () => {
   it('allows frozen evidence INSERT before seal and blocks after seal', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id, organization_id FROM task_templates LIMIT 1`);
-      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      const template = await createTestTemplate(conn);
+      const [step] = await conn.query(`
+        INSERT INTO task_template_steps (task_template_id, step_no, step_type, instruction)
+        VALUES ($1, 1, 'instruction', 'Test step')
+        RETURNING id
+      `, [template.id]);
 
       const [source] = await conn.query(`
         INSERT INTO knowledge_sources (source_code, source_category, default_title, organization_id)
@@ -1815,7 +1876,7 @@ describe('Knowledge Versioning Foundation', () => {
     try {
       const [org] = await conn.query(`SELECT id FROM organizations ORDER BY id LIMIT 1`);
       assert.ok(org, 'Need an organization');
-      const [baseTemplate] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const baseTemplate = await createTestTemplate(conn);
 
       const [template] = await conn.query(`
         INSERT INTO task_templates (
@@ -1861,7 +1922,7 @@ describe('Knowledge Versioning Foundation', () => {
       const [orgA] = await conn.query(`SELECT id FROM organizations ORDER BY id LIMIT 1`);
       const [orgB] = await conn.query(`SELECT id FROM organizations ORDER BY id OFFSET 1 LIMIT 1`);
       assert.ok(orgA && orgB, 'Need two organizations');
-      const [baseTemplate] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const baseTemplate = await createTestTemplate(conn);
 
       const [templateA] = await conn.query(`
         INSERT INTO task_templates (
@@ -1917,7 +1978,7 @@ describe('Knowledge Versioning Foundation', () => {
   it('rejects tenant source supporting global template', async () => {
     const conn = await getConnection();
     try {
-      const [baseTemplate] = await conn.query(`SELECT id, equipment_type_id FROM task_templates LIMIT 1`);
+      const baseTemplate = await createTestTemplate(conn);
 
       const [globalTemplate] = await conn.query(`
         INSERT INTO task_templates (
@@ -2172,8 +2233,12 @@ describe('Knowledge Versioning Foundation', () => {
   it('blocks deleting copied_from working evidence referenced by frozen evidence', async () => {
     const conn = await getConnection();
     try {
-      const [template] = await conn.query(`SELECT id, equipment_type_id, organization_id FROM task_templates LIMIT 1`);
-      const [step] = await conn.query(`SELECT id FROM task_template_steps WHERE task_template_id = $1 LIMIT 1`, [template.id]);
+      const template = await createTestTemplate(conn);
+      const [step] = await conn.query(`
+        INSERT INTO task_template_steps (task_template_id, step_no, step_type, instruction)
+        VALUES ($1, 1, 'instruction', 'Test step')
+        RETURNING id
+      `, [template.id]);
 
       const [source] = await conn.query(`
         INSERT INTO knowledge_sources (source_code, source_category, default_title, organization_id)
@@ -2608,4 +2673,644 @@ describe('Knowledge Versioning Foundation', () => {
       conn.release();
     }
   });
+
+  // ============================================================
+  // ATM-013F2B — Atomic Template Publication Tests
+  // ============================================================
+
+  async function createPublishableTemplate(conn, options = {}) {
+    const template = await createTestTemplate(conn);
+
+    const [activityCode] = await conn.query(`
+      INSERT INTO activity_codes (activity_code, activity_name, activity_category)
+      VALUES ('AC' || floor(random() * 1000000000)::int::text, 'Test Activity', 'inspection')
+      RETURNING id
+    `);
+
+    await conn.query(`
+      UPDATE task_templates
+      SET priority = 'high', activity_code_id = $1
+      WHERE id = $2
+    `, [activityCode.id, template.id]);
+
+    const [step1] = await conn.query(`
+      INSERT INTO task_template_steps (
+        task_template_id, step_no, step_type, instruction, activity_code_id, options, safety_note, is_visual_only,
+        requires_equipment_stopped, prohibit_if_running, prohibit_opening_covers
+      ) VALUES ($1, 1, 'instruction', 'First step', $2, $3::jsonb, $4, false, true, true, true)
+      RETURNING id
+    `, [template.id, activityCode.id, JSON.stringify({ choices: ['option-a', 'option-b'] }), 'Step 1 safety note']);
+
+    const [step2] = await conn.query(`
+      INSERT INTO task_template_steps (
+        task_template_id, step_no, step_type, instruction
+      ) VALUES ($1, 2, 'measurement', 'Second step')
+      RETURNING id
+    `, [template.id]);
+
+    const [safetyControl] = await conn.query(`
+      INSERT INTO task_template_safety_controls (
+        task_template_id, safety_type, description, is_mandatory
+      ) VALUES ($1, 'lockout', 'LOTO required', true)
+      RETURNING id
+    `, [template.id]);
+
+    if (options.withEvidence !== false) {
+      const [source] = await conn.query(`
+        INSERT INTO knowledge_sources (source_code, source_category, default_title, organization_id)
+        VALUES ('pub-source-' || floor(random() * 1000000000)::int::text, 'manufacturer_manual', 'Publication Source', NULL)
+        RETURNING id
+      `);
+
+      const [sourceVersion] = await conn.query(`
+        INSERT INTO knowledge_source_versions (knowledge_source_id, version_designation, title)
+        VALUES ($1, '1.0', 'Publication Source Version')
+        RETURNING id
+      `, [source.id]);
+
+      await conn.query(`
+        INSERT INTO knowledge_template_evidence (
+          task_template_id, knowledge_source_version_id,
+          section_or_clause, page_or_paragraph, derivation_notes,
+          confidence_level, supporting_role
+        ) VALUES ($1, $2, 'Section A', 'Page 1', 'Template-level rationale', 'established', 'primary')
+      `, [template.id, sourceVersion.id]);
+
+      await conn.query(`
+        INSERT INTO knowledge_template_evidence (
+          task_template_step_id, knowledge_source_version_id,
+          section_or_clause, page_or_paragraph, derivation_notes,
+          confidence_level, supporting_role
+        ) VALUES ($1, $2, 'Clause 2', 'Paragraph 3', 'Step-level rationale', 'provisional', 'supporting')
+      `, [step1.id, sourceVersion.id]);
+    }
+
+    return {
+      template,
+      stepIds: [step1.id, step2.id],
+      safetyControlId: safetyControl.id,
+      activityCodeId: activityCode.id,
+      categoryId: template._categoryId,
+      classId: template._classId,
+      typeId: template._typeId
+    };
+  }
+
+  it('publishes a template and freezes header, steps, safety controls, and evidence', async () => {
+    const conn = await getConnection();
+    try {
+      const { TaskTemplate } = require('../src/models');
+      const publisher = await ensureTestUser(conn);
+      const { template, stepIds, safetyControlId, activityCodeId } = await createPublishableTemplate(conn);
+
+      const result = await TaskTemplate.publishVersion(template.id, publisher.id, {
+        publishedByOrganizationId: template.organization_id ?? null,
+        changeRationale: 'Initial publication',
+        aiAssisted: true,
+        connection: conn
+      });
+
+      assert.ok(result.versionId > 0);
+      assert.strictEqual(result.versionNumber, 1);
+      assert.strictEqual(result.stepCount, 2);
+      assert.strictEqual(result.safetyControlVersionCount, 1);
+      assert.strictEqual(result.templateEvidenceCount, 1);
+      assert.strictEqual(result.stepEvidenceCount, 1);
+
+      // Verify header is sealed and published.
+      const [version] = await conn.query(`
+        SELECT * FROM task_template_versions WHERE id = $1
+      `, [result.versionId]);
+      assert.strictEqual(version.lifecycle_state_at_publish, 'published');
+      assert.strictEqual(version.is_step_set_sealed, true);
+      assert.strictEqual(version.task_template_id, template.id);
+      assert.strictEqual(version.version_number, 1);
+      assert.strictEqual(version.priority, 'high');
+      assert.strictEqual(version.activity_code_id, activityCodeId);
+      assert.strictEqual(version.ai_assisted, true);
+      assert.strictEqual(version.change_rationale, 'Initial publication');
+
+      // Verify step versions exist and preserve order/content.
+      const stepVersions = await conn.query(`
+        SELECT * FROM task_template_step_versions
+        WHERE task_template_version_id = $1
+        ORDER BY step_no
+      `, [result.versionId]);
+      assert.strictEqual(stepVersions.length, 2);
+      assert.strictEqual(stepVersions[0].step_no, 1);
+      assert.strictEqual(stepVersions[0].instruction, 'First step');
+      assert.strictEqual(stepVersions[1].step_no, 2);
+      assert.strictEqual(stepVersions[1].instruction, 'Second step');
+      assert.ok(stepIds.includes(stepVersions[0].task_template_step_id));
+      assert.ok(stepIds.includes(stepVersions[1].task_template_step_id));
+      assert.strictEqual(stepVersions[0].activity_code_id, activityCodeId);
+      assert.deepStrictEqual(stepVersions[0].options, { choices: ['option-a', 'option-b'] });
+      assert.strictEqual(stepVersions[0].safety_note, 'Step 1 safety note');
+      assert.strictEqual(stepVersions[0].is_visual_only, false);
+      assert.strictEqual(stepVersions[0].requires_equipment_stopped, true);
+      assert.strictEqual(stepVersions[0].prohibit_if_running, true);
+      assert.strictEqual(stepVersions[0].prohibit_opening_covers, true);
+
+      // Verify safety control version.
+      const [scVersion] = await conn.query(`
+        SELECT * FROM task_template_safety_control_versions
+        WHERE task_template_version_id = $1
+      `, [result.versionId]);
+      assert.ok(scVersion);
+      assert.strictEqual(scVersion.task_template_safety_control_id, safetyControlId);
+      assert.strictEqual(scVersion.safety_type, 'lockout');
+      assert.strictEqual(scVersion.is_mandatory, true);
+
+      // Verify frozen provenance was copied and mapped correctly.
+      const frozenEvidence = await conn.query(`
+        SELECT e.*, sv.task_template_step_id AS source_step_id
+        FROM knowledge_template_version_evidence e
+        LEFT JOIN task_template_step_versions sv ON sv.id = e.task_template_step_version_id
+        WHERE e.task_template_version_id = $1 OR sv.task_template_version_id = $1
+      `, [result.versionId]);
+      assert.strictEqual(frozenEvidence.length, 2);
+
+      const templateLevel = frozenEvidence.find(ev => ev.task_template_version_id === result.versionId && ev.task_template_step_version_id === null);
+      const stepLevel = frozenEvidence.find(ev => ev.task_template_step_version_id !== null);
+
+      assert.ok(templateLevel);
+      assert.strictEqual(templateLevel.section_or_clause, 'Section A');
+      assert.strictEqual(templateLevel.confidence_level, 'established');
+      assert.strictEqual(templateLevel.supporting_role, 'primary');
+
+      assert.ok(stepLevel);
+      assert.strictEqual(stepLevel.source_step_id, stepIds[0]);
+      assert.strictEqual(stepLevel.section_or_clause, 'Clause 2');
+      assert.strictEqual(stepLevel.confidence_level, 'provisional');
+      assert.strictEqual(stepLevel.supporting_role, 'supporting');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('defaults ai_assisted to FALSE when not supplied', async () => {
+    const conn = await getConnection();
+    try {
+      const { TaskTemplate } = require('../src/models');
+      const publisher = await ensureTestUser(conn);
+      const { template } = await createPublishableTemplate(conn, { withEvidence: false });
+
+      const result = await TaskTemplate.publishVersion(template.id, publisher.id, {
+        publishedByOrganizationId: template.organization_id ?? null,
+        connection: conn
+      });
+
+      const [version] = await conn.query(`
+        SELECT ai_assisted FROM task_template_versions WHERE id = $1
+      `, [result.versionId]);
+      assert.strictEqual(version.ai_assisted, false);
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('rejects publication of a missing template', async () => {
+    const { TaskTemplate } = require('../src/models');
+    await assert.rejects(
+      () => TaskTemplate.publishVersion(999999, 1, { publishedByOrganizationId: 1 }),
+      /Task template not found/
+    );
+  });
+
+  it('rejects publication when caller organization does not match tenant template', async () => {
+    const conn = await getConnection();
+    try {
+      const { TaskTemplate } = require('../src/models');
+      const publisher = await ensureTestUser(conn);
+      const { template } = await createPublishableTemplate(conn, { withEvidence: false });
+
+      // Force template to be tenant-scoped.
+      const [org] = await conn.query(`
+        INSERT INTO organizations (organization_name) VALUES ('Pub Tenant') RETURNING id
+      `);
+      await conn.query(`UPDATE task_templates SET organization_id = $1 WHERE id = $2`, [org.id, template.id]);
+
+      await assert.rejects(
+        () => TaskTemplate.publishVersion(template.id, publisher.id, { publishedByOrganizationId: 999999, connection: conn }),
+        /Access denied/
+      );
+
+      // Ensure no version leaked.
+      const versions = await conn.query(`
+        SELECT * FROM task_template_versions WHERE task_template_id = $1
+      `, [template.id]);
+      assert.strictEqual(versions.length, 0);
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('rejects publication of a template with no steps', async () => {
+    const conn = await getConnection();
+    try {
+      const { TaskTemplate } = require('../src/models');
+      const publisher = await ensureTestUser(conn);
+      const template = await createTestTemplate(conn);
+
+      await assert.rejects(
+        () => TaskTemplate.publishVersion(template.id, publisher.id, {
+          publishedByOrganizationId: template.organization_id ?? null,
+          connection: conn
+        }),
+        /Cannot publish template with no steps/
+      );
+
+      const versions = await conn.query(`
+        SELECT * FROM task_template_versions WHERE task_template_id = $1
+      `, [template.id]);
+      assert.strictEqual(versions.length, 0);
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('concurrent publications receive distinct consecutive version numbers', async () => {
+    const { TaskTemplate } = require('../src/models');
+
+    let template;
+    let fixtureIds = {};
+    let publisherId;
+
+    // Create a committed working template that both publishers will target.
+    const setupConn = await getConnection();
+    try {
+      const publisher = await ensureTestUser(setupConn);
+      publisherId = publisher.id;
+      const fixture = await createPublishableTemplate(setupConn, { withEvidence: false });
+      template = fixture.template;
+      fixtureIds = {
+        activityCodeId: fixture.activityCodeId,
+        categoryId: fixture.categoryId,
+        classId: fixture.classId,
+        typeId: fixture.typeId,
+        publisherId
+      };
+      await setupConn.commit();
+    } catch (err) {
+      await setupConn.rollback();
+      throw err;
+    } finally {
+      setupConn.release();
+    }
+
+    try {
+      // Publish the same template simultaneously from two independent connections/
+      // transactions. The advisory lock serializes them, so both receive distinct,
+      // consecutive version numbers.
+      const [first, second] = await Promise.all([
+        TaskTemplate.publishVersion(template.id, publisherId, {
+          publishedByOrganizationId: template.organization_id ?? null
+        }),
+        TaskTemplate.publishVersion(template.id, publisherId, {
+          publishedByOrganizationId: template.organization_id ?? null
+        })
+      ]);
+
+      const versionNumbers = new Set([first.versionNumber, second.versionNumber]);
+      assert.deepStrictEqual(
+        versionNumbers,
+        new Set([1, 2]),
+        'concurrent publications should receive version numbers 1 and 2'
+      );
+
+      // Verify both versions are complete and sealed.
+      const verifyConn = await getConnection();
+      try {
+        const versions = await verifyConn.query(`
+          SELECT id, version_number, is_step_set_sealed, lifecycle_state_at_publish
+          FROM task_template_versions
+          WHERE task_template_id = $1
+          ORDER BY version_number
+        `, [template.id]);
+        assert.strictEqual(versions.length, 2, 'two published versions should exist');
+        assert.deepStrictEqual(versions.map(v => v.version_number), [1, 2]);
+        for (const v of versions) {
+          assert.strictEqual(v.is_step_set_sealed, true, `version ${v.version_number} should be sealed`);
+          assert.strictEqual(v.lifecycle_state_at_publish, 'published', `version ${v.version_number} should be published`);
+        }
+
+        for (const result of [first, second]) {
+          const stepVersions = await verifyConn.query(`
+            SELECT id FROM task_template_step_versions
+            WHERE task_template_version_id = $1
+          `, [result.versionId]);
+          assert.strictEqual(stepVersions.length, 2, `version ${result.versionNumber} should have 2 step versions`);
+
+          const safetyVersions = await verifyConn.query(`
+            SELECT id FROM task_template_safety_control_versions
+            WHERE task_template_version_id = $1
+          `, [result.versionId]);
+          assert.strictEqual(safetyVersions.length, 1, `version ${result.versionNumber} should have 1 safety control version`);
+        }
+
+        await verifyConn.rollback();
+      } catch (err) {
+        await verifyConn.rollback();
+        throw err;
+      } finally {
+        verifyConn.release();
+      }
+    } finally {
+      // Targeted teardown: temporarily lift the immutable-delete guards for
+      // this test transaction, delete every fixture row in FK-safe order,
+      // then restore the guards. This is the repository-approved test-only
+      // mechanism; production immutability is not weakened because the change
+      // lives only inside this test connection and is rolled back on failure.
+      if (template) {
+        const cleanupConn = await getConnection();
+        try {
+          await cleanupConn.query(`SET LOCAL session_replication_role = 'replica'`);
+
+          // Frozen provenance and version children.
+          await cleanupConn.query(`
+            DELETE FROM knowledge_template_version_evidence e
+            USING task_template_versions tv
+            WHERE tv.id = e.task_template_version_id AND tv.task_template_id = $1
+          `, [template.id]);
+          await cleanupConn.query(`DELETE FROM task_template_safety_control_versions WHERE task_template_version_id IN (SELECT id FROM task_template_versions WHERE task_template_id = $1)`, [template.id]);
+          await cleanupConn.query(`DELETE FROM task_template_step_versions WHERE task_template_version_id IN (SELECT id FROM task_template_versions WHERE task_template_id = $1)`, [template.id]);
+          await cleanupConn.query(`DELETE FROM task_template_versions WHERE task_template_id = $1`, [template.id]);
+
+          // Working provenance and children.
+          await cleanupConn.query(`DELETE FROM knowledge_template_evidence WHERE task_template_id = $1`, [template.id]);
+          await cleanupConn.query(`DELETE FROM knowledge_template_evidence WHERE task_template_step_id IN (SELECT id FROM task_template_steps WHERE task_template_id = $1)`, [template.id]);
+          await cleanupConn.query(`DELETE FROM task_template_safety_controls WHERE task_template_id = $1`, [template.id]);
+          await cleanupConn.query(`DELETE FROM task_template_steps WHERE task_template_id = $1`, [template.id]);
+
+          // Working template, activity code, taxonomy, and publisher.
+          await cleanupConn.query(`DELETE FROM task_templates WHERE id = $1`, [template.id]);
+          await cleanupConn.query(`DELETE FROM activity_codes WHERE id = $1`, [fixtureIds.activityCodeId]);
+          await cleanupConn.query(`DELETE FROM equipment_types WHERE id = $1`, [fixtureIds.typeId]);
+          await cleanupConn.query(`DELETE FROM equipment_classes WHERE id = $1`, [fixtureIds.classId]);
+          await cleanupConn.query(`DELETE FROM equipment_categories WHERE id = $1`, [fixtureIds.categoryId]);
+          await cleanupConn.query(`DELETE FROM users WHERE id = $1`, [fixtureIds.publisherId]);
+
+          await cleanupConn.query(`SET LOCAL session_replication_role = 'origin'`);
+          await cleanupConn.commit();
+
+          // Prove that the test's fixtures no longer exist.
+          const verifyConn = await getConnection();
+          try {
+            const [remainingTemplate] = await verifyConn.query(`SELECT id FROM task_templates WHERE id = $1`, [template.id]);
+            assert.strictEqual(remainingTemplate, undefined, 'template should be deleted');
+            const [remainingVersion] = await verifyConn.query(`SELECT id FROM task_template_versions WHERE task_template_id = $1`, [template.id]);
+            assert.strictEqual(remainingVersion, undefined, 'versions should be deleted');
+            await verifyConn.rollback();
+          } catch (err) {
+            await verifyConn.rollback();
+            throw err;
+          } finally {
+            verifyConn.release();
+          }
+        } catch (cleanupErr) {
+          await cleanupConn.rollback();
+          throw cleanupErr;
+        } finally {
+          cleanupConn.release();
+        }
+      }
+    }
+  });
+
+  it('rolls back publication completely when a later constraint fails', async () => {
+    const { TaskTemplate } = require('../src/models');
+    const conn = await getConnection();
+    try {
+      // Ensure a publisher user exists to satisfy the version header FK.
+      const [publisher] = await conn.query(`
+        INSERT INTO users (username, email, password_hash, full_name, role, is_active)
+        VALUES (
+          'pub-user-' || floor(random() * 1000000000)::int::text,
+          'pub-user-' || floor(random() * 1000000000)::int::text || '@test.local',
+          'hash',
+          'Publisher',
+          'admin',
+          true
+        )
+        RETURNING id
+      `);
+      const { template } = await createPublishableTemplate(conn, { withEvidence: false });
+
+      // Install a temporary trigger in the same transaction. It will be rolled
+      // back with the test transaction, preventing cross-test pollution.
+      await conn.query(`
+        CREATE OR REPLACE FUNCTION fail_safety_control_version()
+        RETURNS TRIGGER AS $$
+        BEGIN
+          RAISE EXCEPTION 'simulated mid-publication failure for rollback test';
+        END;
+        $$ LANGUAGE plpgsql;
+      `);
+      await conn.query(`
+        DROP TRIGGER IF EXISTS trg_rollback_test_fail ON task_template_safety_control_versions;
+        CREATE TRIGGER trg_rollback_test_fail
+        BEFORE INSERT ON task_template_safety_control_versions
+        FOR EACH ROW
+        EXECUTE FUNCTION fail_safety_control_version();
+      `);
+
+      let threw = false;
+      await conn.query('SAVEPOINT pub_test');
+      try {
+        await TaskTemplate.publishVersion(template.id, publisher.id, {
+          publishedByOrganizationId: template.organization_id ?? null,
+          connection: conn
+        });
+      } catch (err) {
+        threw = true;
+        assert.ok(/simulated mid-publication failure/.test(err.message));
+        await conn.query('ROLLBACK TO SAVEPOINT pub_test');
+      }
+      assert.ok(threw, 'publication should have failed');
+
+      // Drop the trigger so subsequent assertions in this transaction can run.
+      await conn.query(`DROP TRIGGER IF EXISTS trg_rollback_test_fail ON task_template_safety_control_versions;`);
+
+      // Verify nothing leaked.
+      const versions = await conn.query(`
+        SELECT * FROM task_template_versions WHERE task_template_id = $1
+      `, [template.id]);
+      assert.strictEqual(versions.length, 0, 'no version should remain after rollback');
+
+      const stepVersions = await conn.query(`
+        SELECT * FROM task_template_step_versions sv
+        JOIN task_template_versions tv ON tv.id = sv.task_template_version_id
+        WHERE tv.task_template_id = $1
+      `, [template.id]);
+      assert.strictEqual(stepVersions.length, 0, 'no step versions should remain after rollback');
+
+      const safetyVersions = await conn.query(`
+        SELECT * FROM task_template_safety_control_versions scv
+        JOIN task_template_versions tv ON tv.id = scv.task_template_version_id
+        WHERE tv.task_template_id = $1
+      `, [template.id]);
+      assert.strictEqual(safetyVersions.length, 0, 'no safety control versions should remain after rollback');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  describe('Task Template Publish Controller Validation', () => {
+    const { TaskTemplate } = require('../src/models');
+    let originalPublishVersion;
+
+    function buildResponse() {
+      let statusCode;
+      let jsonBody;
+      return {
+        status: (code) => {
+          statusCode = code;
+          return {
+            json: (body) => {
+              jsonBody = body;
+            }
+          };
+        },
+        _status: () => statusCode,
+        _json: () => jsonBody
+      };
+    }
+
+    function buildRequest(id, body = {}) {
+      return {
+        params: { id },
+        user: { id: 1, organization_id: 1 },
+        body
+      };
+    }
+
+    // Stub the model so controller tests isolate validation from the database.
+    before(() => {
+      originalPublishVersion = TaskTemplate.publishVersion;
+    });
+
+    afterEach(() => {
+      TaskTemplate.publishVersion = originalPublishVersion;
+    });
+
+    it('returns 400 for an invalid template route id', async () => {
+      const res = buildResponse();
+      const nextErrors = [];
+      const req = buildRequest('abc');
+      await taskTemplateController.publish(req, res, (err) => nextErrors.push(err));
+      assert.strictEqual(res._status(), 400);
+      assert.strictEqual(res._json().success, false);
+      assert.ok(res._json().message.toLowerCase().includes('invalid template id'));
+      assert.strictEqual(nextErrors.length, 0);
+    });
+
+    it('returns 400 when ai_assisted is not a boolean', async () => {
+      const invalidValues = ['true', 1, 0, null, [], {}];
+      for (const value of invalidValues) {
+        const res = buildResponse();
+        const req = buildRequest(1, { ai_assisted: value });
+        await taskTemplateController.publish(req, res, () => {});
+        assert.strictEqual(res._status(), 400, `ai_assisted=${JSON.stringify(value)} should be rejected`);
+        assert.strictEqual(res._json().success, false);
+        assert.ok(res._json().message.toLowerCase().includes('ai_assisted must be a boolean'));
+      }
+    });
+
+    it('defaults omitted ai_assisted to false and passes it to the model', async () => {
+      let receivedArgs;
+      TaskTemplate.publishVersion = async (...args) => {
+        receivedArgs = args;
+        return { versionId: 1, versionNumber: 1 };
+      };
+
+      const res = buildResponse();
+      await taskTemplateController.publish(buildRequest(42, {}), res, () => {});
+      assert.strictEqual(res._status(), 201);
+      assert.strictEqual(receivedArgs[0], 42);
+      assert.strictEqual(receivedArgs[1], 1);
+      assert.strictEqual(receivedArgs[2].aiAssisted, false);
+    });
+
+    it('passes ai_assisted true and false to the model unchanged', async () => {
+      for (const value of [true, false]) {
+        let receivedArgs;
+        TaskTemplate.publishVersion = async (...args) => {
+          receivedArgs = args;
+          return { versionId: 1, versionNumber: 1 };
+        };
+
+        const res = buildResponse();
+        await taskTemplateController.publish(buildRequest(42, { ai_assisted: value }), res, () => {});
+        assert.strictEqual(res._status(), 201, `ai_assisted=${value} should reach the model`);
+        assert.strictEqual(receivedArgs[2].aiAssisted, value, `ai_assisted=${value} should be passed unchanged`);
+      }
+    });
+
+    it('returns 400 when ai_assistance_detail is not an object', async () => {
+      const invalidValues = ['detail', 123, true, []];
+      for (const value of invalidValues) {
+        const res = buildResponse();
+        const req = buildRequest(1, { ai_assistance_detail: value });
+        await taskTemplateController.publish(req, res, () => {});
+        assert.strictEqual(res._status(), 400, `ai_assistance_detail=${JSON.stringify(value)} should be rejected`);
+        assert.strictEqual(res._json().success, false);
+        assert.ok(res._json().message.toLowerCase().includes('ai_assistance_detail must be an object'));
+      }
+    });
+
+    it('accepts omitted and explicit-null ai_assistance_detail and passes them to the model', async () => {
+      for (const body of [{}, { ai_assistance_detail: null }]) {
+        let receivedArgs;
+        TaskTemplate.publishVersion = async (...args) => {
+          receivedArgs = args;
+          return { versionId: 1, versionNumber: 1 };
+        };
+
+        const res = buildResponse();
+        await taskTemplateController.publish(buildRequest(42, body), res, () => {});
+        assert.strictEqual(res._status(), 201);
+        assert.deepStrictEqual(receivedArgs[2].aiAssistanceDetail, body.ai_assistance_detail);
+      }
+    });
+
+    it('passes a plain-object ai_assistance_detail to the model unchanged', async () => {
+      const detail = { model: 'gpt-4', prompt: 'hello' };
+      let receivedArgs;
+      TaskTemplate.publishVersion = async (...args) => {
+        receivedArgs = args;
+        return { versionId: 1, versionNumber: 1 };
+      };
+
+      const res = buildResponse();
+      await taskTemplateController.publish(buildRequest(42, { ai_assistance_detail: detail }), res, () => {});
+      assert.strictEqual(res._status(), 201);
+      assert.deepStrictEqual(receivedArgs[2].aiAssistanceDetail, detail);
+    });
+  });
+
 });

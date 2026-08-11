@@ -7,6 +7,7 @@
  */
 
 const BaseModel = require('./base.model');
+const { getConnection } = require('../config/database');
 
 class TaskTemplate extends BaseModel {
   constructor() {
@@ -639,6 +640,275 @@ class TaskTemplate extends BaseModel {
     `, [organizationId, organizationId]);
     
     return result;
+  }
+
+  /**
+   * Publish a working task template as an immutable version.
+   * This creates task_template_versions, task_template_step_versions,
+   * task_template_safety_control_versions, and frozen knowledge_template_version_evidence
+   * in a single atomic PostgreSQL transaction, then seals the version.
+   *
+   * @param {number} templateId - Working task_templates.id to publish
+   * @param {number} userId - Publisher user id
+   * @param {Object} options - Publication options
+   * @param {string} options.changeRationale - Optional rationale
+   * @param {boolean} options.aiAssisted - Optional AI assistance flag (default FALSE)
+   * @param {Object} options.aiAssistanceDetail - Optional AI assistance detail JSONB
+   * @param {number} options.publishedByOrganizationId - Required organization scope for authorization
+   * @returns {Promise<Object>} Publication result with versionId, versionNumber, counts
+   */
+  async publishVersion(templateId, userId, options = {}) {
+    const {
+      changeRationale = null,
+      aiAssisted = false,
+      aiAssistanceDetail = null,
+      publishedByOrganizationId,
+      connection = null
+    } = options;
+
+    if (!templateId || !userId) {
+      throw new Error('templateId and userId are required');
+    }
+
+    if (publishedByOrganizationId === undefined) {
+      throw new Error('publishedByOrganizationId is required for authorization');
+    }
+
+    const ownsConnection = !connection;
+    const conn = connection || await getConnection();
+    try {
+      // Serialize concurrent publications for this template using an advisory lock.
+      await conn.query(`
+        SELECT pg_advisory_xact_lock(hashtextextended('publish_template:' || $1, 0))
+      `, [templateId]);
+
+      // Capture a single consistent snapshot of the working template and all
+      // of its publication children. Everything after this point is published
+      // exclusively from the snapshot.
+      const [snapshot] = await conn.query(`
+        SELECT
+          to_jsonb(t) AS template,
+          (SELECT COALESCE(MAX(version_number), 0) + 1
+           FROM task_template_versions
+           WHERE task_template_id = t.id) AS next_version_number,
+          COALESCE((SELECT jsonb_agg(jsonb_build_object(
+              'id', id,
+              'step_no', step_no,
+              'activity_code_id', activity_code_id,
+              'step_type', step_type,
+              'instruction', instruction,
+              'data_type', data_type,
+              'expected_value', expected_value,
+              'min_value', min_value,
+              'max_value', max_value,
+              'unit', unit,
+              'is_required', is_required,
+              'options', options,
+              'safety_note', safety_note,
+              'is_visual_only', is_visual_only,
+              'requires_equipment_stopped', requires_equipment_stopped,
+              'prohibit_if_running', prohibit_if_running,
+              'prohibit_opening_covers', prohibit_opening_covers
+            ) ORDER BY step_no)
+            FROM task_template_steps
+            WHERE task_template_id = t.id), '[]'::jsonb) AS steps,
+          COALESCE((SELECT jsonb_agg(jsonb_build_object(
+              'id', id,
+              'safety_type', safety_type,
+              'description', description,
+              'is_mandatory', is_mandatory
+            ) ORDER BY id)
+            FROM task_template_safety_controls
+            WHERE task_template_id = t.id), '[]'::jsonb) AS safety_controls,
+          COALESCE((SELECT jsonb_agg(jsonb_build_object(
+              'id', id,
+              'knowledge_source_version_id', knowledge_source_version_id,
+              'section_or_clause', section_or_clause,
+              'page_or_paragraph', page_or_paragraph,
+              'derivation_notes', derivation_notes,
+              'confidence_level', confidence_level,
+              'supporting_role', supporting_role
+            ) ORDER BY id)
+            FROM knowledge_template_evidence
+            WHERE task_template_id = t.id AND task_template_step_id IS NULL), '[]'::jsonb) AS template_evidence,
+          COALESCE((SELECT jsonb_agg(jsonb_build_object(
+              'id', id,
+              'task_template_step_id', task_template_step_id,
+              'knowledge_source_version_id', knowledge_source_version_id,
+              'section_or_clause', section_or_clause,
+              'page_or_paragraph', page_or_paragraph,
+              'derivation_notes', derivation_notes,
+              'confidence_level', confidence_level,
+              'supporting_role', supporting_role
+            ) ORDER BY id)
+            FROM knowledge_template_evidence
+            WHERE task_template_step_id IN (SELECT id FROM task_template_steps WHERE task_template_id = t.id)
+              AND task_template_id IS NULL), '[]'::jsonb) AS step_evidence
+        FROM task_templates t
+        WHERE t.id = $1
+      `, [templateId]);
+
+      if (!snapshot) {
+        throw new Error('Task template not found');
+      }
+
+      const template = snapshot.template;
+
+      // Authorization: tenant templates may only be published by their organization.
+      // Global templates (organization_id IS NULL) may be published by admin.
+      if (template.organization_id !== null && template.organization_id !== publishedByOrganizationId) {
+        throw new Error('Access denied');
+      }
+
+      if (!template.is_editable) {
+        throw new Error('Template is not publishable');
+      }
+
+      const steps = snapshot.steps || [];
+      if (steps.length === 0) {
+        throw new Error('Cannot publish template with no steps');
+      }
+
+      const versionNumber = snapshot.next_version_number;
+
+      // 1. Insert the unsealed version header.
+      const [versionHeader] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id, industry_id,
+          activity_code_id, template_code, template_name, maintenance_type,
+          task_scope, description, frequency_value, frequency_unit,
+          estimated_duration_minutes, required_skills, required_tools,
+          priority, task_kind, is_system, is_editable, parent_template_id,
+          lifecycle_state_at_publish, is_step_set_sealed, published_by_user_id,
+          published_at, superseded_by_version_id, change_rationale,
+          ai_assisted, ai_assistance_detail
+        ) VALUES (
+          $1, $2, $3, $4,
+          $5, $6, $7, $8,
+          $9, $10, $11, $12,
+          $13, $14, $15,
+          $16, $17, $18, $19, $20,
+          'published', FALSE, $21,
+          CURRENT_TIMESTAMP, NULL, $22,
+          $23, $24
+        )
+        RETURNING id
+      `, [
+        template.id, versionNumber, template.equipment_type_id, template.industry_id,
+        template.activity_code_id, template.template_code, template.template_name, template.maintenance_type,
+        template.task_scope, template.description, template.frequency_value, template.frequency_unit,
+        template.estimated_duration_minutes, template.required_skills, template.required_tools,
+        template.priority, template.task_kind, template.is_system, template.is_editable, template.parent_template_id,
+        userId, changeRationale,
+        aiAssisted, aiAssistanceDetail
+      ]);
+
+      const versionId = versionHeader.id;
+
+      // 2. Insert step versions and build a map from working step id to version step id.
+      const stepVersionMap = new Map();
+      for (const step of steps) {
+        const [stepVersion] = await conn.query(`
+          INSERT INTO task_template_step_versions (
+            task_template_version_id, step_no, task_template_step_id,
+            activity_code_id, step_type, instruction, data_type, expected_value, min_value, max_value,
+            unit, is_required, options, safety_note, is_visual_only,
+            requires_equipment_stopped, prohibit_if_running, prohibit_opening_covers,
+            ai_assisted, ai_assistance_detail
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, FALSE, NULL)
+          RETURNING id
+        `, [
+          versionId, step.step_no, step.id, step.activity_code_id, step.step_type, step.instruction,
+          step.data_type, step.expected_value, step.min_value, step.max_value,
+          step.unit, step.is_required, step.options, step.safety_note, step.is_visual_only,
+          step.requires_equipment_stopped, step.prohibit_if_running, step.prohibit_opening_covers
+        ]);
+        stepVersionMap.set(step.id, stepVersion.id);
+      }
+
+      // 3. Insert safety control versions.
+      const safetyControls = snapshot.safety_controls || [];
+      let safetyControlVersionCount = 0;
+      for (const sc of safetyControls) {
+        await conn.query(`
+          INSERT INTO task_template_safety_control_versions (
+            task_template_version_id, task_template_safety_control_id,
+            safety_type, description, is_mandatory
+          ) VALUES ($1, $2, $3, $4, $5)
+        `, [versionId, sc.id, sc.safety_type, sc.description, sc.is_mandatory]);
+        safetyControlVersionCount += 1;
+      }
+
+      // 4. Copy working template evidence to frozen version evidence from the snapshot.
+      const templateEvidenceRows = snapshot.template_evidence || [];
+      let templateEvidenceCount = 0;
+      for (const ev of templateEvidenceRows) {
+        await conn.query(`
+          INSERT INTO knowledge_template_version_evidence (
+            task_template_version_id, knowledge_source_version_id,
+            section_or_clause, page_or_paragraph, derivation_notes,
+            confidence_level, supporting_role, copied_from_template_evidence_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `, [
+          versionId, ev.knowledge_source_version_id, ev.section_or_clause,
+          ev.page_or_paragraph, ev.derivation_notes, ev.confidence_level,
+          ev.supporting_role, ev.id
+        ]);
+        templateEvidenceCount += 1;
+      }
+
+      // 5. Copy working step evidence, mapping each step to its new version step id.
+      const stepEvidenceRows = snapshot.step_evidence || [];
+      let stepEvidenceCount = 0;
+      for (const ev of stepEvidenceRows) {
+        const stepVersionId = stepVersionMap.get(ev.task_template_step_id);
+        if (!stepVersionId) {
+          throw new Error(`Working step ${ev.task_template_step_id} not found in published step set`);
+        }
+        await conn.query(`
+          INSERT INTO knowledge_template_version_evidence (
+            task_template_step_version_id, knowledge_source_version_id,
+            section_or_clause, page_or_paragraph, derivation_notes,
+            confidence_level, supporting_role, copied_from_template_evidence_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `, [
+          stepVersionId, ev.knowledge_source_version_id, ev.section_or_clause,
+          ev.page_or_paragraph, ev.derivation_notes, ev.confidence_level,
+          ev.supporting_role, ev.id
+        ]);
+        stepEvidenceCount += 1;
+      }
+
+      // 6. Seal the version. This commits only if at least one step version exists.
+      await conn.query(`
+        UPDATE task_template_versions
+        SET is_step_set_sealed = TRUE
+        WHERE id = $1
+      `, [versionId]);
+
+      if (ownsConnection) {
+        await conn.commit();
+      }
+
+      return {
+        versionId,
+        versionNumber,
+        stepCount: steps.length,
+        safetyControlVersionCount,
+        templateEvidenceCount,
+        stepEvidenceCount,
+        totalEvidenceCount: templateEvidenceCount + stepEvidenceCount
+      };
+    } catch (error) {
+      if (ownsConnection) {
+        await conn.rollback();
+      }
+      throw error;
+    } finally {
+      if (ownsConnection) {
+        conn.release();
+      }
+    }
   }
 }
 

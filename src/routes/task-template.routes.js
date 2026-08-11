@@ -88,4 +88,11 @@ router.put('/:id', requireAdmin, taskTemplateController.update);
  */
 router.delete('/:id', requireAdmin, taskTemplateController.remove);
 
+/**
+ * @route   POST /api/task-templates/:id/publish
+ * @desc    Publish a working task template as an immutable version
+ * @access  Private (Admin/Supervisor)
+ */
+router.post('/:id/publish', requireAdmin, taskTemplateController.publish);
+
 module.exports = router;

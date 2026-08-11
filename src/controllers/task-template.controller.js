@@ -535,6 +535,84 @@ const remove = async (req, res, next) => {
   }
 };
 
+
+/**
+ * Publish a task template version
+ * Creates an immutable task_template_versions record with steps, safety controls,
+ * and frozen provenance copied from the working template.
+ */
+const publish = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const organizationId = req.user.organization_id;
+    const {
+      change_rationale,
+      ai_assisted,
+      ai_assistance_detail
+    } = req.body || {};
+
+    // Route ID validation: must be a positive integer.
+    const templateId = parseInt(id, 10);
+    if (!Number.isFinite(templateId) || templateId <= 0 || String(templateId) !== String(id).replace(/^\+/, '')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid template id'
+      });
+    }
+
+    // ai_assisted validation: omitted defaults to false; if supplied, must be a JSON boolean.
+    let normalizedAiAssisted;
+    if (ai_assisted === undefined) {
+      normalizedAiAssisted = false;
+    } else if (typeof ai_assisted !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'ai_assisted must be a boolean'
+      });
+    } else {
+      normalizedAiAssisted = ai_assisted;
+    }
+
+    // ai_assistance_detail validation: explicit null or undefined is allowed; otherwise must be a plain object.
+    if (ai_assistance_detail !== undefined && ai_assistance_detail !== null) {
+      if (typeof ai_assistance_detail !== 'object' || Array.isArray(ai_assistance_detail)) {
+        return res.status(400).json({
+          success: false,
+          message: 'ai_assistance_detail must be an object'
+        });
+      }
+    }
+
+    const result = await TaskTemplate.publishVersion(templateId, userId, {
+      changeRationale: change_rationale,
+      aiAssisted: normalizedAiAssisted,
+      aiAssistanceDetail: ai_assistance_detail,
+      publishedByOrganizationId: organizationId
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Task template published successfully',
+      data: result
+    });
+  } catch (error) {
+    if (error.message === 'Task template not found') {
+      return res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    }
+    if (error.message === 'Access denied' || error.message === 'Template is not publishable' || error.message === 'Cannot publish template with no steps') {
+      return res.status(403).json({
+        success: false,
+        message: error.message
+      });
+    }
+    next(error);
+  }
+};
+
 module.exports = {
   getAll,
   getByEquipmentType,
@@ -546,5 +624,6 @@ module.exports = {
   getStats,
   getTaskKinds,
   update,
-  remove
+  remove,
+  publish
 };
