@@ -33,6 +33,39 @@ const isSealError = (err) => {
   return msg.includes('seal') || msg.includes('cannot be changed') || msg.includes('must be sealed before commit') || msg.includes('check_violation');
 };
 
+async function nextTemplateVersion(conn, templateId) {
+  const [row] = await conn.query(`
+    SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version
+    FROM task_template_versions
+    WHERE task_template_id = $1
+  `, [templateId]);
+  return row.next_version;
+}
+
+async function createTestTemplate(conn) {
+  const [category] = await conn.query(`
+    INSERT INTO equipment_categories (category_code, category_name)
+    VALUES ('TC' || floor(random() * 1000000000)::int::text, 'Test Category')
+    RETURNING id
+  `);
+  const [cls] = await conn.query(`
+    INSERT INTO equipment_classes (category_id, class_code, class_name)
+    VALUES ($1, 'CL' || floor(random() * 1000000000)::int::text, 'Test Class')
+    RETURNING id
+  `, [category.id]);
+  const [type] = await conn.query(`
+    INSERT INTO equipment_types (class_id, type_code, type_name)
+    VALUES ($1, 'TP' || floor(random() * 1000000000)::int::text, 'Test Type')
+    RETURNING id
+  `, [cls.id]);
+  const [template] = await conn.query(`
+    INSERT INTO task_templates (equipment_type_id, template_code, template_name, maintenance_type)
+    VALUES ($1, 'TT' || floor(random() * 1000000000)::int::text, 'Test Template', 'corrective')
+    RETURNING id, equipment_type_id
+  `, [type.id]);
+  return template;
+}
+
 const isAncestryError = (err) => {
   const msg = (err.message || '').toLowerCase();
   return msg.includes('does not belong to task_template_id') || msg.includes('check_violation');
@@ -2282,4 +2315,297 @@ describe('Knowledge Versioning Foundation', () => {
   });
 
 
+
+
+  it('creates task_template_safety_control_versions with migration 012', async () => {
+    const conn = await getConnection();
+    try {
+      const [table] = await conn.query(`
+        SELECT 1 AS ok FROM pg_tables
+        WHERE schemaname = 'public'
+          AND tablename = 'task_template_safety_control_versions'
+      `);
+      assert.ok(table, 'task_template_safety_control_versions table should exist');
+      assert.strictEqual(table.ok, 1);
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('applies 012 idempotently without error', async () => {
+    const fs = require('fs');
+    const path = require('path');
+    const migrationPath = path.join(__dirname, '..', 'database', 'postgresql', '012_task_template_safety_control_versioning.sql');
+    const sql = fs.readFileSync(migrationPath, 'utf8');
+
+    const conn = await getConnection();
+    try {
+      await conn.query(sql);
+      await conn.query(sql);
+
+      const [idx] = await conn.query(`
+        SELECT COUNT(*) AS cnt
+        FROM pg_indexes
+        WHERE schemaname = 'public'
+          AND tablename = 'task_template_safety_control_versions'
+      `);
+      assert.ok(parseInt(idx.cnt, 10) >= 2, 'expected at least two indexes on safety-control versions');
+
+      await conn.query(`
+        DO $$
+        BEGIN
+          PERFORM 1 FROM pg_tables
+          WHERE schemaname = 'public'
+            AND tablename = 'task_template_safety_control_versions';
+          ASSERT FOUND, 'migration 012 table missing';
+        END $$;
+      `);
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('allows valid safety-control version insertion before sealing', async () => {
+    const conn = await getConnection();
+    try {
+      const template = await createTestTemplate(conn);
+
+      const versionNo = await nextTemplateVersion(conn, template.id);
+      const [version] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id, template_name,
+          maintenance_type, lifecycle_state_at_publish
+        ) VALUES ($1, $2, $3, 'Safety Publish Test', 'corrective', 'published')
+        RETURNING id
+      `, [template.id, versionNo, template.equipment_type_id]);
+
+      const [safetyControl] = await conn.query(`
+        INSERT INTO task_template_safety_controls (
+          task_template_id, safety_type, description, is_mandatory
+        ) VALUES ($1, 'lockout', 'LOTO before work', true)
+        RETURNING id
+      `, [template.id]);
+
+      const [stepNo] = await conn.query(`
+        SELECT COALESCE(MAX(step_no), 0) + 1 AS next_no FROM task_template_steps
+        WHERE task_template_id = $1
+      `, [template.id]);
+
+      const [step] = await conn.query(`
+        INSERT INTO task_template_steps (
+          task_template_id, step_no, step_type, instruction
+        ) VALUES ($1, $2, 'instruction', 'Perform safety check')
+        RETURNING id
+      `, [template.id, stepNo.next_no]);
+
+      await conn.query(`
+        INSERT INTO task_template_step_versions (
+          task_template_version_id, step_no, task_template_step_id,
+          step_type, instruction
+        ) VALUES ($1, $2, $3, 'instruction', 'Perform safety check')
+      `, [version.id, 1, step.id]);
+
+      const [scVersion] = await conn.query(`
+        INSERT INTO task_template_safety_control_versions (
+          task_template_version_id, task_template_safety_control_id,
+          safety_type, description, is_mandatory
+        ) VALUES ($1, $2, 'lockout', 'LOTO before work', true)
+        RETURNING id
+      `, [version.id, safetyControl.id]);
+      assert.ok(scVersion.id > 0);
+
+      await conn.query(`
+        UPDATE task_template_versions SET is_step_set_sealed = TRUE WHERE id = $1
+      `, [version.id]);
+
+      const [sealed] = await conn.query(`
+        SELECT is_step_set_sealed FROM task_template_versions WHERE id = $1
+      `, [version.id]);
+      assert.strictEqual(sealed.is_step_set_sealed, true);
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('rejects invalid safety-control version references', async () => {
+    const conn = await getConnection();
+    try {
+      const templateA = await createTestTemplate(conn);
+      const templateB = await createTestTemplate(conn);
+
+      const [controlB] = await conn.query(`
+        INSERT INTO task_template_safety_controls (
+          task_template_id, safety_type, description
+        ) VALUES ($1, 'insulation', 'Verify insulation')
+        RETURNING id
+      `, [templateB.id]);
+
+      const versionNo = await nextTemplateVersion(conn, templateA.id);
+      const [version] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id, template_name,
+          maintenance_type, lifecycle_state_at_publish
+        ) VALUES ($1, $2, $3, 'Cross Safety Test', 'corrective', 'published')
+        RETURNING id
+      `, [templateA.id, versionNo, templateA.equipment_type_id]);
+
+      const [stepNo] = await conn.query(`
+        SELECT COALESCE(MAX(step_no), 0) + 1 AS next_no FROM task_template_steps
+        WHERE task_template_id = $1
+      `, [templateA.id]);
+      const [step] = await conn.query(`
+        INSERT INTO task_template_steps (
+          task_template_id, step_no, step_type, instruction
+        ) VALUES ($1, $2, 'instruction', 'Do something')
+        RETURNING id
+      `, [templateA.id, stepNo.next_no]);
+
+      await conn.query(`
+        INSERT INTO task_template_step_versions (
+          task_template_version_id, step_no, task_template_step_id,
+          step_type, instruction
+        ) VALUES ($1, $2, $3, 'instruction', 'Do something')
+      `, [version.id, 1, step.id]);
+
+      let blocked = false;
+      await conn.query('SAVEPOINT bad_safety_control');
+      try {
+        await conn.query(`
+          INSERT INTO task_template_safety_control_versions (
+            task_template_version_id, task_template_safety_control_id,
+            safety_type, description
+          ) VALUES ($1, $2, 'insulation', 'Verify insulation')
+        `, [version.id, controlB.id]);
+      } catch (err) {
+        blocked = /does not belong to task_template_id|check_violation/i.test(err.message || '');
+        await conn.query('ROLLBACK TO SAVEPOINT bad_safety_control');
+      }
+      assert.ok(blocked, 'Safety control from another template should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
+
+  it('rejects safety-control version modification after parent is sealed', async () => {
+    const conn = await getConnection();
+    try {
+      const template = await createTestTemplate(conn);
+
+      const [control] = await conn.query(`
+        INSERT INTO task_template_safety_controls (
+          task_template_id, safety_type, description
+        ) VALUES ($1, 'grounding', 'Ensure grounding')
+        RETURNING id
+      `, [template.id]);
+
+      const versionNo = await nextTemplateVersion(conn, template.id);
+      const [version] = await conn.query(`
+        INSERT INTO task_template_versions (
+          task_template_id, version_number, equipment_type_id, template_name,
+          maintenance_type, lifecycle_state_at_publish
+        ) VALUES ($1, $2, $3, 'Seal Safety Test', 'corrective', 'published')
+        RETURNING id
+      `, [template.id, versionNo, template.equipment_type_id]);
+
+      const [stepNo] = await conn.query(`
+        SELECT COALESCE(MAX(step_no), 0) + 1 AS next_no FROM task_template_steps
+        WHERE task_template_id = $1
+      `, [template.id]);
+      const [step] = await conn.query(`
+        INSERT INTO task_template_steps (
+          task_template_id, step_no, step_type, instruction
+        ) VALUES ($1, $2, 'instruction', 'Do something')
+        RETURNING id
+      `, [template.id, stepNo.next_no]);
+
+      await conn.query(`
+        INSERT INTO task_template_step_versions (
+          task_template_version_id, step_no, task_template_step_id,
+          step_type, instruction
+        ) VALUES ($1, $2, $3, 'instruction', 'Do something')
+      `, [version.id, 1, step.id]);
+
+      const [scVersion] = await conn.query(`
+        INSERT INTO task_template_safety_control_versions (
+          task_template_version_id, task_template_safety_control_id,
+          safety_type, description
+        ) VALUES ($1, $2, 'grounding', 'Ensure grounding')
+        RETURNING id
+      `, [version.id, control.id]);
+      assert.ok(scVersion.id > 0);
+
+      await conn.query(`
+        UPDATE task_template_versions SET is_step_set_sealed = TRUE WHERE id = $1
+      `, [version.id]);
+
+      const [sealed] = await conn.query(`
+        SELECT is_step_set_sealed FROM task_template_versions WHERE id = $1
+      `, [version.id]);
+      assert.strictEqual(sealed.is_step_set_sealed, true);
+
+      let blockedUpdate = false;
+      await conn.query('SAVEPOINT update_sc_version');
+      try {
+        await conn.query(`
+          UPDATE task_template_safety_control_versions
+          SET description = 'tampered' WHERE id = $1
+        `, [scVersion.id]);
+      } catch (err) {
+        blockedUpdate = /immutable and cannot be UPDATE|insufficient_privilege/i.test(err.message || '');
+        await conn.query('ROLLBACK TO SAVEPOINT update_sc_version');
+      }
+      assert.ok(blockedUpdate, 'Update of safety-control version should be rejected');
+
+      let blockedDelete = false;
+      await conn.query('SAVEPOINT delete_sc_version');
+      try {
+        await conn.query(`DELETE FROM task_template_safety_control_versions WHERE id = $1`, [scVersion.id]);
+      } catch (err) {
+        blockedDelete = /immutable and cannot be DELETE|insufficient_privilege/i.test(err.message || '');
+        await conn.query('ROLLBACK TO SAVEPOINT delete_sc_version');
+      }
+      assert.ok(blockedDelete, 'Delete of safety-control version should be rejected');
+
+      let blockedInsert = false;
+      await conn.query('SAVEPOINT insert_after_seal');
+      try {
+        await conn.query(`
+          INSERT INTO task_template_safety_control_versions (
+            task_template_version_id, task_template_safety_control_id,
+            safety_type, description
+          ) VALUES ($1, $2, 'grounding', 'Ensure grounding')
+        `, [version.id, control.id]);
+      } catch (err) {
+        blockedInsert = /cannot add task_template_safety_control_versions to sealed|insufficient_privilege/i.test(err.message || '');
+        await conn.query('ROLLBACK TO SAVEPOINT insert_after_seal');
+      }
+      assert.ok(blockedInsert, 'Insert after seal should be rejected');
+
+      await conn.rollback();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  });
 });
