@@ -201,6 +201,127 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_template_version_evidence_step_version
 
 
 -- ============================================================
+-- Uploaded-file tenant scope enforcement
+-- A knowledge_source_version may reference only uploaded_files that share the
+-- same tenant scope. Global sources (NULL organization_id) must not reference
+-- tenant-scoped uploaded_files. Tenant sources must reference files with the
+-- matching organization_id. Additionally, an uploaded_files.organization_id may
+-- not change while the file is referenced by any knowledge_source_version.
+-- ============================================================
+CREATE OR REPLACE FUNCTION knowledge_source_version_uploaded_file_scope_check()
+RETURNS TRIGGER AS $$
+DECLARE
+    source_org_id INTEGER;
+    file_org_id INTEGER;
+BEGIN
+    IF NEW.uploaded_file_id IS NULL THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT s.organization_id INTO source_org_id
+    FROM knowledge_sources s
+    WHERE s.id = NEW.knowledge_source_id;
+
+    SELECT organization_id INTO file_org_id
+    FROM uploaded_files
+    WHERE id = NEW.uploaded_file_id;
+
+    IF source_org_id IS NULL AND file_org_id IS NOT NULL THEN
+        RAISE EXCEPTION 'global knowledge_source cannot reference tenant-scoped uploaded_file %', NEW.uploaded_file_id
+            USING ERRCODE = 'check_violation';
+    END IF;
+
+    IF source_org_id IS NOT NULL AND source_org_id IS DISTINCT FROM file_org_id THEN
+        RAISE EXCEPTION 'knowledge_source tenant scope does not match uploaded_file % organization_id', NEW.uploaded_file_id
+            USING ERRCODE = 'check_violation';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_knowledge_source_versions_uploaded_file_scope
+    ON knowledge_source_versions;
+
+CREATE TRIGGER trg_knowledge_source_versions_uploaded_file_scope
+    BEFORE INSERT OR UPDATE ON knowledge_source_versions
+    FOR EACH ROW
+    EXECUTE FUNCTION knowledge_source_version_uploaded_file_scope_check();
+
+CREATE OR REPLACE FUNCTION uploaded_files_scope_lock_check()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.organization_id IS DISTINCT FROM NEW.organization_id THEN
+        IF EXISTS (
+            SELECT 1 FROM knowledge_source_versions
+            WHERE uploaded_file_id = OLD.id
+        ) THEN
+            RAISE EXCEPTION 'uploaded_file % organization_id cannot change while referenced by knowledge_source_versions', OLD.id
+                USING ERRCODE = 'check_violation';
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_uploaded_files_scope_lock
+    ON uploaded_files;
+
+CREATE TRIGGER trg_uploaded_files_scope_lock
+    BEFORE UPDATE ON uploaded_files
+    FOR EACH ROW
+    EXECUTE FUNCTION uploaded_files_scope_lock_check();
+
+-- ============================================================
+-- Frozen provenance lineage: copied_from working evidence must not be deleted
+-- ============================================================
+ALTER TABLE knowledge_template_version_evidence
+    DROP CONSTRAINT IF EXISTS fk_knowledge_template_version_evidence_copied_from;
+
+ALTER TABLE knowledge_template_version_evidence
+    ADD CONSTRAINT fk_knowledge_template_version_evidence_copied_from
+    FOREIGN KEY (copied_from_template_evidence_id) REFERENCES knowledge_template_evidence(id) ON DELETE RESTRICT;
+
+-- ============================================================
+-- Lock stable source identity once versions exist
+-- ============================================================
+CREATE OR REPLACE FUNCTION knowledge_sources_identity_lock_check()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM knowledge_source_versions
+        WHERE knowledge_source_id = OLD.id
+    ) THEN
+        IF OLD.organization_id IS DISTINCT FROM NEW.organization_id THEN
+            RAISE EXCEPTION 'knowledge_source % organization_id cannot change after source versions exist', OLD.id
+                USING ERRCODE = 'check_violation';
+        END IF;
+        IF OLD.source_code IS DISTINCT FROM NEW.source_code THEN
+            RAISE EXCEPTION 'knowledge_source % source_code cannot change after source versions exist', OLD.id
+                USING ERRCODE = 'check_violation';
+        END IF;
+        IF OLD.source_category IS DISTINCT FROM NEW.source_category THEN
+            RAISE EXCEPTION 'knowledge_source % source_category cannot change after source versions exist', OLD.id
+                USING ERRCODE = 'check_violation';
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_knowledge_sources_scope_lock
+    ON knowledge_sources;
+DROP TRIGGER IF EXISTS trg_knowledge_sources_identity_lock
+    ON knowledge_sources;
+
+CREATE TRIGGER trg_knowledge_sources_identity_lock
+    BEFORE UPDATE ON knowledge_sources
+    FOR EACH ROW
+    EXECUTE FUNCTION knowledge_sources_identity_lock_check();
+
+-- ============================================================
 -- Freeze published provenance SET: INSERT only while parent version is unsealed
 -- ============================================================
 CREATE OR REPLACE FUNCTION provenance_version_insert_guard()
@@ -305,34 +426,7 @@ CREATE TRIGGER trg_knowledge_template_version_evidence_tenant_scope
     FOR EACH ROW
     EXECUTE FUNCTION provenance_tenant_scope_check();
 
--- ============================================================
--- Source organization scope lock: once a source has versions, its
--- organization_id may not change to another scope.
--- ============================================================
-CREATE OR REPLACE FUNCTION knowledge_source_scope_lock_check()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF OLD.organization_id IS DISTINCT FROM NEW.organization_id THEN
-        IF EXISTS (
-            SELECT 1 FROM knowledge_source_versions
-            WHERE knowledge_source_id = OLD.id
-        ) THEN
-            RAISE EXCEPTION 'knowledge_source % organization_id cannot change after source versions exist', OLD.id
-                USING ERRCODE = 'check_violation';
-        END IF;
-    END IF;
 
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS trg_knowledge_sources_scope_lock
-    ON knowledge_sources;
-
-CREATE TRIGGER trg_knowledge_sources_scope_lock
-    BEFORE UPDATE ON knowledge_sources
-    FOR EACH ROW
-    EXECUTE FUNCTION knowledge_source_scope_lock_check();
 
 -- ============================================================
 -- Immutability: knowledge_source_versions must not be updated or deleted
